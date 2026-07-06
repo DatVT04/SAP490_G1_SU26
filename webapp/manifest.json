@@ -1,0 +1,139 @@
+{
+  "_version": "1.59.0",
+  "sap.app": {
+    "id": "com.qdavy.procurement",
+    "type": "application",
+    "i18n": "i18n/i18n.properties",
+    "applicationVersion": {
+      "version": "1.0.0"
+    },
+    "title": "{{appTitle}}",
+    "description": "{{appDescription}}",
+    "dataSources": {
+      "mainService": {
+        "uri": "/sap/opu/odata/sap/ZG1_PROC_SRV/",
+        "type": "OData",
+        "settings": {
+          "odataVersion": "2.0",
+          "localUri": "localService/metadata.xml"
+        }
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "icons": {
+      "icon": "",
+      "favIcon": ""
+    },
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
+  },
+  "sap.ui5": {
+    "rootView": {
+      "viewName": "com.qdavy.procurement.view.App",
+      "type": "XML",
+      "id": "app"
+    },
+    "dependencies": {
+      "minUI5Version": "1.120.0",
+      "libs": {
+        "sap.m": {},
+        "sap.ui.core": {},
+        "sap.f": {}
+      }
+    },
+    "handleValidation": true,
+    "models": {
+      "i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "settings": {
+          "bundleName": "com.qdavy.procurement.i18n.i18n"
+        }
+      },
+      "": {
+        "dataSource": "mainService",
+        "preload": true,
+        "settings": {
+          "defaultBindingMode": "TwoWay",
+          "defaultCountMode": "Inline"
+        }
+      }
+    },
+    "resources": {
+      "css": [
+        {
+          "uri": "css/style.css"
+        }
+      ]
+    },
+    "routing": {
+      "config": {
+        "routerClass": "sap.m.routing.Router",
+        "viewType": "XML",
+        "viewPath": "com.qdavy.procurement.view",
+        "controlId": "appContainer",
+        "controlAggregation": "pages",
+        "transition": "slide",
+        "async": true
+      },
+      "routes": [
+        {
+          "name": "login",
+          "pattern": "",
+          "target": "login"
+        },
+        {
+          "name": "dashboard",
+          "pattern": "dashboard",
+          "target": "dashboard"
+        },
+        {
+          "name": "pr01",
+          "pattern": "create-pr",
+          "target": "pr01"
+        },
+        {
+          "name": "pr02",
+          "pattern": "approve-pr",
+          "target": "pr02"
+        },
+        {
+          "name": "po01",
+          "pattern": "create-po",
+          "target": "po01"
+        }
+      ],
+      "targets": {
+        "login": {
+          "viewName": "Login",
+          "viewId": "login",
+          "viewLevel": 0
+        },
+        "dashboard": {
+          "viewName": "Dashboard",
+          "viewId": "dashboard",
+          "viewLevel": 1
+        },
+        "pr01": {
+          "viewName": "PR01",
+          "viewId": "pr01",
+          "viewLevel": 2
+        },
+        "pr02": {
+          "viewName": "PR02",
+          "viewId": "pr02",
+          "viewLevel": 2
+        },
+        "po01": {
+          "viewName": "PO01",
+          "viewId": "po01",
+          "viewLevel": 2
+        }
+      }
+    }
+  }
+}

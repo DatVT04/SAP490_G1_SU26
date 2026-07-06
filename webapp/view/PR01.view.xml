@@ -1,0 +1,17 @@
+<mvc:View
+	controllerName="com.qdavy.procurement.controller.PR01"
+	xmlns="sap.m"
+	xmlns:mvc="sap.ui.core.mvc"
+	displayBlock="true"
+>
+	<Page title="{i18n>tilePr01Title}" showNavButton="true" navButtonPress=".onNavBack">
+		<content>
+			<MessageStrip
+				class="sapUiMediumMargin"
+				type="Information"
+				text="PR-01: Tạo Đề nghị mua sắm - đang phát triển."
+				showIcon="true"
+			/>
+		</content>
+	</Page>
+</mvc:View>

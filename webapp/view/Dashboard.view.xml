@@ -1,0 +1,54 @@
+<mvc:View
+	controllerName="com.qdavy.procurement.controller.Dashboard"
+	xmlns="sap.m"
+	xmlns:mvc="sap.ui.core.mvc"
+	xmlns:f="sap.f"
+	displayBlock="true"
+>
+	<Page title="{i18n>appTitle}">
+		<headerContent>
+			<Text text="{user>/fullName} ({user>/position})" class="sapUiTinyMarginEnd"/>
+			<Button icon="sap-icon://log" text="{i18n>logoutButton}" press=".onLogoutPress"/>
+		</headerContent>
+		<content>
+			<f:GridContainer class="sapUiMediumMargin">
+				<GenericTile
+					header="{i18n>tilePr01Title}"
+					subheader="{i18n>tilePr01Subtitle}"
+					press=".onNavToPR01"
+					visible="{= ${user>/role} === 'REQUESTER' }"
+				>
+					<TileContent footer="PR-01">
+						<content>
+							<core:Icon xmlns:core="sap.ui.core" src="sap-icon://add-document" size="2.5rem"/>
+						</content>
+					</TileContent>
+				</GenericTile>
+				<GenericTile
+					header="{i18n>tilePr02Title}"
+					subheader="{i18n>tilePr02Subtitle}"
+					press=".onNavToPR02"
+					visible="{= ['CEO','TRUONG_BO_PHAN_MUA_SAM','CFO','LEGAL'].indexOf(${user>/role}) !== -1 }"
+				>
+					<TileContent footer="PR-02">
+						<content>
+							<core:Icon xmlns:core="sap.ui.core" src="sap-icon://approvals" size="2.5rem"/>
+						</content>
+					</TileContent>
+				</GenericTile>
+				<GenericTile
+					header="{i18n>tilePo01Title}"
+					subheader="{i18n>tilePo01Subtitle}"
+					press=".onNavToPO01"
+					visible="{= ${user>/role} === 'PURCHASING' }"
+				>
+					<TileContent footer="PO-01">
+						<content>
+							<core:Icon xmlns:core="sap.ui.core" src="sap-icon://supplier" size="2.5rem"/>
+						</content>
+					</TileContent>
+				</GenericTile>
+			</f:GridContainer>
+		</content>
+	</Page>
+</mvc:View>

@@ -1,0 +1,17 @@
+<mvc:View
+	controllerName="com.qdavy.procurement.controller.PO01"
+	xmlns="sap.m"
+	xmlns:mvc="sap.ui.core.mvc"
+	displayBlock="true"
+>
+	<Page title="{i18n>tilePo01Title}" showNavButton="true" navButtonPress=".onNavBack">
+		<content>
+			<MessageStrip
+				class="sapUiMediumMargin"
+				type="Information"
+				text="PO-01: Chọn nhà cung cấp (PAMS) &amp; Tạo PO - đang phát triển."
+				showIcon="true"
+			/>
+		</content>
+	</Page>
+</mvc:View>
