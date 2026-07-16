@@ -2,16 +2,91 @@
 	controllerName="com.qdavy.procurement.controller.PO01"
 	xmlns="sap.m"
 	xmlns:mvc="sap.ui.core.mvc"
+	xmlns:form="sap.ui.layout.form"
+	xmlns:core="sap.ui.core"
 	displayBlock="true"
 >
 	<Page title="{i18n>tilePo01Title}" showNavButton="true" navButtonPress=".onNavBack">
 		<content>
-			<MessageStrip
-				class="sapUiMediumMargin"
-				type="Information"
-				text="PO-01: Chọn nhà cung cấp (PAMS) &amp; Tạo PO - đang phát triển."
-				showIcon="true"
-			/>
+			<VBox class="qdFormCard qdFormCardPurple">
+				<form:SimpleForm
+					editable="true"
+					layout="ResponsiveGridLayout"
+					labelSpanXL="3" labelSpanL="3" labelSpanM="4" labelSpanS="12"
+					adjustLabelSpan="false"
+				>
+					<core:Title text="{i18n>tilePo01Title}" class="qdFormSectionTitle qdFormSectionTitlePurple"/>
+
+					<Label text="{i18n>poVendorLabel}"/>
+					<Select
+						id="vendorSelect"
+						forceSelection="false"
+						items="{/vendors}"
+						selectedKey="{/vendorNo}"
+						width="100%"
+					>
+						<core:Item key="{VendorNo}" text="{VendorName} ({VendorNo}) - {parts:['Rating'], formatter:'.formatRating'}"/>
+					</Select>
+
+					<Label text=" "/>
+					<HBox>
+						<Button text="{i18n>poAiSuggestButton}" icon="sap-icon://ai" press=".onAiSuggestPress"/>
+					</HBox>
+				</form:SimpleForm>
+
+				<MessageStrip
+					class="qdAiMessageStrip"
+					type="Information"
+					showIcon="true"
+					visible="{= !!${/aiRecommendation} }"
+					text="{/aiRecommendation}"
+				/>
+			</VBox>
+
+			<VBox class="qdTableCard qdTableCardPurple">
+				<Toolbar>
+					<Title text="{i18n>poItemsTitle}"/>
+					<ToolbarSpacer/>
+					<Button text="{i18n>poAddItemButton}" icon="sap-icon://add" press=".onAddItemPress"/>
+				</Toolbar>
+
+				<Table id="itemsTable" items="{/items}" noDataText=" ">
+					<columns>
+						<Column><Text text="{i18n>poItemMaterial}"/></Column>
+						<Column hAlign="End"><Text text="{i18n>poItemQuantity}"/></Column>
+						<Column hAlign="End"><Text text="{i18n>poItemPrice}"/></Column>
+						<Column><Text text="{i18n>poItemCostCenter}"/></Column>
+						<Column><Text text="{i18n>poItemAssetNo}"/></Column>
+						<Column/>
+					</columns>
+					<items>
+						<ColumnListItem>
+							<cells>
+								<Select
+									forceSelection="false"
+									items="{/materials}"
+									selectedKey="{materialNo}"
+									change=".onItemMaterialChange"
+									width="100%"
+								>
+									<core:Item key="{MaterialNo}" text="{MaterialNo} - {Description}"/>
+								</Select>
+								<Input value="{quantity}" type="Number" valueLiveUpdate="true" liveChange=".onItemValueChange"/>
+								<Input value="{netPrice}" type="Number" valueLiveUpdate="true" liveChange=".onItemValueChange"/>
+								<Input value="{costCenter}" visible="{= ${materialType} !== 'ZAST' }" placeholder="VD: CC-0100"/>
+								<Input value="{assetNo}" visible="{= ${materialType} === 'ZAST' }" placeholder="VD: 100000-0"/>
+								<Button icon="sap-icon://delete" type="Transparent" press=".onRemoveItemPress"/>
+							</cells>
+						</ColumnListItem>
+					</items>
+				</Table>
+			</VBox>
+
+			<Toolbar class="sapUiResponsiveMargin">
+				<ToolbarSpacer/>
+				<Text text="{= 'Tong: ' + ${/totalValue} + ' VND' }" class="qdTotalAmount"/>
+				<Button text="{i18n>poSubmitButton}" type="Emphasized" press=".onSubmitPress"/>
+			</Toolbar>
 		</content>
 	</Page>
 </mvc:View>

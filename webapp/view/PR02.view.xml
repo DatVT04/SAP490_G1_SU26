@@ -2,16 +2,76 @@
 	controllerName="com.qdavy.procurement.controller.PR02"
 	xmlns="sap.m"
 	xmlns:mvc="sap.ui.core.mvc"
+	xmlns:core="sap.ui.core"
 	displayBlock="true"
 >
 	<Page title="{i18n>tilePr02Title}" showNavButton="true" navButtonPress=".onNavBack">
+		<headerContent>
+			<Button icon="sap-icon://refresh" text="{i18n>pr02RefreshButton}" press=".onRefreshPress"/>
+		</headerContent>
 		<content>
-			<MessageStrip
-				class="sapUiMediumMargin"
-				type="Information"
-				text="PR-02: Màn hình phê duyệt - đang phát triển."
-				showIcon="true"
-			/>
+			<VBox class="qdTableCard qdTableCardAmber">
+				<Table
+					id="pendingTable"
+					items="{/pending}"
+					noDataText="{i18n>pr02EmptyText}"
+				>
+					<columns>
+						<Column><Text text="{i18n>pr02ColPRId}"/></Column>
+						<Column><Text text="{i18n>pr02ColRequester}"/></Column>
+						<Column><Text text="{i18n>pr02ColMaterial}"/></Column>
+						<Column hAlign="End"><Text text="{i18n>pr02ColQuantity}"/></Column>
+						<Column hAlign="End"><Text text="{i18n>pr02ColValue}"/></Column>
+						<Column><Text text="{i18n>pr02ColCostCenterAsset}"/></Column>
+						<Column><Text text="{i18n>pr02ColEscalation}"/></Column>
+						<Column/>
+					</columns>
+					<items>
+						<ColumnListItem>
+							<cells>
+								<ObjectIdentifier title="{PRId}"/>
+								<Text text="{RequesterEmail}"/>
+								<VBox>
+									<Text text="{MaterialNo} - {Description}"/>
+									<Text text="{MaterialType}" class="sapUiTinyMarginTop"/>
+								</VBox>
+								<Text text="{parts: ['Quantity','UoM'], formatter: '.formatQty'}"/>
+								<Text text="{parts: ['TotalValue','Currency'], formatter: '.formatValue'}"/>
+								<Text text="{= ${MaterialType} === 'ZAST' ? ${AssetNo} : ${CostCenter} }"/>
+								<VBox>
+									<ObjectStatus
+										text="{i18n>pr02FlagLegal}"
+										state="Warning"
+										visible="{needsLegalReview}"
+										icon="sap-icon://alert"
+										class="qdBadgeWarning"
+									/>
+									<ObjectStatus
+										text="{i18n>pr02FlagPams}"
+										state="Error"
+										visible="{needsProcurementHeadReview}"
+										icon="sap-icon://alert"
+										class="qdBadgeDanger"
+									/>
+								</VBox>
+								<HBox>
+									<Button
+										text="{i18n>pr02Approve}"
+										type="Accept"
+										press=".onApprovePress"
+										class="sapUiTinyMarginEnd"
+									/>
+									<Button
+										text="{i18n>pr02Reject}"
+										type="Reject"
+										press=".onRejectPress"
+									/>
+								</HBox>
+							</cells>
+						</ColumnListItem>
+					</items>
+				</Table>
+			</VBox>
 		</content>
 	</Page>
 </mvc:View>

@@ -2,16 +2,76 @@
 	controllerName="com.qdavy.procurement.controller.PR01"
 	xmlns="sap.m"
 	xmlns:mvc="sap.ui.core.mvc"
+	xmlns:form="sap.ui.layout.form"
+	xmlns:core="sap.ui.core"
 	displayBlock="true"
 >
 	<Page title="{i18n>tilePr01Title}" showNavButton="true" navButtonPress=".onNavBack">
 		<content>
-			<MessageStrip
-				class="sapUiMediumMargin"
-				type="Information"
-				text="PR-01: Tạo Đề nghị mua sắm - đang phát triển."
-				showIcon="true"
-			/>
+			<VBox class="qdFormCard qdFormCardBlue">
+				<form:SimpleForm
+					editable="true"
+					layout="ResponsiveGridLayout"
+					labelSpanXL="4" labelSpanL="4" labelSpanM="4" labelSpanS="12"
+					adjustLabelSpan="false"
+					emptySpanXL="4" emptySpanL="4" emptySpanM="4" emptySpanS="0"
+					columnsXL="1" columnsL="1" columnsM="1"
+				>
+					<core:Title text="{i18n>tilePr01Title}" class="qdFormSectionTitle qdFormSectionTitleBlue"/>
+
+					<Label text="{i18n>prRequesterLabel}"/>
+					<Text text="{user>/fullName} ({user>/email})"/>
+
+					<Label text="{i18n>prMaterialLabel}"/>
+					<Select
+						id="materialSelect"
+						forceSelection="false"
+						items="{/materials}"
+						change=".onMaterialChange"
+						width="100%"
+					>
+						<core:Item key="{MaterialNo}" text="{MaterialNo} - {Description} ({MaterialType})"/>
+					</Select>
+
+					<Label text="{i18n>prDescriptionLabel}"/>
+					<Input value="{/form/description}"/>
+
+					<Label text="{i18n>prQuantityLabel}"/>
+					<Input value="{/form/quantity}" type="Number"/>
+
+					<Label text="{i18n>prUomLabel}"/>
+					<Input value="{/form/uom}" editable="false"/>
+
+					<Label text="{i18n>prValueLabel}"/>
+					<Input value="{/form/estimatedValue}" type="Number"/>
+
+					<Label text="{i18n>prCurrencyLabel}"/>
+					<Select selectedKey="{/form/currency}" width="100%">
+						<core:Item key="VND" text="VND"/>
+						<core:Item key="USD" text="USD"/>
+					</Select>
+
+					<Label text="{i18n>prCostCenterLabel}" visible="{= ${/form/materialType} !== 'ZAST' }"/>
+					<Input
+						value="{/form/costCenter}"
+						visible="{= ${/form/materialType} !== 'ZAST' }"
+						placeholder="VD: CC-0300"
+					/>
+
+					<Label text="{i18n>prAssetNoLabel}" visible="{= ${/form/materialType} === 'ZAST' }"/>
+					<Input
+						value="{/form/assetNo}"
+						visible="{= ${/form/materialType} === 'ZAST' }"
+						placeholder="{i18n>prAssetNoPlaceholder}"
+					/>
+				</form:SimpleForm>
+			</VBox>
+
+			<Toolbar class="sapUiResponsiveMargin">
+				<ToolbarSpacer/>
+				<Button text="{i18n>prResetButton}" press=".onResetPress"/>
+				<Button text="{i18n>prSubmitButton}" type="Emphasized" press=".onSubmitPress"/>
+			</Toolbar>
 		</content>
 	</Page>
 </mvc:View>

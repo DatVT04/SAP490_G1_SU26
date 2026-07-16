@@ -10,16 +10,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yenphhs170751-beep/SAP490_G1.git"
+    "url": "git+https://github.com/yenphhs170751-beep/SAP490_G1_SU26.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/yenphhs170751-beep/SAP490_G1/issues"
+    "url": "https://github.com/yenphhs170751-beep/SAP490_G1_SU26/issues"
   },
-  "homepage": "https://github.com/yenphhs170751-beep/SAP490_G1#readme",
+  "homepage": "https://github.com/yenphhs170751-beep/SAP490_G1_SU26#readme",
   "devDependencies": {
     "@ui5/cli": "^4.0.57"
   },

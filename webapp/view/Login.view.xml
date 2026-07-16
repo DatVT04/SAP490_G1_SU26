@@ -5,29 +5,52 @@
 	xmlns:core="sap.ui.core"
 	displayBlock="true"
 >
-	<Page title="{i18n>loginTitle}" showHeader="false">
+	<Page title="{i18n>loginTitle}" showHeader="false" class="qdLoginPage">
 		<content>
-			<VBox class="sapUiMediumMargin loginBox" alignItems="Center" justifyContent="Center">
-				<core:Icon src="sap-icon://shipping-status" size="3rem" class="sapUiMediumMarginBottom"/>
-				<Title text="{i18n>appTitle}" level="H2" class="sapUiSmallMarginBottom"/>
-				<Label text="{i18n>loginEmailLabel}" labelFor="emailInput" class="sapUiTinyMarginBottom"/>
-				<Input
-					id="emailInput"
-					width="20rem"
-					type="Email"
-					placeholder="{i18n>loginEmailPlaceholder}"
-					value="{/email}"
-					submit=".onLoginPress"
-					class="sapUiSmallMarginBottom"
-				/>
-				<Button
-					id="loginButton"
-					text="{i18n>loginButton}"
-					type="Emphasized"
-					width="20rem"
-					press=".onLoginPress"
-				/>
-			</VBox>
+			<HBox class="qdLoginSplit" alignItems="Stretch">
+				<VBox class="qdLoginLeft" justifyContent="Center">
+					<core:Icon src="sap-icon://shipping-status" size="3rem" class="qdBrandIcon sapUiMediumMarginBottom"/>
+					<Title text="{i18n>appTitle}" level="H1" class="qdLoginTitle sapUiTinyMarginBottom"/>
+					<Text text="{i18n>loginTagline}" class="qdLoginTagline sapUiLargeMarginBottom"/>
+					<VBox class="qdFeatureRow">
+						<HBox alignItems="Center" class="sapUiTinyMarginBottom">
+							<core:Icon src="sap-icon://add-document" size="1.2rem" class="qdFeatureIcon sapUiTinyMarginEnd"/>
+							<Text text="{i18n>loginFeature1}"/>
+						</HBox>
+						<HBox alignItems="Center" class="sapUiTinyMarginBottom">
+							<core:Icon src="sap-icon://approvals" size="1.2rem" class="qdFeatureIcon sapUiTinyMarginEnd"/>
+							<Text text="{i18n>loginFeature2}"/>
+						</HBox>
+						<HBox alignItems="Center">
+							<core:Icon src="sap-icon://supplier" size="1.2rem" class="qdFeatureIcon sapUiTinyMarginEnd"/>
+							<Text text="{i18n>loginFeature3}"/>
+						</HBox>
+					</VBox>
+				</VBox>
+				<VBox class="qdLoginRight" justifyContent="Center" alignItems="Center">
+					<VBox class="qdLoginCard">
+						<Title text="{i18n>loginWelcome}" level="H3" class="sapUiTinyMarginBottom"/>
+						<Text text="{i18n>loginSubtext}" class="qdMutedText sapUiMediumMarginBottom"/>
+						<Label text="{i18n>loginEmailLabel}" labelFor="emailInput" class="sapUiTinyMarginBottom"/>
+						<Input
+							id="emailInput"
+							width="100%"
+							type="Email"
+							placeholder="{i18n>loginEmailPlaceholder}"
+							value="{/email}"
+							submit=".onLoginPress"
+							class="sapUiMediumMarginBottom"
+						/>
+						<Button
+							id="loginButton"
+							text="{i18n>loginButton}"
+							type="Emphasized"
+							width="100%"
+							press=".onLoginPress"
+						/>
+					</VBox>
+				</VBox>
+			</HBox>
 		</content>
 	</Page>
 </mvc:View>

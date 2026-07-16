@@ -79,12 +79,27 @@ Ngưỡng phê duyệt (trong [server.js](server.js)):
 # Đăng nhập
 curl -X POST http://localhost:3001/api/login -H "Content-Type: application/json" -d "{\"email\":\"ceo@qdavy.com\"}"
 
+# Danh sách vật tư / nhà cung cấp
+curl http://localhost:3001/api/materials
+curl http://localhost:3001/api/vendors
+
 # Lấy danh sách đề nghị mua sắm đang chờ duyệt
 curl http://localhost:3001/api/approval/pending
 
-# Tạo đề nghị mua sắm mới
-curl -X POST http://localhost:3001/api/approval/submit -H "Content-Type: application/json" -d "{\"requesterEmail\":\"nhanvien@qdavy.com\",\"materialName\":\"Bulong M10\",\"quantity\":1000,\"totalValue\":50000000,\"costCenter\":\"CC-0300\"}"
+# Tạo đề nghị mua sắm mới (vật tư dịch vụ, ZSRV -> bắt buộc costCenter)
+curl -X POST http://localhost:3001/api/approval/submit -H "Content-Type: application/json" -d "{\"requesterEmail\":\"nhanvien@qdavy.com\",\"materialNo\":\"MAT-002\",\"materialType\":\"ZSRV\",\"description\":\"Bulong M10\",\"quantity\":1000,\"uom\":\"PC\",\"totalValue\":50000000,\"currency\":\"VND\",\"costCenter\":\"CC-0300\"}"
+
+# Tạo đề nghị mua sắm tài sản CNTT (ZAST -> bắt buộc assetNo, tạo qua AS01 bên SAP)
+curl -X POST http://localhost:3001/api/approval/submit -H "Content-Type: application/json" -d "{\"requesterEmail\":\"nhanvien@qdavy.com\",\"materialNo\":\"MAT-100\",\"materialType\":\"ZAST\",\"description\":\"Laptop Dell Latitude 5540\",\"quantity\":1,\"uom\":\"PC\",\"totalValue\":25000000,\"currency\":\"VND\",\"assetNo\":\"100000-0\"}"
 
 # Duyệt/từ chối đề nghị
 curl -X PATCH http://localhost:3001/api/approval/PR-2026-0001 -H "Content-Type: application/json" -d "{\"status\":\"APPROVED\",\"comment\":\"OK\"}"
+
+# Tạo Purchase Order (PO-01)
+curl -X POST http://localhost:3001/api/po/create -H "Content-Type: application/json" -d "{\"vendorNo\":\"8000001\",\"items\":[{\"materialNo\":\"MAT-002\",\"materialType\":\"ZSRV\",\"description\":\"Bulong M10\",\"quantity\":1000,\"uom\":\"PC\",\"netPrice\":50000,\"costCenter\":\"CC-0300\"}]}"
+
+# Gợi ý nhà cung cấp bằng AI (cần GROQ_API_KEY trong .env)
+curl -X POST http://localhost:3001/api/ai/recommend-vendor -H "Content-Type: application/json" -d "{\"materialName\":\"Bulong M10\",\"materialGroup\":\"ZSRV\",\"quantity\":1000,\"budget\":50000000}"
 ```
+
+Ghi chú: khi `SAP_HOST` được cấu hình trong `.env`, `POST /api/approval/submit` và `POST /api/po/create` sẽ gọi thêm OData service `ZG1_PROC_SRV_SRV` (PurchaseRequisitionSet / PurchaseOrderHeaderSet) để tạo dữ liệu thật bên SAP — nếu SAP lỗi/không kết nối được, request vẫn trả về thành công với dữ liệu demo (`sapIntegration: "failed"` hoặc `"mock"`), không chặn luồng UI.

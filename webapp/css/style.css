@@ -1,4 +1,317 @@
-.loginBox {
-	margin: 4rem auto;
+/* ==========================================================================
+   QDAVY Procurement — theme variables & layout
+   ========================================================================== */
+:root {
+	--qd-primary: #14294D;
+	--qd-primary-dark: #0C1A30;
+	--qd-primary-light: #24406B;
+	--qd-accent-blue: #2563EB;
+	--qd-accent-green: #16A34A;
+	--qd-accent-amber: #D97706;
+	--qd-accent-purple: #7C3AED;
+	--qd-bg: #F3F5F9;
+	--qd-card-bg: #FFFFFF;
+	--qd-text-muted: #64748B;
+	--qd-border: #E2E8F0;
+	--qd-radius-lg: 16px;
+	--qd-radius-md: 12px;
+	--qd-shadow: 0 4px 16px rgba(20, 41, 77, 0.08);
+	--qd-shadow-hover: 0 10px 28px rgba(20, 41, 77, 0.16);
+	--qd-danger: #DC2626;
+}
+
+html, body {
+	background: var(--qd-bg);
+}
+
+/* ==========================================================================
+   Login screen
+   ========================================================================== */
+.qdLoginPage .sapMPage {
+	background: var(--qd-bg);
+}
+
+.qdLoginSplit {
+	min-height: 100vh;
+}
+
+.qdLoginLeft {
+	flex: 1.1 1.1 0%;
+	background: linear-gradient(135deg, var(--qd-primary) 0%, var(--qd-primary-dark) 100%);
+	padding: 4rem 3.5rem;
+	position: relative;
+	overflow: hidden;
+}
+
+.qdLoginLeft::before {
+	content: "";
+	position: absolute;
+	width: 26rem;
+	height: 26rem;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.05);
+	top: -9rem;
+	right: -9rem;
+}
+
+.qdLoginLeft::after {
+	content: "";
+	position: absolute;
+	width: 18rem;
+	height: 18rem;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.04);
+	bottom: -6rem;
+	left: -5rem;
+}
+
+.qdBrandIcon,
+.qdLoginTitle,
+.qdLoginTitle .sapMTitle,
+.qdFeatureIcon {
+	color: #FFFFFF !important;
+}
+
+.qdLoginTagline {
+	color: rgba(255, 255, 255, 0.75) !important;
+	max-width: 22rem;
+	display: block;
+}
+
+.qdFeatureRow .sapMText {
+	color: rgba(255, 255, 255, 0.92) !important;
+}
+
+.qdLoginRight {
+	flex: 1 1 0%;
+	background: var(--qd-bg);
+	padding: 2rem;
+}
+
+.qdLoginCard {
+	background: var(--qd-card-bg);
+	border-radius: var(--qd-radius-lg);
+	box-shadow: var(--qd-shadow);
+	padding: 2.5rem;
 	max-width: 24rem;
+	width: 100%;
+}
+
+.qdLoginCard .sapMTitle {
+	color: var(--qd-primary);
+}
+
+.qdMutedText {
+	color: var(--qd-text-muted) !important;
+}
+
+.qdLoginCard .sapMInputBaseContentWrapper {
+	border-radius: 8px;
+}
+
+.qdLoginCard .sapMBtn {
+	border-radius: 8px;
+}
+
+@media (max-width: 60rem) {
+	.qdLoginLeft {
+		display: none;
+	}
+}
+
+/* ==========================================================================
+   Global button accent
+   ========================================================================== */
+.sapMBtnEmphasized {
+	background-color: var(--qd-primary) !important;
+	border-color: var(--qd-primary) !important;
+}
+
+.sapMBtnEmphasized:hover {
+	background-color: var(--qd-primary-light) !important;
+}
+
+/* ==========================================================================
+   Dashboard
+   ========================================================================== */
+.qdDashHero {
+	background: linear-gradient(135deg, var(--qd-primary) 0%, var(--qd-primary-light) 100%);
+	border-radius: var(--qd-radius-lg);
+	padding: 2rem 2.5rem;
+	margin: 1.5rem 1.5rem 0.5rem 1.5rem;
+	box-shadow: var(--qd-shadow);
+}
+
+.qdDashHero .sapMTitle,
+.qdDashHero .sapMText {
+	color: #FFFFFF !important;
+}
+
+.qdRoleBadge {
+	display: inline-block;
+	background: rgba(255, 255, 255, 0.15);
+	border: 1px solid rgba(255, 255, 255, 0.35);
+	border-radius: 999px;
+	padding: 0.25rem 0.9rem;
+	margin-top: 0.6rem;
+	font-size: 0.8rem;
+	color: #FFFFFF !important;
+}
+
+.qdSectionTitle {
+	margin: 1.5rem 1.5rem 0.5rem 1.5rem;
+	color: var(--qd-primary) !important;
+}
+
+.qdTileGrid {
+	margin: 0 1rem 1.5rem 1rem;
+}
+
+.qdTile.sapMGT {
+	border-radius: var(--qd-radius-md) !important;
+	box-shadow: var(--qd-shadow) !important;
+	background: var(--qd-card-bg) !important;
+	border: none !important;
+	overflow: hidden;
+	transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.qdTile.sapMGT:hover {
+	transform: translateY(-4px);
+	box-shadow: var(--qd-shadow-hover) !important;
+}
+
+.qdTile .sapMGTHdrTxt,
+.qdTile .sapMTileTitle {
+	color: var(--qd-primary) !important;
+	font-weight: 600 !important;
+}
+
+.qdTile .sapMTileCntFtrTxt {
+	color: var(--qd-text-muted) !important;
+}
+
+.qdTile .sapMTileCntIcon,
+.qdTile .sapMTileIcon,
+.qdTile .sapUiIcon {
+	color: #FFFFFF !important;
+	border-radius: 50%;
+	padding: 0.6rem;
+}
+
+.qdTileBlue .sapMTileCntIcon,
+.qdTileBlue .sapUiIcon {
+	background: var(--qd-accent-blue);
+}
+
+.qdTileAmber .sapMTileCntIcon,
+.qdTileAmber .sapUiIcon {
+	background: var(--qd-accent-amber);
+}
+
+.qdTilePurple .sapMTileCntIcon,
+.qdTilePurple .sapUiIcon {
+	background: var(--qd-accent-purple);
+}
+
+.qdTileGreen .sapMTileCntIcon,
+.qdTileGreen .sapUiIcon {
+	background: var(--qd-accent-green);
+}
+
+/* ==========================================================================
+   PR01 / PR02 / PO01 — shared card & badge patterns
+   ========================================================================== */
+.qdFormCard {
+	background: var(--qd-card-bg);
+	border-radius: var(--qd-radius-lg);
+	box-shadow: var(--qd-shadow);
+	border-top: 4px solid var(--qd-primary);
+	padding: 2rem 2.5rem 2.5rem 2.5rem;
+	max-width: 48rem;
+	width: 100%;
+	margin: 1.5rem auto;
+}
+
+.qdFormCardBlue { border-top-color: var(--qd-accent-blue); }
+.qdFormCardAmber { border-top-color: var(--qd-accent-amber); }
+.qdFormCardPurple { border-top-color: var(--qd-accent-purple); }
+
+.qdFormSectionTitle {
+	color: var(--qd-primary) !important;
+}
+
+.qdFormSectionTitleBlue { color: var(--qd-accent-blue) !important; }
+.qdFormSectionTitleAmber { color: var(--qd-accent-amber) !important; }
+.qdFormSectionTitlePurple { color: var(--qd-accent-purple) !important; }
+
+.qdFormCard .sapMInputBaseContentWrapper,
+.qdTableCard .sapMInputBaseContentWrapper {
+	border-radius: 8px;
+}
+
+.qdTableCard {
+	background: var(--qd-card-bg);
+	border-radius: var(--qd-radius-lg);
+	box-shadow: var(--qd-shadow);
+	border-top: 4px solid var(--qd-primary);
+	padding: 0.5rem 1rem 1rem 1rem;
+	margin: 1.5rem;
+}
+
+.qdTableCardBlue { border-top-color: var(--qd-accent-blue); }
+.qdTableCardAmber { border-top-color: var(--qd-accent-amber); }
+.qdTableCardPurple { border-top-color: var(--qd-accent-purple); }
+
+/* Escalation badges (PR-02) */
+.qdBadgeWarning,
+.qdBadgeDanger {
+	display: inline-flex;
+	align-items: center;
+	border-radius: 999px;
+	padding: 0.2rem 0.75rem;
+	margin-bottom: 0.25rem;
+}
+
+.qdBadgeWarning {
+	background: rgba(217, 119, 6, 0.12);
+}
+
+.qdBadgeWarning .sapMObjStatusText,
+.qdBadgeWarning .sapMObjStatusIcon {
+	color: var(--qd-accent-amber) !important;
+}
+
+.qdBadgeDanger {
+	background: rgba(220, 38, 38, 0.12);
+}
+
+.qdBadgeDanger .sapMObjStatusText,
+.qdBadgeDanger .sapMObjStatusIcon {
+	color: var(--qd-danger) !important;
+}
+
+/* PO-01 total amount + AI message strip */
+.qdTotalAmount {
+	font-size: 1.25rem;
+	font-weight: 700;
+	color: var(--qd-accent-purple) !important;
+	background: rgba(124, 58, 237, 0.08);
+	border-radius: var(--qd-radius-md);
+	padding: 0.4rem 1rem;
+}
+
+.qdAiMessageStrip.sapMMsgStrip {
+	border-radius: var(--qd-radius-md);
+	overflow: hidden;
+}
+
+@media (max-width: 40rem) {
+	.qdFormCard {
+		padding: 1.5rem;
+		margin: 1rem;
+	}
+	.qdTableCard {
+		margin: 1rem;
+	}
 }

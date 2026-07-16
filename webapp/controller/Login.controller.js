@@ -2,8 +2,9 @@ sap.ui.define([
 	"sap/ui/core/mvc/Controller",
 	"sap/ui/model/json/JSONModel",
 	"sap/m/MessageBox",
-	"sap/m/MessageToast"
-], function (Controller, JSONModel, MessageBox, MessageToast) {
+	"sap/m/MessageToast",
+	"com/qdavy/procurement/model/Config"
+], function (Controller, JSONModel, MessageBox, MessageToast, Config) {
 	"use strict";
 
 	return Controller.extend("com.qdavy.procurement.controller.Login", {
@@ -24,7 +25,7 @@ sap.ui.define([
 
 			oView.setBusy(true);
 
-			fetch("http://localhost:3001/api/login", {
+			fetch(Config.BACKEND + "/api/login", {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json"

@@ -3,16 +3,25 @@
 	xmlns="sap.m"
 	xmlns:mvc="sap.ui.core.mvc"
 	xmlns:f="sap.f"
+	xmlns:core="sap.ui.core"
 	displayBlock="true"
 >
-	<Page title="{i18n>appTitle}">
+	<Page title="{i18n>appTitle}" class="qdDashboardPage">
 		<headerContent>
-			<Text text="{user>/fullName} ({user>/position})" class="sapUiTinyMarginEnd"/>
 			<Button icon="sap-icon://log" text="{i18n>logoutButton}" press=".onLogoutPress"/>
 		</headerContent>
 		<content>
-			<f:GridContainer class="sapUiMediumMargin">
+			<VBox class="qdDashHero">
+				<Title text="{= ${i18n>dashGreeting} + ' ' + ${user>/fullName} }" level="H2" class="sapUiTinyMarginBottom"/>
+				<Text text="{user>/position}"/>
+				<Text class="qdRoleBadge" text="{user>/role}"/>
+			</VBox>
+
+			<Title text="{i18n>dashSectionTitle}" level="H4" class="qdSectionTitle"/>
+
+			<f:GridContainer class="qdTileGrid">
 				<GenericTile
+					class="qdTile qdTileBlue"
 					header="{i18n>tilePr01Title}"
 					subheader="{i18n>tilePr01Subtitle}"
 					press=".onNavToPR01"
@@ -20,11 +29,12 @@
 				>
 					<TileContent footer="PR-01">
 						<content>
-							<core:Icon xmlns:core="sap.ui.core" src="sap-icon://add-document" size="2.5rem"/>
+							<core:Icon src="sap-icon://add-document" size="2.5rem"/>
 						</content>
 					</TileContent>
 				</GenericTile>
 				<GenericTile
+					class="qdTile qdTileAmber"
 					header="{i18n>tilePr02Title}"
 					subheader="{i18n>tilePr02Subtitle}"
 					press=".onNavToPR02"
@@ -32,11 +42,12 @@
 				>
 					<TileContent footer="PR-02">
 						<content>
-							<core:Icon xmlns:core="sap.ui.core" src="sap-icon://approvals" size="2.5rem"/>
+							<core:Icon src="sap-icon://approvals" size="2.5rem"/>
 						</content>
 					</TileContent>
 				</GenericTile>
 				<GenericTile
+					class="qdTile qdTilePurple"
 					header="{i18n>tilePo01Title}"
 					subheader="{i18n>tilePo01Subtitle}"
 					press=".onNavToPO01"
@@ -44,7 +55,7 @@
 				>
 					<TileContent footer="PO-01">
 						<content>
-							<core:Icon xmlns:core="sap.ui.core" src="sap-icon://supplier" size="2.5rem"/>
+							<core:Icon src="sap-icon://supplier" size="2.5rem"/>
 						</content>
 					</TileContent>
 				</GenericTile>
