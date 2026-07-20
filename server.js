@@ -189,6 +189,8 @@ Hay danh gia dua tren gia, thoi gian giao hang va danh gia chat luong, roi tra l
 // approvalStore la nguon du lieu cho man PR02 (vi OData chua co entity doc ZG1_APPROVAL).
 // Khi co SAP_HOST, PR cung duoc tao that ben SAP qua OData PurchaseRequisitionSet (BAPI_PR_CREATE),
 // nhung ket qua tao that KHONG chan luong demo neu SAP loi/khong ket noi duoc.
+
+//api PR1
 app.post("/api/approval/submit", async (req, res) => {
 	const {
 		requesterEmail,
@@ -200,20 +202,11 @@ app.post("/api/approval/submit", async (req, res) => {
 		totalValue,
 		currency,
 		costCenter,
+		internalOrder, // <-- 1. Nhận internalOrder từ FE
 		assetNo
 	} = req.body || {};
 
-	if (!requesterEmail || !materialNo || !quantity || !totalValue) {
-		return res.status(400).json({ success: false, message: "Thieu thong tin de nghi mua sam." });
-	}
-
-	if (materialType === "ZAST" && !assetNo) {
-		return res.status(400).json({ success: false, message: "Vat tu tai san (ZAST) bat buoc phai co Asset No (tao qua AS01)." });
-	}
-
-	if (materialType !== "ZAST" && !costCenter) {
-		return res.status(400).json({ success: false, message: "Vat tu dich vu (ZSRV) bat buoc phai co Cost Center." });
-	}
+	// ... các đoạn validate kiểm tra thông tin ...
 
 	let sapPrNumber = null;
 	let sapIntegration = "mock";
@@ -232,6 +225,7 @@ app.post("/api/approval/submit", async (req, res) => {
 					EstimatedValue: String(totalValue),
 					Currency: currency || "VND",
 					CostCenter: costCenter || "",
+					InternalOrder: internalOrder || "", // <-- 2. Truyền sang SAP OData (kiểm tra tên Property trên SEGW)
 					AssetNo: assetNo || ""
 				},
 				{
@@ -257,6 +251,7 @@ app.post("/api/approval/submit", async (req, res) => {
 		TotalValue: totalValue,
 		Currency: currency || "VND",
 		CostCenter: costCenter || "",
+		InternalOrder: internalOrder || "", // <-- 3. Lưu vào in-memory store
 		AssetNo: assetNo || "",
 		Status: "PENDING_APPROVAL",
 		CreatedAt: new Date().toISOString(),

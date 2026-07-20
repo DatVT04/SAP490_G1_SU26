@@ -45,7 +45,7 @@
             header="{i18n>tilePr02Title}"
             subheader="{i18n>tilePr02Subtitle}"
             press=".onNavToPR02"
-            visible="{= ['CEO','TRUONG_BO_PHAN_MUA_SAM','CFO','LEGAL'].indexOf(${user>/role}) !== -1 }"
+            visible="{= ['CEO','PURCHASING','CFO'].indexOf(${user>/role}) !== -1 }"
         >
             <TileContent footer="PR-02">
                 <content>
@@ -59,7 +59,7 @@
             header="{i18n>tilePo01Title}"
             subheader="{i18n>tilePo01Subtitle}"
             press=".onNavToPO01"
-            visible="{= ${user>/role} === 'TRUONG_BO_PHAN_MUA_SAM' }"
+            visible="{= ${user>/role} === 'PURCHASING' }"
         >
             <TileContent footer="PO-01">
                 <content>
@@ -89,7 +89,7 @@
             header="Báo cáo tiến độ"
             subheader="Theo dõi tỷ lệ giao hàng SAP"
             press=".onNavToPOReport"
-            visible="{= ['PURCHASING', 'TRUONG_BO_PHAN_MUA_SAM', 'CEO'].indexOf(${user>/role}) !== -1 }"
+            visible="{= ['REQUESTER', 'PURCHASING', 'CEO'].indexOf(${user>/role}) !== -1 }"
         >
             <TileContent footer="REPORTS">
                 <content>
