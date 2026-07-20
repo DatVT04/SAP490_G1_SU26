@@ -372,6 +372,83 @@ app.post("/api/po/create", async (req, res) => {
 	}
 });
 
+// --- GET /api/po/report (BỔ SUNG THÊM ÔNG NÀY ĐỂ MÀN REPORT GỌI) ---
+// app.get("/api/po/report", async (req, res) => {
+// 	// 1. Nếu không có cấu hình SAP, trả về danh sách trống hoặc mock data để test UI
+// 	if (!process.env.SAP_HOST) {
+// 		return res.json({ 
+// 			success: true, 
+// 			sapIntegration: "mock", 
+// 			data: [
+// 				{ PoNumber: "PO-2026-1001", VendorNo: "VEND01", TotalValue: "150000000", Currency: "VND", Status: "CREATED" },
+// 				{ PoNumber: "PO-2026-1002", VendorNo: "VEND02", TotalValue: "450000000", Currency: "VND", Status: "APPROVED" }
+// 			] 
+// 		});
+// 	}
+
+// 	// 2. Nếu có SAP_HOST, tiến hành gọi sang OData Set của SAP để bốc dữ liệu PO thật về
+// 	try {
+// 		const response = await axios.get(
+// 			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseOrderHistorySet`, // Thay đúng tên EntitySet chứa danh sách PO trên SEGW của bạn nếu có khác biệt
+// 			{ 
+// 				params: { "$format": "json" }, 
+// 				auth: sapAuth() 
+// 			}
+// 		);
+// 		const results = (response.data && response.data.d && response.data.d.results) || [];
+// 		return res.json({ success: true, sapIntegration: "fetched", data: results });
+// 	} catch (error) {
+// 		// Fallback dữ liệu tạm nếu nghẽn mạng SAP để tránh sập màn hình report
+// 		return res.json({ 
+// 			success: true, 
+// 			sapError: true, 
+// 			message: "Không thể lấy dữ liệu trực tiếp từ SAP, hiển thị dữ liệu dự phòng.",
+// 			data: [] 
+// 		});
+// 	}
+// });
+// --- GET /api/po/report (Báo cáo lịch sử Đơn hàng từ SAP) ------------------
+app.get("/api/po/report", async (req, res) => {
+	if (!process.env.SAP_HOST) {
+		return res.json({ 
+			success: true, 
+			message: "chưa được!"
+		});
+	}
+
+	try {
+		// Gọi chính xác tới EntitySet Lịch sử PO hoạt động trên Gateway thật của bạn
+		const response = await axios.get(
+			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseOrderHistorySet`, 
+			{ 
+				params: { "$format": "json" }, 
+				auth: sapAuth() 
+			}
+		);
+		const results = (response.data && response.data.d && response.data.d.results) || [];
+		
+		// Trả về dữ liệu thật từ SAP thành công
+		return res.json({ success: true, sapIntegration: "fetched", data: results });
+
+	} catch (error) {
+		// 🛠️ IN LỖI CHI TIẾT RA TERMINAL ĐỂ KIỂM TRA
+		console.error("❌ LỖI KẾT NỐI TỪ NODEJS SANG SAP GATEWAY:");
+		if (error.response) {
+			console.error("Mã lỗi HTTP từ SAP:", error.response.status);
+			console.error("Chi tiết phản hồi lỗi:", error.response.data);
+		} else {
+			console.error("Lỗi hệ thống mạng (Timeout/Wrong Port):", error.message);
+		}
+
+		// Trả về lỗi rõ ràng cho Front-End thay vì lấp liếm bằng dữ liệu mock
+		return res.status(502).json({ 
+			success: false, 
+			sapError: true, 
+			message: "Node.js không thể kết nối tới SAP Gateway thật!" 
+		});
+	}
+});
+
 if (require.main === module) {
 	app.listen(PORT, () => {
 		console.log(`QDAVY Procurement API server dang chay tai http://localhost:${PORT}`);

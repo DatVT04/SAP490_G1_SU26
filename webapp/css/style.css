@@ -315,3 +315,98 @@ html, body {
 		margin: 1rem;
 	}
 }
+.qdTextBold {
+    font-weight: bold !important;
+}
+/* Đường link ray nền nằm ngang nối các node */
+.qdTimelineTrack {
+    position: relative;
+    width: 100%;
+}
+.qdTimelineTrack::before {
+    content: "";
+    position: absolute;
+    top: 20px;
+    left: 8%;
+    right: 8%;
+    height: 5px;
+    background-color: #e0e0e0;
+    z-index: 1; /* Nằm ở lớp dưới cùng */
+}
+
+/* Khối bọc từng node tiến độ */
+.qdStepNode {
+    position: relative;
+    z-index: 5; 
+    width: 15%;
+    text-align: center;
+}
+
+/* SỬA CHÍNH TẠI ĐÂY: Ép nút bấm hình vuông bo góc nổi lên trên */
+.qdCircleBtn {
+    position: relative !important; /* Bắt buộc phải có để z-index hoạt động */
+    z-index: 10 !important;        /* Cao hơn mức z-index: 1 của thanh ngang */
+    border-radius: 12px !important; /* Định hình vuông bo góc chuẩn theo ảnh của bạn */
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    padding: 0 !important;
+}
+
+/* Nhãn chữ giai đoạn chính */
+.qdStepLabel {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #888888;
+}
+
+/* Chữ hiển thị ngày giờ nhỏ mờ phía dưới */
+.qdStepDate {
+    font-size: 11px !important;
+    color: #aaaaaa !important;
+    margin-top: 2px;
+}
+
+/* Khi bước đó đang active hoặc đã qua - Đổi màu viền chữ nếu cần */
+.qdStepNode.active .qdStepLabel {
+    color: #1a365d !important; /* Màu xanh đen đồng bộ với màu nút bấm */
+}
+.qdStepNode.active .qdStepDate {
+    color: #555555 !important;
+}
+/* ==========================================================================
+   Tự động tô xanh vệt tiến độ nằm ngang chạy đến ô hiện tại (BẢN CHUẨN)
+   ========================================================================== */
+
+/* 1. Đặt điểm neo chuẩn tuyệt đối tại ô cha .sapMHBoxFlexItem của SAPUI5 */
+.sapMHBoxFlexItem {
+    position: relative !important;
+}
+
+/* 2. Ép node con dùng cơ chế static để lớp giả ::before có thể tính theo ô cha */
+.qdStepNode {
+    position: static !important;
+}
+
+/* 3. Tạo vệt màu xanh chạy ngược về các ô active phía trước */
+.sapMHBoxFlexItem:has(.qdStepNode.active) ~ .sapMHBoxFlexItem:has(.qdStepNode.active)::before {
+    content: "";
+    position: absolute;
+    top: 41px;                      /* Tọa độ Y tính từ đỉnh ô chứa, khớp tâm nút bấm */
+    height: 5px;                    /* Độ dày vạch xanh trùng vạch xám */
+    background-color: var(--qd-accent-blue); /* Màu xanh thương hiệu #2563EB */
+    z-index: 2;                     /* Nằm trên vạch xám (1), nằm dưới nút bấm (10) */
+    left: -50%;                     /* Kéo lùi từ tâm ô này */
+    width: 100%;                    /* Phủ vừa vặn 100% khoảng cách sang ô sát vách */
+}
+
+/* Đảm bảo màu icon bên trong nút bấm tự chuyển sang trắng khi active */
+.qdStepNode.active .qdCircleBtn .sapUiIcon {
+    color: #FFFFFF !important;
+}
+
+/* Làm nổi bật nhãn chữ của những bước đã hoàn thành hoặc đang xử lý */
+.qdStepNode.active .qdStepLabel {
+    color: var(--qd-primary) !important;
+    font-weight: 700 !important;
+}

@@ -2,240 +2,211 @@ sap.ui.define([
 	"sap/ui/core/mvc/Controller",
 	"sap/ui/model/json/JSONModel",
 	"sap/m/MessageBox",
-	"sap/m/MessageToast",
-	"com/qdavy/procurement/model/Config"
-], function (Controller, JSONModel, MessageBox, MessageToast, Config) {
+	"sap/m/MessageToast"
+], function (Controller, JSONModel, MessageBox, MessageToast) {
 	"use strict";
-
-	var BACKEND = Config.BACKEND;
-
-	function emptyItem() {
-		return {
-			materialNo: "",
-			materialType: "",
-			description: "",
-			uom: "",
-			quantity: null,
-			netPrice: null,
-			costCenter: "",
-			assetNo: ""
-		};
-	}
 
 	return Controller.extend("com.qdavy.procurement.controller.PO01", {
 		onInit: function () {
-			var oModel = new JSONModel({
-				vendors: [],
-				materials: [],
-				vendorNo: "",
-				items: [emptyItem()],
-				totalValue: 0,
-				aiRecommendation: ""
-			});
-			this.getView().setModel(oModel);
-			this._loadLookups();
-		},
-
-		_loadLookups: function () {
-			var oModel = this.getView().getModel();
-
-			fetch(BACKEND + "/api/vendors")
-				.then(function (r) { return r.json(); })
-				.then(function (res) {
-					if (res && res.success) {
-						oModel.setProperty("/vendors", res.data || []);
+			// Thiết lập dữ liệu Mock cục bộ khớp 100% với file MockData.js của dự án
+			var oLocalMockData = {
+				// PR đã được phê duyệt thành công, chờ xử lý tạo PO
+				pendingPRs: [
+					{
+						PrNumber: "1000000001",
+						MaterialNo: "LAPTOP-001",
+						Description: "Dell Latitude 5540",
+						Quantity: 10,
+						EstimatedValue: 150000000,
+						Currency: "VND",
+						CostCenter: "CCTEC",
+						Status: "APPROVED"
+					},
+					{
+						PrNumber: "1000000002",
+						MaterialNo: "SERVER-001",
+						Description: "HP ProLiant DL360",
+						Quantity: 2,
+						EstimatedValue: 320000000,
+						Currency: "VND",
+						CostCenter: "CCBUS",
+						Status: "APPROVED"
 					}
-				})
-				.catch(function () { MessageBox.error("Khong tai duoc danh sach nha cung cap."); });
+				],
+				// Dữ liệu giả lập kết quả gợi ý từ AI của BE-3
+				aiSuggestedVendors: []
+			};
 
-			fetch(BACKEND + "/api/materials")
-				.then(function (r) { return r.json(); })
-				.then(function (res) {
-					if (res && res.success) {
-						oModel.setProperty("/materials", res.data || []);
-					}
-				})
-				.catch(function () { MessageBox.error("Khong tai duoc danh sach vat tu."); });
-		},
-
-		formatRating: function (fRating) {
-			return fRating !== undefined && fRating !== null ? Number(fRating).toFixed(1) + "*" : "";
-		},
-
-		onItemMaterialChange: function (oEvent) {
-			var sKey = oEvent.getParameter("selectedItem") && oEvent.getParameter("selectedItem").getKey();
-			var oModel = this.getView().getModel();
-			var oMaterial = (oModel.getProperty("/materials") || []).filter(function (m) { return m.MaterialNo === sKey; })[0];
-			var sPath = oEvent.getSource().getBindingContext().getPath();
-
-			if (!oMaterial) {
-				return;
-			}
-
-			oModel.setProperty(sPath + "/materialType", oMaterial.MaterialType);
-			oModel.setProperty(sPath + "/description", oMaterial.Description);
-			oModel.setProperty(sPath + "/uom", oMaterial.BaseUoM);
-			oModel.setProperty(sPath + "/costCenter", "");
-			oModel.setProperty(sPath + "/assetNo", "");
-		},
-
-		onItemValueChange: function () {
-			this._recalcTotal();
-		},
-
-		_recalcTotal: function () {
-			var oModel = this.getView().getModel();
-			var aItems = oModel.getProperty("/items") || [];
-			var fTotal = aItems.reduce(function (sum, item) {
-				return sum + (Number(item.quantity) || 0) * (Number(item.netPrice) || 0);
-			}, 0);
-			oModel.setProperty("/totalValue", fTotal.toLocaleString("vi-VN"));
-		},
-
-		onAddItemPress: function () {
-			var oModel = this.getView().getModel();
-			var aItems = oModel.getProperty("/items") || [];
-			aItems.push(emptyItem());
-			oModel.setProperty("/items", aItems);
-		},
-
-		onRemoveItemPress: function (oEvent) {
-			var oModel = this.getView().getModel();
-			var sPath = oEvent.getSource().getBindingContext().getPath();
-			var iIndex = Number(sPath.split("/").pop());
-			var aItems = oModel.getProperty("/items") || [];
-
-			if (aItems.length <= 1) {
-				MessageBox.warning("Purchase Order can co it nhat 1 vat tu.");
-				return;
-			}
-
-			aItems.splice(iIndex, 1);
-			oModel.setProperty("/items", aItems);
-			this._recalcTotal();
-		},
-
-		onAiSuggestPress: function () {
-			var oModel = this.getView().getModel();
-			var aItems = oModel.getProperty("/items") || [];
-			var oFirstItem = aItems[0];
-
-			if (!oFirstItem || !oFirstItem.materialNo) {
-				MessageBox.warning("Vui long chon it nhat 1 vat tu truoc khi xin goi y AI.");
-				return;
-			}
-
-			this.getView().setBusy(true);
-
-			fetch(BACKEND + "/api/ai/recommend-vendor", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					materialName: oFirstItem.description,
-					materialGroup: oFirstItem.materialType,
-					quantity: oFirstItem.quantity,
-					budget: oFirstItem.netPrice && oFirstItem.quantity ? oFirstItem.netPrice * oFirstItem.quantity : undefined,
-					vendors: oModel.getProperty("/vendors")
-				})
-			})
-				.then(function (r) { return r.json(); })
-				.then(function (res) {
-					this.getView().setBusy(false);
-					if (!res || !res.success) {
-						MessageBox.error((res && res.message) || "Khong the goi y nha cung cap luc nay.");
-						return;
-					}
-					oModel.setProperty("/aiRecommendation", res.recommendation);
-				}.bind(this))
-				.catch(function () {
-					this.getView().setBusy(false);
-					MessageBox.error("Khong the ket noi toi dich vu AI.");
-				}.bind(this));
-		},
-
-		onSubmitPress: function () {
-			var oView = this.getView();
-			var oModel = oView.getModel();
-			var sVendorNo = oModel.getProperty("/vendorNo");
-			var aItems = oModel.getProperty("/items") || [];
-
-			if (!sVendorNo) {
-				MessageBox.warning("Vui long chon nha cung cap.");
-				return;
-			}
-
-			for (var i = 0; i < aItems.length; i++) {
-				var item = aItems[i];
-				if (!item.materialNo || !item.quantity || !item.netPrice) {
-					MessageBox.warning("Vui long dien day du Vat tu / So luong / Don gia cho tat ca dong.");
-					return;
-				}
-				if (item.materialType === "ZAST" && !item.assetNo) {
-					MessageBox.warning("Vat tu " + item.materialNo + " la tai san (ZAST), bat buoc phai co Asset No.");
-					return;
-				}
-				if (item.materialType !== "ZAST" && !item.costCenter) {
-					MessageBox.warning("Vat tu " + item.materialNo + " bat buoc phai co Cost Center.");
-					return;
-				}
-			}
-
-			oView.setBusy(true);
-
-			fetch(BACKEND + "/api/po/create", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					vendorNo: sVendorNo,
-					items: aItems.map(function (item) {
-						return {
-							materialNo: item.materialNo,
-							materialType: item.materialType,
-							description: item.description,
-							quantity: Number(item.quantity),
-							uom: item.uom,
-							netPrice: Number(item.netPrice),
-							costCenter: item.costCenter,
-							assetNo: item.assetNo
-						};
-					})
-				})
-			})
-				.then(function (oResponse) {
-					return oResponse.json().then(function (oData) {
-						return { status: oResponse.status, body: oData };
-					});
-				})
-				.then(function (oResult) {
-					oView.setBusy(false);
-
-					if (!oResult.body || !oResult.body.success) {
-						MessageBox.error((oResult.body && oResult.body.message) || "Khong tao duoc Purchase Order.");
-						return;
-					}
-
-					var oPo = oResult.body.po;
-					var sPoNumber = (oPo && (oPo.PoNumber || oPo.PONumber)) || "(SAP tra ve)";
-
-					MessageBox.success("Da tao Purchase Order " + sPoNumber + ".", {
-						title: "PO-01",
-						onClose: function () {
-							oModel.setProperty("/vendorNo", "");
-							oModel.setProperty("/items", [emptyItem()]);
-							oModel.setProperty("/totalValue", 0);
-							oModel.setProperty("/aiRecommendation", "");
-							this.getOwnerComponent().getRouter().navTo("dashboard");
-						}.bind(this)
-					});
-				}.bind(this))
-				.catch(function () {
-					oView.setBusy(false);
-					MessageBox.error("Khong the ket noi toi may chu.");
-				});
+			var oModel = new JSONModel(oLocalMockData);
+			this.getView().setModel(oModel, "mockData");
 		},
 
 		onNavBack: function () {
 			this.getOwnerComponent().getRouter().navTo("dashboard");
+		},
+
+		// Khi click chọn 1 dòng PR ở bảng bên trái
+		onPRSelect: function (oEvent) {
+			var oSelectedItem = oEvent.getParameter("listItem");
+			var oContext = oSelectedItem.getBindingContext("mockData");
+			var oPRData = oContext.getObject();
+
+			// 1. Hiển thị khu vực bên phải
+			this.getView().byId("poCreationArea").setVisible(true);
+
+			// 2. Điền thông tin PR vào Form chi tiết
+			this.getView().byId("txtSelectedPR").setText(oPRData.PrNumber);
+			this.getView().byId("txtMaterialInfo").setText(oPRData.Description + " (" + oPRData.MaterialNo + ")");
+			this.getView().byId("txtQuantity").setText(oPRData.Quantity + " PC");
+			this.getView().byId("numEstimatedValue").setNumber(oPRData.EstimatedValue);
+			this.getView().byId("numEstimatedValue").setUnit(oPRData.Currency);
+
+			// Reset lại form thiết lập PO
+			this.getView().byId("inSelectedVendor").setValue("");
+			this.getView().byId("inFinalPrice").setValue(oPRData.EstimatedValue); // Tự điền giá đề xuất bằng giá PR gốc
+
+			// 3. Tự động kích hoạt gọi gợi ý NCC (Giả lập hoặc gọi API BE-3)
+			this._getAIVendorRecommendations(oPRData.MaterialNo, oPRData.EstimatedValue);
+		},
+
+		// Hàm giả lập kết nối tới Route AI của BE-3 (POST /api/ai/recommend-vendor)
+		_getAIVendorRecommendations: function (sMaterialNo, fEstimatedValue) {
+			var oView = this.getView();
+			oView.setBusy(true);
+
+			// Tuần 1: Tạo dữ liệu giả lập dựa theo vật tư được chọn
+			var aMockAIVendors = [];
+			if (sMaterialNo === "LAPTOP-001") {
+				aMockAIVendors = [
+					{ VendorNo: "80000001", VendorName: "Dell Vietnam Co. Ltd", Rating: 4.5, PriceProposal: 145000000, AiReason: "Khớp 100% kỹ thuật, giá rẻ hơn 5,000,000 VND so với ngân sách. Thời gian giao hàng nhanh (3 ngày)." },
+					{ VendorNo: "80000003", VendorName: "Synnex FPT Vietnam", Rating: 4.0, PriceProposal: 150000000, AiReason: "Đại lý phân phối ủy quyền chuẩn trong nước, hỗ trợ xuất hóa đơn VAT nhanh, bảo hành nội địa tốt." }
+				];
+			} else {
+				aMockAIVendors = [
+					{ VendorNo: "80000002", VendorName: "HP Vietnam Co. Ltd", Rating: 4.8, PriceProposal: 310000000, AiReason: "Xếp hạng tối ưu nhất từ AI nhờ lịch sử cấp hàng Server ổn định, miễn phí lắp đặt cấu hình tủ rack." },
+					{ VendorNo: "80000003", VendorName: "Synnex FPT Vietnam", Rating: 3.8, PriceProposal: 325000000, AiReason: "Giá cao hơn ngân sách dự kiến, thời gian giao hàng lâu hơn (10 ngày)." }
+				];
+			}
+
+			// Giả lập độ trễ phản hồi của AI (1 giây)
+			setTimeout(function () {
+				oView.setBusy(false);
+				oView.getModel("mockData").setProperty("/aiSuggestedVendors", aMockAIVendors);
+				MessageToast.show("Đã cập nhật phương án nhà cung cấp tối ưu từ AI!");
+			}, 1000);
+
+			/* 
+			KHI KẾT NỐI API THẬT CỦA BE-3 (Tuần 2-3):
+			fetch("http://localhost:3001/api/ai/recommend-vendor", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ materialNo: sMaterialNo, value: fEstimatedValue })
+			})
+			.then(res => res.json())
+			.then(data => {
+				oView.setBusy(false);
+				oView.getModel("mockData").setProperty("/aiSuggestedVendors", data.vendors);
+			})
+			.catch(err => {
+				oView.setBusy(false);
+				MessageBox.error("Không kết nối được AI Engine của BE-3.");
+			});
+			*/
+		},
+
+		// Nhấp nút thủ công gọi lại AI
+		onCallAIVendors: function () {
+			var sMaterialNo = this.getView().byId("txtMaterialInfo").getText().split("(")[1].replace(")", "");
+			var fValue = this.getView().byId("numEstimatedValue").getNumber();
+			this._getAIVendorRecommendations(sMaterialNo, fValue);
+		},
+
+		// Khi người dùng chọn một nhà cung cấp cụ thể trên bảng gợi ý
+		onVendorSelect: function (oEvent) {
+			var oSelectedItem = oEvent.getParameter("listItem");
+			var oContext = oSelectedItem.getBindingContext("mockData");
+			var oVendorData = oContext.getObject();
+
+			// Đổ nhà cung cấp được chọn vào form điền thông tin bên dưới
+			this.getView().byId("inSelectedVendor").setValue(oVendorData.VendorName + " (" + oVendorData.VendorNo + ")");
+			this.getView().byId("inFinalPrice").setValue(oVendorData.PriceProposal);
+		},
+
+		// Sự kiện bấm nút XÁC NHẬN TẠO PO SANG SAP
+		onConfirmCreatePO: function () {
+			var oView = this.getView();
+			var sPRId = oView.byId("txtSelectedPR").getText();
+			var sVendorInfo = oView.byId("inSelectedVendor").getValue();
+			var fFinalPrice = oView.byId("inFinalPrice").getValue();
+			var sDeliveryTerms = oView.byId("inDeliveryTerms").getValue();
+
+			if (!sVendorInfo) {
+				MessageBox.error("Vui lòng chọn một nhà cung cấp từ phương án đề xuất của AI.");
+				return;
+			}
+
+			if (fFinalPrice <= 0) {
+				MessageBox.error("Giá thương lượng cuối cùng của PO phải lớn hơn 0 VND.");
+				return;
+			}
+
+			oView.setBusy(true);
+
+			// Tách lấy mã Vendor từ chuỗi "Name (VendorNo)"
+			var sVendorNo = sVendorInfo.substring(sVendorInfo.lastIndexOf("(") + 1, sVendorInfo.lastIndexOf(")"));
+
+			// Giả lập đẩy dữ liệu vào SAP ERP thành công qua BAPI_PO_CREATE1 (Tuần 1-2)
+			setTimeout(function () {
+				oView.setBusy(false);
+				
+				// Sinh mã PO ảo ngẫu nhiên bắt đầu bằng đầu số 45 (Theo cấu hình Number Range của nhóm bạn)
+				var sGeneratedPONo = "45000" + Math.floor(10000 + Math.random() * 90000);
+
+				MessageBox.success(
+					"Đã lập phương án thành công!\n" +
+					"Hệ thống đã gọi OData khởi chạy BAPI_PO_CREATE1 thành công trong SAP ERP.\n\n" +
+					"Mã đơn mua hàng (PO) tạo thành công: " + sGeneratedPONo,
+					{
+						title: "Đồng bộ SAP thành công",
+						onClose: function () {
+							// Xóa PR đã làm xong khỏi bảng chờ ở màn hình bên trái
+							var oModel = oView.getModel("mockData");
+							var aPRs = oModel.getProperty("/pendingPRs");
+							var aFilteredPRs = aPRs.filter(function (item) {
+								return item.PrNumber !== sPRId;
+							});
+							oModel.setProperty("/pendingPRs", aFilteredPRs);
+							
+							// Ẩn bảng bên phải đi
+							oView.byId("poCreationArea").setVisible(false);
+						}
+					}
+				);
+			}, 1500);
+
+			/* 
+			KHI ĐỒNG BỘ SAP QUA ODATA THẬT CỦA BE-2 (Tuần 2-3):
+			// Gọi ODataModel của SAP UI5 tạo bản ghi thật
+			var oODataModel = this.getView().getModel(); // Khai báo trong manifest
+			var oNewPOPayload = {
+				SourcePrNumber: sPRId,
+				VendorNo: sVendorNo,
+				Price: fFinalPrice.toString(),
+				DeliveryTerms: sDeliveryTerms,
+				DocType: "ZPO" // Theo tài liệu SPRO của nhóm
+			};
+
+			oODataModel.create("/PurchaseOrderHeaderSet", oNewPOPayload, {
+				success: function (oData) {
+					oView.setBusy(false);
+					MessageBox.success("PO " + oData.PoNumber + " tạo thành công trong SAP!");
+				},
+				error: function (oError) {
+					oView.setBusy(false);
+					MessageBox.error("Thất bại khi lưu vào SAP: " + oError.message);
+				}
+			});
+			*/
 		}
 	});
 });

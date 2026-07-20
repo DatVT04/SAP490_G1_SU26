@@ -19,47 +19,86 @@
 
 			<Title text="{i18n>dashSectionTitle}" level="H4" class="qdSectionTitle"/>
 
-			<f:GridContainer class="qdTileGrid">
-				<GenericTile
-					class="qdTile qdTileBlue"
-					header="{i18n>tilePr01Title}"
-					subheader="{i18n>tilePr01Subtitle}"
-					press=".onNavToPR01"
-					visible="{= ${user>/role} === 'REQUESTER' }"
-				>
-					<TileContent footer="PR-01">
-						<content>
-							<core:Icon src="sap-icon://add-document" size="2.5rem"/>
-						</content>
-					</TileContent>
-				</GenericTile>
-				<GenericTile
-					class="qdTile qdTileAmber"
-					header="{i18n>tilePr02Title}"
-					subheader="{i18n>tilePr02Subtitle}"
-					press=".onNavToPR02"
-					visible="{= ['CEO','TRUONG_BO_PHAN_MUA_SAM','CFO','LEGAL'].indexOf(${user>/role}) !== -1 }"
-				>
-					<TileContent footer="PR-02">
-						<content>
-							<core:Icon src="sap-icon://approvals" size="2.5rem"/>
-						</content>
-					</TileContent>
-				</GenericTile>
-				<GenericTile
-					class="qdTile qdTilePurple"
-					header="{i18n>tilePo01Title}"
-					subheader="{i18n>tilePo01Subtitle}"
-					press=".onNavToPO01"
-					visible="{= ${user>/role} === 'PURCHASING' }"
-				>
-					<TileContent footer="PO-01">
-						<content>
-							<core:Icon src="sap-icon://supplier" size="2.5rem"/>
-						</content>
-					</TileContent>
-				</GenericTile>
-			</f:GridContainer>
+<!-- Bổ sung cấu hình layout chia Grid tự động giãn cách cho Container -->
+<f:GridContainer class="qdTileGrid">
+    <f:layout>
+        <f:GridContainerSettings rowSize="8rem" columnSize="12rem" gap="1rem" />
+    </f:layout>
+    
+    <f:items>
+        <GenericTile
+            class="qdTile qdTileBlue"
+            header="{i18n>tilePr01Title}"
+            subheader="{i18n>tilePr01Subtitle}"
+            press=".onNavToPR01"
+            visible="{= ${user>/role} === 'REQUESTER' }"
+        >
+            <TileContent footer="PR-01">
+                <content>
+                    <core:Icon src="sap-icon://add-document" size="2.5rem"/>
+                </content>
+            </TileContent>
+        </GenericTile>
+
+        <GenericTile
+            class="qdTile qdTileAmber"
+            header="{i18n>tilePr02Title}"
+            subheader="{i18n>tilePr02Subtitle}"
+            press=".onNavToPR02"
+            visible="{= ['CEO','TRUONG_BO_PHAN_MUA_SAM','CFO','LEGAL'].indexOf(${user>/role}) !== -1 }"
+        >
+            <TileContent footer="PR-02">
+                <content>
+                    <core:Icon src="sap-icon://approvals" size="2.5rem"/>
+                </content>
+            </TileContent>
+        </GenericTile>
+
+        <GenericTile
+            class="qdTile qdTilePurple"
+            header="{i18n>tilePo01Title}"
+            subheader="{i18n>tilePo01Subtitle}"
+            press=".onNavToPO01"
+            visible="{= ${user>/role} === 'TRUONG_BO_PHAN_MUA_SAM' }"
+        >
+            <TileContent footer="PO-01">
+                <content>
+                    <core:Icon src="sap-icon://supplier" size="2.5rem"/>
+                </content>
+            </TileContent>
+        </GenericTile>
+
+        <!-- Bổ sung đầy đủ class qdTile qdTileAmber để nhận CSS kích thước chuẩn của nhóm -->
+        <GenericTile
+            class="qdTile qdTileAmber"
+            header="Cấu hình hệ thống"
+            subheader="Thiết lập ngưỡng duyệt PR"
+            press=".onNavToThresholdConfig"
+            visible="{= ${user>/role} === 'CEO' }"
+        >
+            <TileContent footer="SYS-CONFIG">
+                <content>
+                    <core:Icon src="sap-icon://action-settings" size="2.5rem"/>
+                </content>
+            </TileContent>
+        </GenericTile>
+
+        <!-- Bổ sung đầy đủ class qdTile qdTileBlue để nhận CSS kích thước chuẩn của nhóm -->
+        <GenericTile
+            class="qdTile qdTileBlue"
+            header="Báo cáo tiến độ"
+            subheader="Theo dõi tỷ lệ giao hàng SAP"
+            press=".onNavToPOReport"
+            visible="{= ['PURCHASING', 'TRUONG_BO_PHAN_MUA_SAM', 'CEO'].indexOf(${user>/role}) !== -1 }"
+        >
+            <TileContent footer="REPORTS">
+                <content>
+                    <core:Icon src="sap-icon://business-by-design" size="2.5rem"/>
+                </content>
+            </TileContent>
+        </GenericTile>
+    </f:items>
+</f:GridContainer>
 		</content>
 	</Page>
 </mvc:View>

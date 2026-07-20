@@ -105,6 +105,16 @@
           "name": "po01",
           "pattern": "create-po",
           "target": "po01"
+        },
+        {
+          "name": "thresholdConfig",
+          "pattern": "threshold-config",
+          "target": ["targetThresholdConfig"]
+        },
+        {
+          "name": "poReport",
+          "pattern": "po-report",
+          "target": ["targetPOReport"]
         }
       ],
       "targets": {
@@ -132,6 +142,18 @@
           "viewName": "PO01",
           "viewId": "po01",
           "viewLevel": 2
+        },
+        "targetThresholdConfig": {
+          "viewType": "XML",
+          "transition": "slide",
+          "clearControlAggregation": true,
+          "viewName": "ThresholdConfig"
+        },
+        "targetPOReport": {
+          "viewType": "XML",
+          "transition": "slide",
+          "clearControlAggregation": true,
+          "viewName": "POReport"
         }
       }
     }
