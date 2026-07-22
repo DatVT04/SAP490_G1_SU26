@@ -8,70 +8,89 @@
 >
 	<Page title="{i18n>tilePr01Title}" showNavButton="true" navButtonPress=".onNavBack">
 		<content>
-			<VBox class="qdFormCard qdFormCardBlue">
+			<VBox class="sapUiSmallMargin">
+				<!-- HEADER INFO -->
 				<form:SimpleForm
 					editable="true"
 					layout="ResponsiveGridLayout"
-					labelSpanXL="4" labelSpanL="4" labelSpanM="4" labelSpanS="12"
-					adjustLabelSpan="false"
-					emptySpanXL="4" emptySpanL="4" emptySpanM="4" emptySpanS="0"
-					columnsXL="1" columnsL="1" columnsM="1"
+					title="Thông tin chung PR"
 				>
-					<core:Title text="{i18n>tilePr01Title}" class="qdFormSectionTitle qdFormSectionTitleBlue"/>
-
 					<Label text="{i18n>prRequesterLabel}"/>
 					<Text text="{user>/fullName} ({user>/email})"/>
 
-					<Label text="{i18n>prMaterialLabel}"/>
-					<Select
-						id="materialSelect"
-						forceSelection="false"
-						items="{/materials}"
-						change=".onMaterialChange"
-						width="100%"
-					>
-						<core:Item key="{MaterialNo}" text="{MaterialNo} - {Description} ({MaterialType})"/>
-					</Select>
-
-					<Label text="{i18n>prDescriptionLabel}"/>
-					<Input value="{/form/description}"/>
-
-					<Label text="{i18n>prQuantityLabel}"/>
-					<Input value="{/form/quantity}" type="Number"/>
-
-					<Label text="{i18n>prUomLabel}"/>
-					<Input value="{/form/uom}" editable="false"/>
-
-					<Label text="{i18n>prValueLabel}"/>
-					<Input value="{/form/estimatedValue}" type="Number"/>
-
 					<Label text="{i18n>prCurrencyLabel}"/>
-					<Select selectedKey="{/form/currency}" width="100%">
+					<Select selectedKey="{/header/currency}" width="200px">
 						<core:Item key="VND" text="VND"/>
 						<core:Item key="USD" text="USD"/>
 					</Select>
-
-					<Label text="{i18n>prCostCenterLabel}" visible="{= ${/form/materialType} !== 'ZAST' }"/>
-					<Input
-						value="{/form/costCenter}"
-						visible="{= ${/form/materialType} !== 'ZAST' }"
-						placeholder="VD: CC-0300"
-					/>
-
-					<Label text="{i18n>prAssetNoLabel}" visible="{= ${/form/materialType} === 'ZAST' }"/>
-					<Input
-						value="{/form/assetNo}"
-						visible="{= ${/form/materialType} === 'ZAST' }"
-						placeholder="{i18n>prAssetNoPlaceholder}"
-					/>
 				</form:SimpleForm>
+
+				<!-- ITEMS TABLE -->
+				<Table id="itemsTable" items="{/items}" mode="Delete" delete=".onDeleteItem">
+					<headerToolbar>
+						<OverflowToolbar>
+							<Title text="Danh sách vật tư ({= ${/items}.length })" level="H3"/>
+							<ToolbarSpacer/>
+							<Button text="Thêm vật tư danh mục" icon="sap-icon://add" press=".onAddItem"/>
+							<Button text="Thêm vật tư tự do (Khác)" icon="sap-icon://add-document" press=".onAddFreeTextItem"/>
+						</OverflowToolbar>
+					</headerToolbar>
+					<columns>
+						<Column width="220px"><Text text="Mã / Loại vật tư"/></Column>
+						<Column width="200px"><Text text="Mô tả / Tên vật tư"/></Column>
+						<Column width="90px"><Text text="ĐVT"/></Column>
+						<Column width="110px"><Text text="Số lượng"/></Column>
+						<Column width="140px"><Text text="Giá trị ước tính"/></Column>
+						<Column width="140px"><Text text="Cost Center / IO / Asset"/></Column>
+					</columns>
+					<items>
+						<ColumnListItem>
+							<cells>
+								<!-- Chọn Vật tư hoặc Nhập Loại vật tư nếu là Free-text -->
+								<VBox>
+									<Select
+										visible="{= !${isFreeText} }"
+										selectedKey="{materialNo}"
+										items="{path: '/materials', templateShareable: false}"
+										change=".onMaterialChange"
+										width="100%"
+									>
+										<core:Item key="{MaterialNo}" text="{MaterialNo} - {Description}"/>
+									</Select>
+									<Input value="{materialType}" visible="{isFreeText}" placeholder="Loại VT (VD: ZROH)"/>
+								</VBox>
+
+								<!-- Mô tả vật tư -->
+								<Input value="{description}" editable="{isFreeText}"/>
+
+								<!-- Đơn vị tính -->
+								<Input value="{uom}" editable="{isFreeText}"/>
+
+								<!-- Số lượng -->
+								<Input value="{quantity}" type="Number"/>
+
+								<!-- Giá trị ước tính -->
+								<Input value="{estimatedValue}" type="Number"/>
+
+								<!-- Tài khoản phân bổ chi phí -->
+								<VBox>
+									<Input value="{costCenter}" visible="{= ${materialType} !== 'ZAST' }" placeholder="Cost Center"/>
+									<Input value="{internalOrder}" visible="{= ${materialType} !== 'ZAST' }" placeholder="Internal Order"/>
+									<Input value="{assetNo}" visible="{= ${materialType} === 'ZAST' }" placeholder="Asset No"/>
+								</VBox>
+							</cells>
+						</ColumnListItem>
+					</items>
+				</Table>
 			</VBox>
 
-			<Toolbar class="sapUiResponsiveMargin">
+		</content>
+		<footer>
+			<OverflowToolbar>
 				<ToolbarSpacer/>
 				<Button text="{i18n>prResetButton}" press=".onResetPress"/>
 				<Button text="{i18n>prSubmitButton}" type="Emphasized" press=".onSubmitPress"/>
-			</Toolbar>
-		</content>
+			</OverflowToolbar>
+		</footer>
 	</Page>
 </mvc:View>

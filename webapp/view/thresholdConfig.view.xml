@@ -1,0 +1,109 @@
+<mvc:View
+    controllerName="com.qdavy.procurement.controller.ThresholdConfig"
+    xmlns="sap.m"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns:f="sap.ui.layout.form"
+    xmlns:core="sap.ui.core"
+>
+    <!-- Gắn class qdLoginPage để đồng bộ màu nền xám nhạt với toàn hệ thống -->
+    <Page title="Cấu Hình Quy Trình &amp; Ngưỡng Phê Duyệt (Dành cho CEO)" 
+          showNavButton="true" 
+          navButtonPress=".onNavBack"
+          class="qdLoginPage">
+        <content>
+            <VBox class="sapUiMediumMargin">
+                
+                <!-- THẺ CẤU HÌNH NGƯỠNG PHÊ DUYỆT PR -->
+                <VBox class="qdFormCard qdFormCardAmber sapUiMediumMarginBottom">
+                    <Title text="Thiết Lập Ngưỡng Leo Thang Phê Duyệt PR" level="H2" class="qdFormSectionTitleAmber sapUiSmallMarginBottom" />
+                    <Text text="Khi giá trị của Yêu cầu mua sắm (PR) vượt quá ngưỡng thiết lập dưới đây, quy trình duyệt sẽ tự động leo thang lên cấp cao nhất (CEO phê duyệt)." 
+                          class="qdMutedText sapUiSmallMarginBottom" />
+                    
+                    <f:SimpleForm editable="true" layout="ResponsiveGridLayout" labelSpanL="4" columnsL="1">
+                        <f:content>
+                            <Label text="Ngưỡng phê duyệt hiện tại (VND)" required="true" />
+                            <!-- Sử dụng StepInput cho phép tăng giảm giá trị tiện lợi -->
+                            <StepInput id="inPrThreshold" 
+                                       width="100%" 
+                                       step="10000000" 
+                                       min="10000000" 
+                                       value="{thresholdModel>/prThreshold}" />
+                            
+                            <Label text="Trạng thái áp dụng" />
+                            <Switch id="swThresholdStatus" state="{thresholdModel>/isActive}" customTextOn="Bật" customTextOff="Tắt" />
+                            
+                            <Label text="Mô tả quy tắc" />
+                            <!-- SỬA Ở ĐÂY: Dùng formatter của SAPUI5 để tự động format số và cập nhật realtime khi kéo StepInput -->
+                            <TextArea id="txtThresholdDesc" 
+                                      rows="3" 
+                                      value="{
+                                          parts: [{path: 'thresholdModel>/prThreshold'}],
+                                          formatter: '.formatter.formatThresholdDesc'
+                                      }" 
+                                      editable="false" 
+                                      class="qdMutedText" />
+                        </f:content>
+                    </f:SimpleForm>
+                </VBox>
+
+                <!-- THÈ TIỆN ÍCH PHỤ TRỢ (Xem lịch sử thay đổi) -->
+                <VBox class="qdTableCard qdTableCardBlue">
+                    <Table id="thresholdHistoryTable" items="{thresholdModel>/history}">
+                        <headerToolbar>
+                            <OverflowToolbar style="Clear">
+                                <Title text="Lịch sử cập nhật cấu hình hệ thống" level="H2" class="qdFormSectionTitleBlue"/>
+                            </OverflowToolbar>
+                        </headerToolbar>
+                        
+                        <columns>
+                            <Column><Text text="Ngày cập nhật" /></Column>
+                            <Column><Text text="Người thực hiện" /></Column>
+                            <Column hAlign="End"><Text text="Ngưỡng cũ (VND)" /></Column>
+                            <Column hAlign="End"><Text text="Ngưỡng mới (VND)" /></Column>
+                            <Column><Text text="Ghi chú" /></Column>
+                        </columns>
+                        <items>
+                            <ColumnListItem>
+                                <cells>
+                                    <Text text="{thresholdModel>date}" />
+                                    <Text text="{thresholdModel>updatedBy}" />
+                                    <!-- SỬA Ở ĐÂY: Sử dụng type chuẩn Integer kết hợp groupingSeparator để có dấu chấm phân cách -->
+                                    <ObjectNumber 
+                                        number="{
+                                            path: 'thresholdModel>oldValue',
+                                            type: 'sap.ui.model.type.Integer',
+                                            formatOptions: {
+                                                groupingEnabled: true,
+                                                groupingSeparator: '.'
+                                            }
+                                        }" />
+                                    <ObjectNumber 
+                                        number="{
+                                            path: 'thresholdModel>newValue',
+                                            type: 'sap.ui.model.type.Integer',
+                                            formatOptions: {
+                                                groupingEnabled: true,
+                                                groupingSeparator: '.'
+                                            }
+                                        }" 
+                                        state="Success" />
+                                    <Text text="{thresholdModel>note}" />
+                                </cells>
+                            </ColumnListItem>
+                        </items>
+                    </Table>
+                </VBox>
+
+                <!-- KHU VỰC NÚT LƯU CẤU HÌNH -->
+                <HBox justifyContent="End" class="sapUiMediumMarginTop">
+                    <Button text="LƯU CẤU HÌNH NGAY" 
+                            type="Emphasized" 
+                            icon="sap-icon://save" 
+                            press=".onSaveThreshold" 
+                            class="sapUiSmallMarginEnd" />
+                </HBox>
+
+            </VBox>
+        </content>
+    </Page>
+</mvc:View>

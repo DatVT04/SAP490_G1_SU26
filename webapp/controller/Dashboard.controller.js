@@ -4,7 +4,7 @@ sap.ui.define([
 	"use strict";
 
 	return Controller.extend("com.qdavy.procurement.controller.Dashboard", {
-		onInit: function () {},
+		onInit: function () { },
 
 		onNavToPR01: function () {
 			this.getOwnerComponent().getRouter().navTo("pr01");
@@ -17,7 +17,12 @@ sap.ui.define([
 		onNavToPO01: function () {
 			this.getOwnerComponent().getRouter().navTo("po01");
 		},
-
+		onNavToThresholdConfig: function () {
+			this.getOwnerComponent().getRouter().navTo("thresholdConfig");
+		},
+		onNavToPOReport: function () {
+			this.getOwnerComponent().getRouter().navTo("poReport");
+		},
 		onLogoutPress: function () {
 			var oUserModel = this.getOwnerComponent().getModel("user");
 			oUserModel.setData({

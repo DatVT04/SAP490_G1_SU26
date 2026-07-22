@@ -1,92 +1,127 @@
 <mvc:View
-	controllerName="com.qdavy.procurement.controller.PO01"
-	xmlns="sap.m"
-	xmlns:mvc="sap.ui.core.mvc"
-	xmlns:form="sap.ui.layout.form"
-	xmlns:core="sap.ui.core"
-	displayBlock="true"
+    controllerName="com.qdavy.procurement.controller.PO01"
+    xmlns="sap.m"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns:core="sap.ui.core"
+    xmlns:f="sap.ui.layout.form"
+    xmlns:l="sap.ui.layout"
 >
-	<Page title="{i18n>tilePo01Title}" showNavButton="true" navButtonPress=".onNavBack">
-		<content>
-			<VBox class="qdFormCard qdFormCardPurple">
-				<form:SimpleForm
-					editable="true"
-					layout="ResponsiveGridLayout"
-					labelSpanXL="3" labelSpanL="3" labelSpanM="4" labelSpanS="12"
-					adjustLabelSpan="false"
-				>
-					<core:Title text="{i18n>tilePo01Title}" class="qdFormSectionTitle qdFormSectionTitlePurple"/>
+    <Page title="Nghiệp vụ Phương án Mua sắm (PAMS) &amp; Tạo PO" showNavButton="true" navButtonPress=".onNavBack">
+        <content>
+            <!-- l:Splitter giúp chia màn hình thành 2 bên: Bên trái chọn PR, Bên phải chọn NCC & Tạo PO -->
+            <l:Splitter height="100%" width="100%">
+                
+                <!-- KHU VỰC BÊN TRÁI: DANH SÁCH PR ĐÃ DUYỆT CHỜ TẠO PO -->
+                <l:contentAreas>
+                    <VBox class="sapUiContentPadding" width="100%">
+                        <layoutData>
+                            <l:SplitterLayoutData size="40%" minSize="30%" />
+                        </layoutData>
+                        
+                        <Table id="approvedPRTable" 
+                               items="{mockData>/pendingPRs}" 
+                               mode="SingleSelectMaster" 
+                               selectionChange=".onPRSelect">
+                            <headerToolbar>
+                                <OverflowToolbar>
+                                    <Title text="PR Chờ Lập Phương Án (PAMS)" level="H2"/>
+                                </OverflowToolbar>
+                            </headerToolbar>
+                            <columns>
+                                <Column><Text text="Mã PR" /></Column>
+                                <Column><Text text="Vật tư" /></Column>
+                                <Column hAlign="End"><Text text="Giá trị ước tính" /></Column>
+                            </columns>
+                            <items>
+                                <ColumnListItem type="Active">
+                                    <cells>
+                                        <ObjectIdentifier title="{mockData>PrNumber}"/>
+                                        <Text text="{mockData>Description} ({mockData>MaterialNo})"/>
+                                        <ObjectNumber number="{mockData>EstimatedValue}" unit="{mockData>Currency}"/>
+                                    </cells>
+                                </ColumnListItem>
+                            </items>
+                        </Table>
+                    </VBox>
 
-					<Label text="{i18n>poVendorLabel}"/>
-					<Select
-						id="vendorSelect"
-						forceSelection="false"
-						items="{/vendors}"
-						selectedKey="{/vendorNo}"
-						width="100%"
-					>
-						<core:Item key="{VendorNo}" text="{VendorName} ({VendorNo}) - {parts:['Rating'], formatter:'.formatRating'}"/>
-					</Select>
+                    <!-- KHU VỰC BÊN PHẢI: CHI TIẾT CHỌN NCC (PAMS) & TẠO PO -->
+                    <VBox id="poCreationArea" class="sapUiContentPadding" width="100%" visible="false">
+                        <layoutData>
+                            <l:SplitterLayoutData size="60%" minSize="50%" />
+                        </layoutData>
 
-					<Label text=" "/>
-					<HBox>
-						<Button text="{i18n>poAiSuggestButton}" icon="sap-icon://ai" press=".onAiSuggestPress"/>
-					</HBox>
-				</form:SimpleForm>
+                        <!-- Thẻ thông tin PR đang xử lý -->
+                        <Panel headerText="1. Thông tin yêu cầu gốc" expandable="false" class="sapUiSmallMarginBottom">
+                            <f:SimpleForm editable="false" layout="ResponsiveGridLayout" labelSpanL="3" columnsL="1">
+                                <f:content>
+                                    <Label text="Mã số PR" />
+                                    <Text id="txtSelectedPR" text="" />
+                                    <Label text="Vật tư cần mua" />
+                                    <Text id="txtMaterialInfo" text="" />
+                                    <Label text="Số lượng yêu cầu" />
+                                    <Text id="txtQuantity" text="" />
+                                    <Label text="Ngân sách ước tính" />
+                                    <ObjectNumber id="numEstimatedValue" number="" unit=""/>
+                                </f:content>
+                            </f:SimpleForm>
+                        </Panel>
 
-				<MessageStrip
-					class="qdAiMessageStrip"
-					type="Information"
-					showIcon="true"
-					visible="{= !!${/aiRecommendation} }"
-					text="{/aiRecommendation}"
-				/>
-			</VBox>
+                        <!-- Thẻ chọn nhà cung cấp & Đánh giá của AI -->
+                        <Panel headerText="2. Phương án mua sắm (AI gợi ý Nhà cung cấp)" expandable="false" class="sapUiSmallMarginBottom">
+                            <headerToolbar>
+                                <OverflowToolbar>
+                                    <Title text="2. Phương án mua sắm (AI gợi ý)" level="H2"/>
+                                    <ToolbarSpacer />
+                                    <Button text="Gọi AI tư vấn lại" icon="sap-icon://brain" type="Ghost" press=".onCallAIVendors" />
+                                </OverflowToolbar>
+                            </headerToolbar>
+                            <content>
+                                <Table id="aiVendorTable" items="{mockData>/aiSuggestedVendors}" mode="SingleSelectLeft" selectionChange=".onVendorSelect">
+                                    <columns>
+                                        <Column width="35%"><Text text="Nhà cung cấp" /></Column>
+                                        <Column hAlign="Center"><Text text="Đánh giá" /></Column>
+                                        <Column hAlign="End"><Text text="Giá đề xuất" /></Column>
+                                        <Column><Text text="Phân tích từ AI (Groq LLaMA)" /></Column>
+                                    </columns>
+                                    <items>
+                                        <ColumnListItem>
+                                            <cells>
+                                                <ObjectIdentifier title="{mockData>VendorName}" subtitle="Mã: {mockData>VendorNo}"/>
+                                                <RatingIndicator value="{mockData>Rating}" maxValue="5" visualMode="Half" size="xs" enabled="false" />
+                                                <ObjectNumber number="{mockData>PriceProposal}" unit="VND"/>
+                                                <Text text="{mockData>AiReason}" />
+                                            </cells>
+                                        </ColumnListItem>
+                                    </items>
+                                </Table>
+                            </content>
+                        </Panel>
 
-			<VBox class="qdTableCard qdTableCardPurple">
-				<Toolbar>
-					<Title text="{i18n>poItemsTitle}"/>
-					<ToolbarSpacer/>
-					<Button text="{i18n>poAddItemButton}" icon="sap-icon://add" press=".onAddItemPress"/>
-				</Toolbar>
-
-				<Table id="itemsTable" items="{/items}" noDataText=" ">
-					<columns>
-						<Column><Text text="{i18n>poItemMaterial}"/></Column>
-						<Column hAlign="End"><Text text="{i18n>poItemQuantity}"/></Column>
-						<Column hAlign="End"><Text text="{i18n>poItemPrice}"/></Column>
-						<Column><Text text="{i18n>poItemCostCenter}"/></Column>
-						<Column><Text text="{i18n>poItemAssetNo}"/></Column>
-						<Column/>
-					</columns>
-					<items>
-						<ColumnListItem>
-							<cells>
-								<Select
-									forceSelection="false"
-									items="{/materials}"
-									selectedKey="{materialNo}"
-									change=".onItemMaterialChange"
-									width="100%"
-								>
-									<core:Item key="{MaterialNo}" text="{MaterialNo} - {Description}"/>
-								</Select>
-								<Input value="{quantity}" type="Number" valueLiveUpdate="true" liveChange=".onItemValueChange"/>
-								<Input value="{netPrice}" type="Number" valueLiveUpdate="true" liveChange=".onItemValueChange"/>
-								<Input value="{costCenter}" visible="{= ${materialType} !== 'ZAST' }" placeholder="VD: CC-0100"/>
-								<Input value="{assetNo}" visible="{= ${materialType} === 'ZAST' }" placeholder="VD: 100000-0"/>
-								<Button icon="sap-icon://delete" type="Transparent" press=".onRemoveItemPress"/>
-							</cells>
-						</ColumnListItem>
-					</items>
-				</Table>
-			</VBox>
-
-			<Toolbar class="sapUiResponsiveMargin">
-				<ToolbarSpacer/>
-				<Text text="{= 'Tong: ' + ${/totalValue} + ' VND' }" class="qdTotalAmount"/>
-				<Button text="{i18n>poSubmitButton}" type="Emphasized" press=".onSubmitPress"/>
-			</Toolbar>
-		</content>
-	</Page>
+                        <!-- Form xác nhận thông tin và giá cuối cùng của PO -->
+                        <Panel headerText="3. Thiết lập thông tin đơn mua hàng (PO)" expandable="false">
+                            <f:SimpleForm editable="true" layout="ResponsiveGridLayout" labelSpanL="3" columnsL="1">
+                                <f:content>
+                                    <Label text="Nhà cung cấp lựa chọn" required="true" />
+                                    <Input id="inSelectedVendor" editable="false" placeholder="Hãy chọn 1 NCC ở bảng trên" />
+                                    
+                                    <Label text="Giá thương lượng cuối cùng" required="true" />
+                                    <StepInput id="inFinalPrice" width="100%" step="500000" min="0" value="0" />
+                                    
+                                    <Label text="Điều khoản giao hàng" />
+                                    <Input id="inDeliveryTerms" placeholder="Ví dụ: Giao hàng tại kho QDPL trong 7 ngày" />
+                                    
+                                    <Label text="" />
+                                    <Button text="XÁC NHẬN TẠO PO SANG SAP" 
+                                            type="Emphasized" 
+                                            icon="sap-icon://accept" 
+                                            press=".onConfirmCreatePO" 
+                                            class="sapUiSmallMarginTop" />
+                                </f:content>
+                            </f:SimpleForm>
+                        </Panel>
+                    </VBox>
+                </l:contentAreas>
+            </l:Splitter>
+        </content>
+    </Page>
 </mvc:View>
