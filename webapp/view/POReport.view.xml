@@ -5,35 +5,60 @@
     xmlns:core="sap.ui.core"
     xmlns:f="sap.ui.layout.form"
 >
-    <Page title="Báo Cáo Tiến Độ Giao Hàng &amp; Thực Nhận (Standard SAP)" 
-          showNavButton="true" 
-          navButtonPress=".onNavBack"
-          class="qdLoginPage">
+    <Page showHeader="false" class="qdInnerPage">
         <content>
-            <VBox class="sapUiMediumMargin">
-                
+
+            <!-- ============ HERO ============ -->
+            <VBox class="qdPageHero qdPageHeroGreen">
+                <HBox alignItems="Center" justifyContent="SpaceBetween" wrap="Wrap">
+                    <HBox alignItems="Center">
+                        <Button icon="sap-icon://nav-back" press=".onNavBack" class="qdHeroBackBtn"/>
+                        <VBox>
+                            <Text text="Theo dõi &amp; đối chiếu" class="qdPageEyebrow"/>
+                            <Title text="Báo cáo tiến độ đơn hàng" level="H1" class="qdPageTitle"/>
+                            <Text text="Dữ liệu Purchase Order đọc trực tiếp từ SAP S/4HANA" class="qdPageSub"/>
+                        </VBox>
+                    </HBox>
+                    <Button icon="sap-icon://refresh" text="Tải lại" press=".onRefreshReport" class="qdHeroBtn"/>
+                </HBox>
+            </VBox>
+
+            <VBox>
+
                 <!-- PHẦN 1: BẢNG DỮ LIỆU BÁO CÁO CHÍNH -->
-                <VBox class="qdTableCard qdTableCardBlue sapUiMediumMarginBottom">
+                <VBox class="qdContentCard qdCardTight">
                     <Table id="reportTable" items="{reportModel>/poRecords}">
                         <headerToolbar>
                             <OverflowToolbar style="Clear">
-                                <Title text="Theo dõi Đơn mua hàng (Chọn một dòng để xem chi tiết phía dưới)" level="H2" class="qdFormSectionTitleBlue"/>
+                                <core:Icon src="sap-icon://sales-order" class="qdCardIcon"/>
+                                <Title text="Đơn mua hàng" level="H3" class="qdCardTitle"/>
+                                <Text text="Chọn một dòng để xem tiến độ chi tiết" class="qdCellHint sapUiSmallMarginBegin"/>
                                 <ToolbarSpacer />
-                                <Button icon="sap-icon://refresh" type="Ghost" press=".onRefreshReport" />
                             </OverflowToolbar>
                         </headerToolbar>
 
                         <infoToolbar>
-                            <OverflowToolbar design="Info" class="sapUiTinyMarginTopBottom">
-                                <Label text="Lọc theo Trạng thái:" class="sapUiTinyMarginEnd" />
-                                <Select id="filterStatus" change=".onFilterChange" width="15rem">
-                                    <core:Item key="ALL" text="--- Tất cả trạng thái ---" />
-                                    <core:Item key="CREATED" text="Đã tạo PO sang SAP" />
-                                </Select>
+                            <OverflowToolbar class="qdFilterBar">
+                                <VBox class="qdFilterField">
+                                    <Label text="Trạng thái" class="qdFilterLabel"/>
+                                    <Select id="filterStatus" change=".onFilterChange" width="12rem">
+                                        <core:Item key="ALL" text="Tất cả trạng thái" />
+                                        <core:Item key="CREATED" text="Đã tạo PO sang SAP" />
+                                        <core:Item key="DELIVERED" text="Đã nhập kho" />
+                                    </Select>
+                                </VBox>
 
-                                <ToolbarSeparator class="sapUiSmallMarginBeginEnd" />
-                                <Label text="Tìm kiếm nhanh:" class="sapUiTinyMarginEnd" />
-                                <SearchField width="18rem" placeholder="Tìm số PO, Nhà cung cấp..." liveChange=".onFilterChange" id="filterSearch" />
+                                <VBox class="qdFilterField qdFilterFieldGrow">
+                                    <Label text="Tìm kiếm" class="qdFilterLabel"/>
+                                    <SearchField
+                                        width="100%"
+                                        placeholder="Tìm theo số PO hoặc tên nhà cung cấp..."
+                                        liveChange=".onFilterChange"
+                                        id="filterSearch"
+                                    />
+                                </VBox>
+
+                                <ToolbarSpacer/>
                             </OverflowToolbar>
                         </infoToolbar>
 
@@ -65,9 +90,9 @@
                                     <ObjectNumber number="{reportModel>TotalValue}" unit="{reportModel>Currency}" state="None" />
                                         
                                     <!-- 6. Trạng thái (Khớp trường Status) -->
-                                    <ObjectStatus 
-                                        text="{= ${reportModel>Status} === 'CREATED' ? 'Đã tạo PO sang SAP' : ${reportModel>Status} }"
-                                        state="{= ${reportModel>Status} === 'CREATED' ? 'Success' : 'None' }" />
+                                    <ObjectStatus
+                                        text="{= ${reportModel>Status} === 'DELIVERED' ? 'Đã nhập kho' : ( ${reportModel>Status} === 'CREATED' ? 'Đã tạo PO sang SAP' : ${reportModel>Status} ) }"
+                                        state="{= ${reportModel>Status} === 'DELIVERED' ? 'Success' : ( ${reportModel>Status} === 'CREATED' ? 'Information' : 'None' ) }" />
                                 </cells>
                             </ColumnListItem>
                         </items>
@@ -75,12 +100,12 @@
                 </VBox>
 
                 <!-- PHẦN 2: KHU VỰC TIẾN ĐỘ NGANG (TỰ ĐỘNG BẬT KHI CHỌN DÒNG) -->
-                <VBox class="qdTableCard qdTableCardBlue sapUiMediumMarginTop" 
+                <VBox class="qdContentCard"
                       visible="{= ${reportModel>/selectedPO} !== null }">
-                    
+
                     <OverflowToolbar style="Clear">
-                        <core:Icon src="sap-icon://hint" class="sapUiTinyMarginEnd" />
-                        <Title text="{= 'Chi tiết tiến độ đơn hàng: ' + ${reportModel>/selectedPO/PoNumber} }" level="H3" class="qdFormSectionTitleBlue"/>
+                        <core:Icon src="sap-icon://process" class="qdCardIcon" />
+                        <Title text="{= 'Tiến độ đơn hàng ' + ${reportModel>/selectedPO/PoNumber} }" level="H3" class="qdCardTitle"/>
                     </OverflowToolbar>
 
                     <VBox class="sapUiLargeMarginTop sapUiLargeMarginBottom">

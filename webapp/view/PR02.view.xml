@@ -5,39 +5,107 @@
 	xmlns:core="sap.ui.core"
 	displayBlock="true"
 >
-	<Page title="{i18n>tilePr02Title}" showNavButton="true" navButtonPress=".onNavBack">
-		<headerContent>
-			<Button icon="sap-icon://refresh" text="{i18n>pr02RefreshButton}" press=".onRefreshPress"/>
-		</headerContent>
+	<Page showHeader="false" class="qdInnerPage">
 		<content>
-			<VBox class="qdTableCard qdTableCardAmber">
+
+			<!-- ============ HERO ============ -->
+			<VBox class="qdPageHero qdPageHeroAmber">
+				<HBox alignItems="Center" justifyContent="SpaceBetween" wrap="Wrap">
+					<HBox alignItems="Center">
+						<Button icon="sap-icon://nav-back" press=".onNavBack" class="qdHeroBackBtn"/>
+						<VBox>
+							<Text text="Bước 2 · Phê duyệt" class="qdPageEyebrow"/>
+							<Title text="{i18n>tilePr02Title}" level="H1" class="qdPageTitle"/>
+							<Text text="Xem xét và quyết định các đề nghị mua sắm đang chờ" class="qdPageSub"/>
+						</VBox>
+					</HBox>
+					<Button
+						icon="sap-icon://refresh"
+						text="{i18n>pr02RefreshButton}"
+						press=".onRefreshPress"
+						class="qdHeroBtn"
+					/>
+				</HBox>
+
+				<HBox class="qdFlowSteps">
+					<Text text="PR-01 Tạo đề nghị" class="qdFlowStep"/>
+					<core:Icon src="sap-icon://navigation-right-arrow" class="qdFlowArrow"/>
+					<Text text="PR-02 Phê duyệt" class="qdFlowStep qdFlowStepActive"/>
+					<core:Icon src="sap-icon://navigation-right-arrow" class="qdFlowArrow"/>
+					<Text text="PO-01 Tạo đơn hàng" class="qdFlowStep"/>
+				</HBox>
+			</VBox>
+
+			<!-- ============ DANH SACH PR CHO DUYET ============ -->
+			<VBox class="qdContentCard qdCardTight">
+
+				<HBox alignItems="Center" class="sapUiSmallMargin">
+					<core:Icon src="sap-icon://pending" class="qdCardIcon"/>
+					<Title text="Đề nghị đang chờ quyết định" level="H3" class="qdCardTitle"/>
+				</HBox>
+
 				<Table
 					id="pendingTable"
 					items="{/pending}"
 					noDataText="{i18n>pr02EmptyText}"
+					class="qdApprovalTable"
 				>
 					<columns>
-						<Column><Text text="{i18n>pr02ColPRId}"/></Column>
-						<Column><Text text="{i18n>pr02ColRequester}"/></Column>
-						<Column><Text text="{i18n>pr02ColMaterial}"/></Column>
-						<Column hAlign="End"><Text text="{i18n>pr02ColQuantity}"/></Column>
-						<Column hAlign="End"><Text text="{i18n>pr02ColValue}"/></Column>
-						<Column><Text text="{i18n>pr02ColCostCenterAsset}"/></Column>
-						<Column><Text text="{i18n>pr02ColEscalation}"/></Column>
-						<Column/>
+						<Column width="11rem"><Text text="{i18n>pr02ColPRId}"/></Column>
+						<Column width="12rem"><Text text="{i18n>pr02ColRequester}"/></Column>
+						<Column minScreenWidth="Tablet" demandPopin="true"><Text text="Danh sách vật tư"/></Column>
+						<Column hAlign="End" width="11rem"><Text text="{i18n>pr02ColValue}"/></Column>
+						<Column width="10rem" minScreenWidth="Desktop" demandPopin="true"><Text text="{i18n>pr02ColEscalation}"/></Column>
+						<Column width="13rem"/>
 					</columns>
 					<items>
-						<ColumnListItem>
+						<ColumnListItem vAlign="Top">
 							<cells>
-								<ObjectIdentifier title="{PRId}"/>
-								<Text text="{RequesterEmail}"/>
+
+								<!-- Ma PR + ngay tao -->
 								<VBox>
-									<Text text="{MaterialNo} - {Description}"/>
-									<Text text="{MaterialType}" class="sapUiTinyMarginTop"/>
+									<ObjectIdentifier title="{PRId}"/>
+									<Text text="{CreatedAt}" class="qdCellHint sapUiTinyMarginTop"/>
 								</VBox>
-								<Text text="{parts: ['Quantity','UoM'], formatter: '.formatQty'}"/>
-								<Text text="{parts: ['TotalValue','Currency'], formatter: '.formatValue'}"/>
-								<Text text="{= ${MaterialType} === 'ZAST' ? ${AssetNo} : ${CostCenter} }"/>
+
+								<!-- Nguoi de nghi -->
+								<VBox>
+									<Text text="{RequesterEmail}"/>
+								</VBox>
+
+								<!-- Danh sach vat tu (items[]) -->
+								<List
+									items="{items}"
+									showNoData="false"
+									showSeparators="Inner"
+									class="qdNestedItemList"
+								>
+									<items>
+										<CustomListItem>
+											<HBox alignItems="Center" class="qdNestedItemRow">
+												<Text text="{LineNo}" class="qdLineNo"/>
+												<VBox class="qdNestedItemMain">
+													<Text text="{Description}" wrapping="false"/>
+													<Text text="{MaterialNo}" class="qdCellHint"/>
+												</VBox>
+												<VBox class="qdNestedItemSide">
+													<Text text="{Quantity} {UoM}" class="qdNestedQty"/>
+													<Text
+														text="{= ${MaterialType} === 'ZAST' ? ('Asset: ' + ${AssetNo}) : ('CC: ' + ${CostCenter}) }"
+														class="qdCellHint"
+													/>
+												</VBox>
+											</HBox>
+										</CustomListItem>
+									</items>
+								</List>
+
+								<!-- Tong gia tri -->
+								<VBox alignItems="End">
+									<Text text="{parts: ['TotalValue','Currency'], formatter: '.formatValue'}" class="qdRowAmount"/>
+								</VBox>
+
+								<!-- Leo thang phe duyet -->
 								<VBox>
 									<ObjectStatus
 										text="{i18n>pr02FlagLegal}"
@@ -53,25 +121,36 @@
 										icon="sap-icon://alert"
 										class="qdBadgeDanger"
 									/>
+									<Text
+										text="Trong ngưỡng thường"
+										class="qdCellHint"
+										visible="{= !${needsLegalReview} &amp;&amp; !${needsProcurementHeadReview} }"
+									/>
 								</VBox>
-								<HBox>
+
+								<!-- Nut quyet dinh -->
+								<HBox class="qdRowActions">
 									<Button
 										text="{i18n>pr02Approve}"
 										type="Accept"
+										icon="sap-icon://accept"
 										press=".onApprovePress"
 										class="sapUiTinyMarginEnd"
 									/>
 									<Button
 										text="{i18n>pr02Reject}"
 										type="Reject"
+										icon="sap-icon://decline"
 										press=".onRejectPress"
 									/>
 								</HBox>
+
 							</cells>
 						</ColumnListItem>
 					</items>
 				</Table>
 			</VBox>
+
 		</content>
 	</Page>
 </mvc:View>

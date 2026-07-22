@@ -1,127 +1,208 @@
 <mvc:View
-    controllerName="com.qdavy.procurement.controller.PO01"
-    xmlns="sap.m"
-    xmlns:mvc="sap.ui.core.mvc"
-    xmlns:core="sap.ui.core"
-    xmlns:f="sap.ui.layout.form"
-    xmlns:l="sap.ui.layout"
+	controllerName="com.qdavy.procurement.controller.PO01"
+	xmlns="sap.m"
+	xmlns:mvc="sap.ui.core.mvc"
+	xmlns:core="sap.ui.core"
+	xmlns:f="sap.ui.layout.form"
+	xmlns:l="sap.ui.layout"
 >
-    <Page title="Nghiệp vụ Phương án Mua sắm (PAMS) &amp; Tạo PO" showNavButton="true" navButtonPress=".onNavBack">
-        <content>
-            <!-- l:Splitter giúp chia màn hình thành 2 bên: Bên trái chọn PR, Bên phải chọn NCC & Tạo PO -->
-            <l:Splitter height="100%" width="100%">
-                
-                <!-- KHU VỰC BÊN TRÁI: DANH SÁCH PR ĐÃ DUYỆT CHỜ TẠO PO -->
-                <l:contentAreas>
-                    <VBox class="sapUiContentPadding" width="100%">
-                        <layoutData>
-                            <l:SplitterLayoutData size="40%" minSize="30%" />
-                        </layoutData>
-                        
-                        <Table id="approvedPRTable" 
-                               items="{mockData>/pendingPRs}" 
-                               mode="SingleSelectMaster" 
-                               selectionChange=".onPRSelect">
-                            <headerToolbar>
-                                <OverflowToolbar>
-                                    <Title text="PR Chờ Lập Phương Án (PAMS)" level="H2"/>
-                                </OverflowToolbar>
-                            </headerToolbar>
-                            <columns>
-                                <Column><Text text="Mã PR" /></Column>
-                                <Column><Text text="Vật tư" /></Column>
-                                <Column hAlign="End"><Text text="Giá trị ước tính" /></Column>
-                            </columns>
-                            <items>
-                                <ColumnListItem type="Active">
-                                    <cells>
-                                        <ObjectIdentifier title="{mockData>PrNumber}"/>
-                                        <Text text="{mockData>Description} ({mockData>MaterialNo})"/>
-                                        <ObjectNumber number="{mockData>EstimatedValue}" unit="{mockData>Currency}"/>
-                                    </cells>
-                                </ColumnListItem>
-                            </items>
-                        </Table>
-                    </VBox>
+	<Page showHeader="false" class="qdInnerPage">
+		<content>
 
-                    <!-- KHU VỰC BÊN PHẢI: CHI TIẾT CHỌN NCC (PAMS) & TẠO PO -->
-                    <VBox id="poCreationArea" class="sapUiContentPadding" width="100%" visible="false">
-                        <layoutData>
-                            <l:SplitterLayoutData size="60%" minSize="50%" />
-                        </layoutData>
+			<!-- ============ HERO ============ -->
+			<VBox class="qdPageHero qdPageHeroPurple">
+				<HBox alignItems="Center">
+					<Button icon="sap-icon://nav-back" press=".onNavBack" class="qdHeroBackBtn"/>
+					<VBox>
+						<Text text="Bước 3 · Phương án mua sắm" class="qdPageEyebrow"/>
+						<Title text="Chọn nhà cung cấp &amp; Tạo Purchase Order" level="H1" class="qdPageTitle"/>
+						<Text text="Chọn PR đã duyệt, tham khảo gợi ý AI rồi tạo PO ghi thẳng sang SAP" class="qdPageSub"/>
+					</VBox>
+				</HBox>
 
-                        <!-- Thẻ thông tin PR đang xử lý -->
-                        <Panel headerText="1. Thông tin yêu cầu gốc" expandable="false" class="sapUiSmallMarginBottom">
-                            <f:SimpleForm editable="false" layout="ResponsiveGridLayout" labelSpanL="3" columnsL="1">
-                                <f:content>
-                                    <Label text="Mã số PR" />
-                                    <Text id="txtSelectedPR" text="" />
-                                    <Label text="Vật tư cần mua" />
-                                    <Text id="txtMaterialInfo" text="" />
-                                    <Label text="Số lượng yêu cầu" />
-                                    <Text id="txtQuantity" text="" />
-                                    <Label text="Ngân sách ước tính" />
-                                    <ObjectNumber id="numEstimatedValue" number="" unit=""/>
-                                </f:content>
-                            </f:SimpleForm>
-                        </Panel>
+				<HBox class="qdFlowSteps">
+					<Text text="PR-01 Tạo đề nghị" class="qdFlowStep"/>
+					<core:Icon src="sap-icon://navigation-right-arrow" class="qdFlowArrow"/>
+					<Text text="PR-02 Phê duyệt" class="qdFlowStep"/>
+					<core:Icon src="sap-icon://navigation-right-arrow" class="qdFlowArrow"/>
+					<Text text="PO-01 Tạo đơn hàng" class="qdFlowStep qdFlowStepActive"/>
+				</HBox>
+			</VBox>
 
-                        <!-- Thẻ chọn nhà cung cấp & Đánh giá của AI -->
-                        <Panel headerText="2. Phương án mua sắm (AI gợi ý Nhà cung cấp)" expandable="false" class="sapUiSmallMarginBottom">
-                            <headerToolbar>
-                                <OverflowToolbar>
-                                    <Title text="2. Phương án mua sắm (AI gợi ý)" level="H2"/>
-                                    <ToolbarSpacer />
-                                    <Button text="Gọi AI tư vấn lại" icon="sap-icon://brain" type="Ghost" press=".onCallAIVendors" />
-                                </OverflowToolbar>
-                            </headerToolbar>
-                            <content>
-                                <Table id="aiVendorTable" items="{mockData>/aiSuggestedVendors}" mode="SingleSelectLeft" selectionChange=".onVendorSelect">
-                                    <columns>
-                                        <Column width="35%"><Text text="Nhà cung cấp" /></Column>
-                                        <Column hAlign="Center"><Text text="Đánh giá" /></Column>
-                                        <Column hAlign="End"><Text text="Giá đề xuất" /></Column>
-                                        <Column><Text text="Phân tích từ AI (Groq LLaMA)" /></Column>
-                                    </columns>
-                                    <items>
-                                        <ColumnListItem>
-                                            <cells>
-                                                <ObjectIdentifier title="{mockData>VendorName}" subtitle="Mã: {mockData>VendorNo}"/>
-                                                <RatingIndicator value="{mockData>Rating}" maxValue="5" visualMode="Half" size="xs" enabled="false" />
-                                                <ObjectNumber number="{mockData>PriceProposal}" unit="VND"/>
-                                                <Text text="{mockData>AiReason}" />
-                                            </cells>
-                                        </ColumnListItem>
-                                    </items>
-                                </Table>
-                            </content>
-                        </Panel>
+			<!-- ============ SPLITTER: PR ĐÃ DUYỆT | TẠO PO ============ -->
+			<l:Splitter height="100%" width="100%" class="qdSplitter">
+				<l:contentAreas>
 
-                        <!-- Form xác nhận thông tin và giá cuối cùng của PO -->
-                        <Panel headerText="3. Thiết lập thông tin đơn mua hàng (PO)" expandable="false">
-                            <f:SimpleForm editable="true" layout="ResponsiveGridLayout" labelSpanL="3" columnsL="1">
-                                <f:content>
-                                    <Label text="Nhà cung cấp lựa chọn" required="true" />
-                                    <Input id="inSelectedVendor" editable="false" placeholder="Hãy chọn 1 NCC ở bảng trên" />
-                                    
-                                    <Label text="Giá thương lượng cuối cùng" required="true" />
-                                    <StepInput id="inFinalPrice" width="100%" step="500000" min="0" value="0" />
-                                    
-                                    <Label text="Điều khoản giao hàng" />
-                                    <Input id="inDeliveryTerms" placeholder="Ví dụ: Giao hàng tại kho QDPL trong 7 ngày" />
-                                    
-                                    <Label text="" />
-                                    <Button text="XÁC NHẬN TẠO PO SANG SAP" 
-                                            type="Emphasized" 
-                                            icon="sap-icon://accept" 
-                                            press=".onConfirmCreatePO" 
-                                            class="sapUiSmallMarginTop" />
-                                </f:content>
-                            </f:SimpleForm>
-                        </Panel>
-                    </VBox>
-                </l:contentAreas>
-            </l:Splitter>
-        </content>
-    </Page>
+					<!-- ==== TRAI: DANH SACH PR DA DUYET ==== -->
+					<VBox width="100%">
+						<layoutData>
+							<l:SplitterLayoutData size="38%" minSize="300"/>
+						</layoutData>
+
+						<VBox class="qdContentCard qdCardTight">
+							<HBox alignItems="Center" class="sapUiSmallMargin">
+								<Text text="1" class="qdStepBadge"/>
+								<VBox>
+									<Title text="Chọn đề nghị đã duyệt" level="H3" class="qdCardTitle"/>
+									<Text text="Bấm vào một dòng để lập phương án" class="qdCellHint"/>
+								</VBox>
+							</HBox>
+
+							<Table
+								id="approvedPRTable"
+								items="{mockData>/pendingPRs}"
+								mode="SingleSelectMaster"
+								selectionChange=".onPRSelect"
+								noDataText="Chưa có đề nghị nào được duyệt. Hãy chờ CFO/CEO phê duyệt ở màn PR-02."
+							>
+								<columns>
+									<Column width="8rem"><Text text="Mã PR"/></Column>
+									<Column><Text text="Vật tư"/></Column>
+									<Column hAlign="End" width="9rem"><Text text="Giá trị"/></Column>
+								</columns>
+								<items>
+									<ColumnListItem type="Active">
+										<cells>
+											<ObjectIdentifier title="{mockData>PrNumber}"/>
+											<VBox>
+												<Text text="{mockData>Description}"/>
+												<Text text="{mockData>MaterialNo}" class="qdCellHint"/>
+											</VBox>
+											<ObjectNumber
+												number="{mockData>EstimatedValue}"
+												unit="{mockData>Currency}"
+											/>
+										</cells>
+									</ColumnListItem>
+								</items>
+							</Table>
+						</VBox>
+					</VBox>
+
+					<!-- ==== PHAI: TAO PO ==== -->
+					<VBox id="poCreationArea" width="100%" visible="false">
+						<layoutData>
+							<l:SplitterLayoutData size="62%" minSize="420"/>
+						</layoutData>
+
+						<!-- 2. Thong tin PR goc -->
+						<VBox class="qdContentCard">
+							<HBox alignItems="Center" class="sapUiSmallMarginBottom">
+								<Text text="2" class="qdStepBadge"/>
+								<Title text="Thông tin yêu cầu gốc" level="H3" class="qdCardTitle"/>
+							</HBox>
+
+							<HBox wrap="Wrap" class="qdInfoRow">
+								<VBox class="qdInfoCell">
+									<Label text="Mã số PR" class="qdInfoLabel"/>
+									<Text id="txtSelectedPR" text="" class="qdInfoValue"/>
+								</VBox>
+								<VBox class="qdInfoCell">
+									<Label text="Vật tư cần mua" class="qdInfoLabel"/>
+									<Text id="txtMaterialInfo" text="" class="qdInfoValue"/>
+								</VBox>
+								<VBox class="qdInfoCell">
+									<Label text="Số lượng yêu cầu" class="qdInfoLabel"/>
+									<Text id="txtQuantity" text="" class="qdInfoValue"/>
+								</VBox>
+								<VBox class="qdInfoCell">
+									<Label text="Ngân sách ước tính" class="qdInfoLabel"/>
+									<ObjectNumber id="numEstimatedValue" number="" unit="" class="qdInfoValue"/>
+								</VBox>
+							</HBox>
+						</VBox>
+
+						<!-- 3. AI goi y NCC -->
+						<VBox class="qdContentCard qdCardTight">
+							<HBox alignItems="Center" justifyContent="SpaceBetween" wrap="Wrap" class="sapUiSmallMargin">
+								<HBox alignItems="Center">
+									<Text text="3" class="qdStepBadge"/>
+									<VBox>
+										<Title text="Phương án mua sắm" level="H3" class="qdCardTitle"/>
+										<Text text="AI phân tích giá, thời gian giao hàng và đánh giá NCC" class="qdCellHint"/>
+									</VBox>
+								</HBox>
+								<Button
+									text="Gọi AI tư vấn lại"
+									icon="sap-icon://ai"
+									press=".onCallAIVendors"
+									class="qdAiBtn"
+								/>
+							</HBox>
+
+							<Table
+								id="aiVendorTable"
+								items="{mockData>/aiSuggestedVendors}"
+								mode="SingleSelectLeft"
+								selectionChange=".onVendorSelect"
+								noDataText="Chọn một PR ở bảng bên trái để AI đề xuất nhà cung cấp."
+							>
+								<columns>
+									<Column width="30%"><Text text="Nhà cung cấp"/></Column>
+									<Column hAlign="Center" width="7rem"><Text text="Đánh giá"/></Column>
+									<Column hAlign="End" width="9rem"><Text text="Giá đề xuất"/></Column>
+									<Column minScreenWidth="Desktop" demandPopin="true"><Text text="Phân tích từ AI"/></Column>
+								</columns>
+								<items>
+									<ColumnListItem>
+										<cells>
+											<ObjectIdentifier title="{mockData>VendorName}" text="Mã: {mockData>VendorNo}"/>
+											<RatingIndicator
+												value="{mockData>Rating}"
+												maxValue="5"
+												visualMode="Half"
+												iconSize="0.8rem"
+												enabled="false"
+											/>
+											<ObjectNumber number="{mockData>PriceProposal}" unit="VND"/>
+											<Text text="{mockData>AiReason}" class="qdAiReason"/>
+										</cells>
+									</ColumnListItem>
+								</items>
+							</Table>
+						</VBox>
+
+						<!-- 4. Xac nhan tao PO -->
+						<VBox class="qdContentCard">
+							<HBox alignItems="Center" class="sapUiSmallMarginBottom">
+								<Text text="4" class="qdStepBadge"/>
+								<Title text="Xác nhận đơn mua hàng" level="H3" class="qdCardTitle"/>
+							</HBox>
+
+							<f:SimpleForm editable="true" layout="ResponsiveGridLayout" labelSpanL="4" columnsL="1">
+								<f:content>
+									<Label text="Nhà cung cấp lựa chọn" required="true"/>
+									<Input id="inSelectedVendor" editable="false" placeholder="Chọn 1 nhà cung cấp ở bảng trên"/>
+
+									<Label text="Giá thương lượng cuối cùng" required="true"/>
+									<StepInput id="inFinalPrice" width="100%" step="500000" min="0" value="0"/>
+
+									<Label text="Điều khoản giao hàng"/>
+									<Input id="inDeliveryTerms" placeholder="VD: Giao tại kho QDPL trong 7 ngày"/>
+								</f:content>
+							</f:SimpleForm>
+
+							<MessageStrip
+								text="PO sẽ được ghi vào SAP kèm liên kết BANFN về PR gốc — có thể tra cứu bằng ME23N."
+								type="Information"
+								showIcon="true"
+								class="sapUiSmallMarginTop qdAiMessageStrip"
+							/>
+
+							<HBox justifyContent="End" class="sapUiMediumMarginTop">
+								<Button
+									text="Tạo Purchase Order sang SAP"
+									type="Emphasized"
+									icon="sap-icon://accept"
+									press=".onConfirmCreatePO"
+								/>
+							</HBox>
+						</VBox>
+					</VBox>
+
+				</l:contentAreas>
+			</l:Splitter>
+
+		</content>
+	</Page>
 </mvc:View>

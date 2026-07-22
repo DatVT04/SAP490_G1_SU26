@@ -9,15 +9,46 @@ sap.ui.define([
 
 	var BACKEND = Config.BACKEND;
 
+	// Nguong leo thang phe duyet — phai khop voi buildApprovalFlags() trong server.js
+	var CEO_THRESHOLD = 300000000;   // > 300 trieu -> can CEO duyet them
+	var CFO_THRESHOLD = 100000000;   // > 100 trieu -> can CFO xem ky
+
 	return Controller.extend("com.qdavy.procurement.controller.PR01", {
 		onInit: function () {
 			var oModel = new JSONModel({
 				materials: [],
 				header: { currency: "VND" },
-				items: [] // Lưu danh sách nhiều vật tư
+				items: [],        // Danh sach nhieu vat tu
+				totalText: "0",   // Tong gia tri da format, hien o thanh qdTotalBar
+				escalationText: ""// Canh bao leo thang, rong = an MessageStrip
 			});
 			this.getView().setModel(oModel);
 			this._loadMaterials();
+		},
+
+		// Tinh lai tong tien + canh bao moi khi so luong/don gia thay doi
+		onItemValueChange: function () {
+			this._recalcTotal();
+		},
+
+		_recalcTotal: function () {
+			var oModel = this.getView().getModel();
+			var aItems = oModel.getProperty("/items") || [];
+
+			var fTotal = aItems.reduce(function (sum, item) {
+				return sum + (Number(item.estimatedValue) || 0);
+			}, 0);
+
+			oModel.setProperty("/totalText", fTotal.toLocaleString("vi-VN"));
+
+			// Bao truoc cho nguoi de nghi biet PR se phai qua nhung cap nao
+			var sWarn = "";
+			if (fTotal > CEO_THRESHOLD) {
+				sWarn = "Giá trị vượt 300 triệu VND — đề nghị này sẽ cần CFO duyệt và leo thang lên CEO phê duyệt.";
+			} else if (fTotal > CFO_THRESHOLD) {
+				sWarn = "Giá trị vượt 100 triệu VND — đề nghị này sẽ được CFO xem xét kỹ trước khi duyệt.";
+			}
+			oModel.setProperty("/escalationText", sWarn);
 		},
 
 		_loadMaterials: function () {
@@ -82,6 +113,7 @@ sap.ui.define([
 			var aItems = oModel.getProperty("/items");
 			aItems.splice(iIndex, 1);
 			oModel.setProperty("/items", aItems);
+			this._recalcTotal();
 		},
 
 		// Tự động map dữ liệu khi chọn vật tư từ dropdown
@@ -100,10 +132,12 @@ sap.ui.define([
 				oModel.setProperty(sPath + "/description", oMaterial.Description);
 				oModel.setProperty(sPath + "/uom", oMaterial.BaseUoM);
 			}
+			this._recalcTotal();
 		},
 
 		onResetPress: function () {
 			this.getView().getModel().setProperty("/items", []);
+			this._recalcTotal();
 		},
 
 		onSubmitPress: function () {
@@ -171,17 +205,39 @@ sap.ui.define([
 					return;
 				}
 
-				MessageBox.success("Da tao thanh cong de nghi mua sam " + oResult.approval.PRId, {
-					onClose: function () {
-						this.onResetPress();
-						this.getOwnerComponent().getRouter().navTo("dashboard");
-					}.bind(this)
+				var oApproval = oResult.approval;
+					var aWarnings = [];
+					if (oApproval.needsLegalReview) {
+						aWarnings.push("- Can Phap che xem truoc (gia tri > 100 trieu VND)");
+					}
+					if (oApproval.needsProcurementHeadReview) {
+						aWarnings.push("- Can Truong Bo phan Mua sam xem truoc (gia tri > 300 trieu VND)");
+					}
+
+					var sMsg = "Da tao de nghi mua sam " + oApproval.PRId + ".";
+					if (aWarnings.length) {
+						sMsg += "\n\nLuu y leo thang phe duyet:\n" + aWarnings.join("\n");
+					}
+					// Canh bao ro neu PR chi luu local, KHONG ghi duoc vao SAP that
+					// (thuong do MaterialNo chua ton tai ben SAP - chua chay MM01).
+					if (oResult.sapIntegration === "failed") {
+						sMsg += "\n\nCANH BAO: PR chua duoc ghi vao SAP that"
+							+ (oResult.sapErrorMessage ? " - " + oResult.sapErrorMessage : "")
+							+ ". PR nay se KHONG xem duoc bang ME53N.";
+					}
+
+					MessageBox.success(sMsg, {
+						title: "PR-01",
+						onClose: function () {
+							this.onResetPress();
+							this.getOwnerComponent().getRouter().navTo("dashboard");
+						}.bind(this)
+					});
+				}.bind(this))
+				.catch(function () {
+					oView.setBusy(false);
+					MessageBox.error("Khong the ket noi toi may chu.");
 				});
-			}.bind(this))
-			.catch(function () {
-				oView.setBusy(false);
-				MessageBox.error("Khong the ket noi toi may chu.");
-			});
 		},
 
 		onNavBack: function () {

@@ -132,14 +132,413 @@ html, body {
 }
 
 /* ==========================================================================
-   Dashboard
+   PAGE HERO — header dung chung cho MOI man trong (PR01/PR02/PO01/Report/Config)
+   Moi man co 1 mau accent rieng, nhung cung cau truc:
+   [nut back] eyebrow / title / subtitle          [actions]
    ========================================================================== */
+.qdInnerPage .sapMPage {
+	background: var(--qd-bg);
+}
+
+.qdPageHero {
+	background: linear-gradient(135deg, var(--qd-primary) 0%, var(--qd-primary-light) 100%);
+	border-radius: var(--qd-radius-lg);
+	padding: 1.5rem 1.75rem;
+	margin: 1.25rem 1.25rem 0 1.25rem;
+	box-shadow: var(--qd-shadow);
+	position: relative;
+	overflow: hidden;
+	animation: qdFadeUp 260ms ease both;
+}
+
+.qdPageHero::after {
+	content: "";
+	position: absolute;
+	width: 16rem;
+	height: 16rem;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.05);
+	top: -7rem;
+	right: -4rem;
+	pointer-events: none;
+}
+
+.qdPageHero .sapMTitle,
+.qdPageHero .sapMText,
+.qdPageHero .sapMLabel {
+	color: #FFFFFF !important;
+}
+
+.qdPageHeroBlue   { background: linear-gradient(135deg, #1E3A8A 0%, var(--qd-accent-blue) 100%); }
+.qdPageHeroAmber  { background: linear-gradient(135deg, #92400E 0%, var(--qd-accent-amber) 100%); }
+.qdPageHeroPurple { background: linear-gradient(135deg, #5B21B6 0%, var(--qd-accent-purple) 100%); }
+.qdPageHeroGreen  { background: linear-gradient(135deg, #14532D 0%, var(--qd-accent-green) 100%); }
+
+.qdHeroBackBtn.sapMBtn {
+	margin-right: 0.75rem;
+}
+
+.qdHeroBackBtn .sapMBtnInner {
+	background: rgba(255, 255, 255, 0.14) !important;
+	border-color: rgba(255, 255, 255, 0.3) !important;
+	border-radius: 10px !important;
+}
+
+.qdHeroBackBtn .sapMBtnInner:hover {
+	background: rgba(255, 255, 255, 0.26) !important;
+}
+
+.qdHeroBackBtn .sapUiIcon {
+	color: #FFFFFF !important;
+}
+
+.qdPageEyebrow {
+	font-size: 0.72rem !important;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.09em;
+	opacity: 0.75;
+}
+
+.qdPageTitle.sapMTitle {
+	font-size: 1.4rem !important;
+	font-weight: 700 !important;
+	line-height: 1.25 !important;
+	margin-top: 0.15rem;
+}
+
+.qdPageSub {
+	font-size: 0.85rem !important;
+	opacity: 0.85;
+	margin-top: 0.3rem;
+}
+
+/* ==========================================================================
+   FLOW STEPPER — hien vi tri man hien tai trong luong PR -> Duyet -> PO
+   Giup nguoi dung luon biet minh dang o buoc nao cua quy trinh.
+   ========================================================================== */
+.qdFlowSteps {
+	margin-top: 1rem;
+	gap: 0.4rem;
+	align-items: center;
+	flex-wrap: wrap;
+}
+
+.qdFlowStep {
+	font-size: 0.72rem !important;
+	font-weight: 600;
+	color: rgba(255, 255, 255, 0.6) !important;
+	background: rgba(255, 255, 255, 0.08);
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	border-radius: 999px;
+	padding: 0.2rem 0.7rem;
+	white-space: nowrap;
+}
+
+.qdFlowStepActive {
+	color: #FFFFFF !important;
+	background: rgba(255, 255, 255, 0.22);
+	border-color: rgba(255, 255, 255, 0.45);
+	font-weight: 700;
+}
+
+.qdFlowArrow {
+	color: rgba(255, 255, 255, 0.4) !important;
+	font-size: 0.7rem !important;
+}
+
+/* ==========================================================================
+   CONTENT CARD — khung noi dung dung chung
+   ========================================================================== */
+.qdContentCard {
+	background: var(--qd-card-bg);
+	border-radius: var(--qd-radius-md);
+	box-shadow: var(--qd-shadow);
+	padding: 1.25rem;
+	margin: 1.25rem;
+	animation: qdFadeUp 280ms ease both;
+}
+
+.qdContentCard.qdCardTight {
+	padding: 0.5rem 0.75rem 0.75rem 0.75rem;
+}
+
+.qdCardTitle.sapMTitle {
+	color: var(--qd-primary) !important;
+	font-size: 1.05rem !important;
+	font-weight: 700 !important;
+}
+
+.qdStepBadge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.5rem;
+	height: 1.5rem;
+	border-radius: 50%;
+	background: var(--qd-accent-blue);
+	color: #FFFFFF !important;
+	font-size: 0.75rem !important;
+	font-weight: 700;
+	margin-right: 0.6rem;
+}
+
+/* Tong tien noi bat (PR01/PO01) */
+.qdTotalBar {
+	background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(124, 58, 237, 0.08) 100%);
+	border: 1px solid rgba(37, 99, 235, 0.18);
+	border-radius: var(--qd-radius-md);
+	padding: 0.85rem 1.25rem;
+	margin-top: 0.75rem;
+}
+
+.qdTotalLabel {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.82rem !important;
+	font-weight: 600;
+}
+
+.qdTotalValue.sapMTitle {
+	color: var(--qd-primary) !important;
+	font-size: 1.4rem !important;
+	font-weight: 700 !important;
+}
+
+/* Bang trong khung card — bo vien thua cua UI5 */
+.qdContentCard .sapMListTbl {
+	border-radius: 8px;
+}
+
+/* Footer bar cua Page */
+.qdPageFooter.sapMTB {
+	background: var(--qd-card-bg) !important;
+	border-top: 1px solid var(--qd-border) !important;
+	box-shadow: 0 -4px 16px rgba(20, 41, 77, 0.06);
+}
+
+.qdFooterHint {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.82rem !important;
+}
+
+.qdCardIcon {
+	color: var(--qd-accent-blue) !important;
+	font-size: 1.1rem !important;
+	margin-right: 0.55rem;
+}
+
+/* ==========================================================================
+   INFO ROW — cac o thong tin read-only (PR01 header, PO01 thong tin PR goc)
+   ========================================================================== */
+.qdInfoRow {
+	gap: 1.5rem;
+}
+
+.qdInfoCell {
+	min-width: 11rem;
+	flex: 0 1 auto;
+	padding-right: 1rem;
+	border-right: 1px solid var(--qd-border);
+}
+
+.qdInfoCell:last-child {
+	border-right: none;
+}
+
+.qdInfoLabel.sapMLabel {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.75rem !important;
+	font-weight: 600 !important;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.qdInfoValue {
+	color: var(--qd-primary) !important;
+	font-size: 0.95rem !important;
+	font-weight: 600 !important;
+	margin-top: 0.2rem;
+}
+
+.qdInfoHint,
+.qdCellHint {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.74rem !important;
+	line-height: 1.4 !important;
+}
+
+/* ==========================================================================
+   PR-02 — nested item list trong tung dong PR
+   ========================================================================== */
+.qdNestedItemList .sapMLIB {
+	padding: 0.25rem 0 !important;
+	background: transparent !important;
+	border-bottom-color: var(--qd-border) !important;
+}
+
+.qdNestedItemRow {
+	width: 100%;
+	gap: 0.6rem;
+	padding: 0.2rem 0;
+}
+
+.qdLineNo {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.7rem !important;
+	font-weight: 700;
+	background: var(--qd-bg);
+	border-radius: 4px;
+	padding: 0.1rem 0.35rem;
+	min-width: 2.2rem;
+	text-align: center;
+}
+
+.qdNestedItemMain {
+	flex: 1 1 55%;
+	min-width: 0;
+}
+
+.qdNestedItemSide {
+	flex: 0 0 auto;
+	text-align: right;
+	align-items: flex-end;
+}
+
+.qdNestedQty {
+	font-size: 0.82rem !important;
+	font-weight: 600 !important;
+	color: var(--qd-primary) !important;
+}
+
+.qdRowAmount {
+	font-size: 1rem !important;
+	font-weight: 700 !important;
+	color: var(--qd-primary) !important;
+}
+
+.qdRowActions {
+	flex-wrap: wrap;
+	gap: 0.35rem;
+}
+
+/* ==========================================================================
+   PO-01 — splitter, AI panel
+   ========================================================================== */
+.qdSplitter {
+	min-height: 34rem;
+}
+
+.qdAiBtn .sapMBtnInner {
+	background: linear-gradient(135deg, var(--qd-accent-purple) 0%, var(--qd-accent-blue) 100%) !important;
+	border: none !important;
+	border-radius: 8px !important;
+}
+
+.qdAiBtn .sapMBtnContent,
+.qdAiBtn .sapUiIcon {
+	color: #FFFFFF !important;
+	font-weight: 600 !important;
+}
+
+.qdAiReason {
+	font-size: 0.8rem !important;
+	line-height: 1.5 !important;
+	color: var(--qd-text-muted) !important;
+}
+
+/* Bang trong card: bo double-border cua UI5 */
+.qdContentCard .sapMList,
+.qdContentCard .sapMTable {
+	border: none !important;
+}
+
+/* ==========================================================================
+   FILTER BAR — thay the OverflowToolbar design="Info" mac dinh (POReport)
+   ========================================================================== */
+.qdFilterBar.sapMTB {
+	background: var(--qd-bg) !important;
+	border-radius: var(--qd-radius-md);
+	padding: 0.75rem 1rem !important;
+	margin: 0.5rem 0 0.75rem 0;
+	gap: 1.25rem;
+	height: auto !important;
+	flex-wrap: wrap;
+}
+
+.qdFilterField {
+	gap: 0.3rem;
+}
+
+.qdFilterFieldGrow {
+	flex: 1 1 16rem;
+	min-width: 14rem;
+}
+
+.qdFilterLabel.sapMLabel {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.72rem !important;
+	font-weight: 600 !important;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.qdFilterField .sapMSlt,
+.qdFilterField .sapMSF {
+	background: var(--qd-card-bg);
+}
+
+/* Hover row de nhan biet dong dang tro toi */
+.qdContentCard .sapMLIBActionable:hover {
+	background: rgba(37, 99, 235, 0.04) !important;
+}
+
+@media (max-width: 599px) {
+	.qdPageHero {
+		padding: 1.15rem 1rem;
+		margin: 0.75rem;
+	}
+	.qdPageTitle.sapMTitle { font-size: 1.15rem !important; }
+	.qdContentCard { margin: 0.75rem; padding: 1rem; }
+	.qdInfoCell {
+		border-right: none;
+		border-bottom: 1px solid var(--qd-border);
+		padding-bottom: 0.6rem;
+		margin-bottom: 0.6rem;
+		min-width: 100%;
+	}
+	.qdInfoCell:last-child { border-bottom: none; }
+	.qdSplitter { min-height: auto; }
+}
+
+/* ==========================================================================
+   Dashboard — hero
+   ========================================================================== */
+.qdDashboardPage .sapMPage {
+	background: var(--qd-bg);
+}
+
 .qdDashHero {
 	background: linear-gradient(135deg, var(--qd-primary) 0%, var(--qd-primary-light) 100%);
 	border-radius: var(--qd-radius-lg);
-	padding: 2rem 2.5rem;
-	margin: 1.5rem 1.5rem 0.5rem 1.5rem;
+	padding: 2rem 2.25rem;
+	margin: 1.25rem 1.25rem 0 1.25rem;
 	box-shadow: var(--qd-shadow);
+	position: relative;
+	overflow: hidden;
+	animation: qdFadeUp 280ms ease both;
+}
+
+/* Vong tron trang trí — giữ nhất quán ngôn ngữ thị giác với màn Login */
+.qdDashHero::after {
+	content: "";
+	position: absolute;
+	width: 20rem;
+	height: 20rem;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.05);
+	top: -8rem;
+	right: -6rem;
+	pointer-events: none;
 }
 
 .qdDashHero .sapMTitle,
@@ -147,76 +546,320 @@ html, body {
 	color: #FFFFFF !important;
 }
 
+.qdHeroEyebrow {
+	font-size: 0.8rem !important;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	opacity: 0.75;
+	margin-bottom: 0.35rem;
+}
+
+.qdHeroName.sapMTitle {
+	font-size: 1.75rem !important;
+	font-weight: 700 !important;
+	line-height: 1.2 !important;
+}
+
+.qdHeroMetaRow {
+	margin-top: 0.6rem;
+	gap: 0.75rem;
+	align-items: center;
+}
+
+.qdHeroPosition {
+	opacity: 0.85;
+	font-size: 0.9rem !important;
+}
+
 .qdRoleBadge {
 	display: inline-block;
 	background: rgba(255, 255, 255, 0.15);
 	border: 1px solid rgba(255, 255, 255, 0.35);
 	border-radius: 999px;
-	padding: 0.25rem 0.9rem;
-	margin-top: 0.6rem;
-	font-size: 0.8rem;
+	padding: 0.2rem 0.85rem;
+	font-size: 0.75rem !important;
+	font-weight: 600;
+	letter-spacing: 0.02em;
 	color: #FFFFFF !important;
 }
 
-.qdSectionTitle {
-	margin: 1.5rem 1.5rem 0.5rem 1.5rem;
+.qdHeroActions {
+	margin-top: 0.25rem;
+}
+
+.qdHeroBtn.sapMBtn .sapMBtnInner {
+	background: rgba(255, 255, 255, 0.12) !important;
+	border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.qdHeroBtn.sapMBtn .sapMBtnInner:hover {
+	background: rgba(255, 255, 255, 0.22) !important;
+}
+
+.qdHeroBtn .sapMBtnContent,
+.qdHeroBtn .sapUiIcon {
+	color: #FFFFFF !important;
+}
+
+/* ==========================================================================
+   Dashboard — section heading (eyebrow + title + subtitle)
+   ========================================================================== */
+.qdSection {
+	margin: 1.75rem 1.25rem 0 1.25rem;
+}
+
+.qdSectionHeading {
+	margin-bottom: 0.9rem;
+}
+
+.qdEyebrow {
+	color: var(--qd-accent-blue) !important;
+	font-size: 0.72rem !important;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.09em;
+	margin-bottom: 0.25rem;
+}
+
+.qdSectionH2.sapMTitle {
 	color: var(--qd-primary) !important;
+	font-size: 1.3rem !important;
+	font-weight: 700 !important;
 }
 
-.qdTileGrid {
-	margin: 0 1rem 1.5rem 1rem;
+.qdSectionSub {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.86rem !important;
+	margin-top: 0.2rem;
 }
 
-.qdTile.sapMGT {
-	border-radius: var(--qd-radius-md) !important;
-	box-shadow: var(--qd-shadow) !important;
-	background: var(--qd-card-bg) !important;
-	border: none !important;
+/* ==========================================================================
+   Dashboard — KPI cards
+   ========================================================================== */
+.qdKpiRow {
+	gap: 0.9rem;
+}
+
+.qdKpiCard {
+	flex: 1 1 13rem;
+	min-width: 12rem;
+	background: var(--qd-card-bg);
+	border-radius: var(--qd-radius-md);
+	box-shadow: var(--qd-shadow);
+	padding: 1.1rem 1.25rem;
+	position: relative;
 	overflow: hidden;
-	transition: transform 0.15s ease, box-shadow 0.15s ease;
+	animation: qdFadeUp 280ms ease both;
 }
 
-.qdTile.sapMGT:hover {
-	transform: translateY(-4px);
-	box-shadow: var(--qd-shadow-hover) !important;
+.qdKpiCard::before {
+	content: "";
+	position: absolute;
+	top: 0; left: 0;
+	width: 4px; height: 100%;
+	background: var(--qd-kpi-accent, var(--qd-primary));
 }
 
-.qdTile .sapMGTHdrTxt,
-.qdTile .sapMTileTitle {
+.qdKpiCard:nth-child(2) { animation-delay: 60ms; }
+.qdKpiCard:nth-child(3) { animation-delay: 120ms; }
+
+.qdKpiAmber { --qd-kpi-accent: var(--qd-accent-amber); }
+.qdKpiGreen { --qd-kpi-accent: var(--qd-accent-green); }
+.qdKpiBlue  { --qd-kpi-accent: var(--qd-accent-blue); }
+
+.qdKpiLabel {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.82rem !important;
+	font-weight: 600;
+}
+
+.qdKpiIcon {
+	color: var(--qd-kpi-accent, var(--qd-primary)) !important;
+	font-size: 1.05rem !important;
+	opacity: 0.9;
+}
+
+.qdKpiValue.sapMTitle {
 	color: var(--qd-primary) !important;
+	font-size: 2rem !important;
+	font-weight: 700 !important;
+	line-height: 1.15 !important;
+	margin-top: 0.35rem;
+}
+
+.qdKpiValueSm.sapMTitle {
+	font-size: 1.5rem !important;
+}
+
+.qdKpiUnit {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.75rem !important;
+	margin-top: 0.15rem;
+}
+
+/* ==========================================================================
+   Dashboard — action cards (thay GenericTile)
+   ========================================================================== */
+.qdActionGrid {
+	gap: 0.9rem;
+	padding-bottom: 2rem;
+}
+
+.qdActionCard {
+	flex: 1 1 16rem;
+	max-width: 20rem;
+	min-width: 14rem;
+	background: var(--qd-card-bg);
+	border-radius: var(--qd-radius-md);
+	box-shadow: var(--qd-shadow);
+	padding: 1.25rem;
+	position: relative;
+	overflow: hidden;
+	transition: transform 0.18s ease, box-shadow 0.18s ease;
+	animation: qdFadeUp 280ms ease both;
+}
+
+.qdActionCard::before {
+	content: "";
+	position: absolute;
+	top: 0; left: 0;
+	width: 100%; height: 4px;
+	background: var(--qd-card-accent, var(--qd-primary));
+}
+
+.qdActionCard:hover {
+	transform: translateY(-4px);
+	box-shadow: var(--qd-shadow-hover);
+}
+
+.qdActionCard:nth-child(2) { animation-delay: 60ms; }
+.qdActionCard:nth-child(3) { animation-delay: 120ms; }
+.qdActionCard:nth-child(4) { animation-delay: 180ms; }
+.qdActionCard:nth-child(5) { animation-delay: 240ms; }
+
+.qdAccentBlue   { --qd-card-accent: var(--qd-accent-blue); }
+.qdAccentAmber  { --qd-card-accent: var(--qd-accent-amber); }
+.qdAccentPurple { --qd-card-accent: var(--qd-accent-purple); }
+.qdAccentGreen  { --qd-card-accent: var(--qd-accent-green); }
+.qdAccentSlate  { --qd-card-accent: #475569; }
+
+.qdActionHead {
+	margin-bottom: 0.85rem;
+	width: 100%;
+}
+
+.qdActionIconBox {
+	width: 2.6rem;
+	height: 2.6rem;
+	border-radius: 12px;
+	background: var(--qd-card-accent, var(--qd-primary));
+	align-items: center;
+	justify-content: center;
+	display: flex;
+}
+
+.qdActionIcon {
+	color: #FFFFFF !important;
+	font-size: 1.25rem !important;
+}
+
+.qdActionCode {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.68rem !important;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	background: var(--qd-bg);
+	border-radius: 6px;
+	padding: 0.2rem 0.5rem;
+}
+
+.qdActionTitle.sapMTitle {
+	color: var(--qd-primary) !important;
+	font-size: 1.02rem !important;
+	font-weight: 700 !important;
+	line-height: 1.3 !important;
+}
+
+.qdActionDesc {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.82rem !important;
+	line-height: 1.5 !important;
+	margin-top: 0.3rem;
+	min-height: 2.5rem;
+}
+
+.qdActionBtn.sapMBtn {
+	margin-top: 0.9rem;
+	align-self: flex-start;
+}
+
+.qdActionBtn .sapMBtnInner {
+	background: transparent !important;
+	border-color: var(--qd-border) !important;
+	border-radius: 8px !important;
+}
+
+.qdActionBtn .sapMBtnInner:hover {
+	background: var(--qd-card-accent, var(--qd-primary)) !important;
+	border-color: var(--qd-card-accent, var(--qd-primary)) !important;
+}
+
+.qdActionBtn .sapMBtnContent,
+.qdActionBtn .sapUiIcon {
+	color: var(--qd-card-accent, var(--qd-primary)) !important;
 	font-weight: 600 !important;
 }
 
-.qdTile .sapMTileCntFtrTxt {
-	color: var(--qd-text-muted) !important;
-}
-
-.qdTile .sapMTileCntIcon,
-.qdTile .sapMTileIcon,
-.qdTile .sapUiIcon {
+.qdActionBtn .sapMBtnInner:hover .sapMBtnContent,
+.qdActionBtn .sapMBtnInner:hover .sapUiIcon {
 	color: #FFFFFF !important;
-	border-radius: 50%;
-	padding: 0.6rem;
 }
 
-.qdTileBlue .sapMTileCntIcon,
-.qdTileBlue .sapUiIcon {
-	background: var(--qd-accent-blue);
+/* ==========================================================================
+   Empty state (dung chung nhieu man)
+   ========================================================================== */
+.qdEmptyState {
+	border: 1px dashed var(--qd-border);
+	border-radius: var(--qd-radius-md);
+	padding: 2.5rem 1.5rem;
+	background: var(--qd-card-bg);
+	gap: 0.5rem;
 }
 
-.qdTileAmber .sapMTileCntIcon,
-.qdTileAmber .sapUiIcon {
-	background: var(--qd-accent-amber);
+.qdEmptyIcon {
+	color: var(--qd-text-muted) !important;
+	font-size: 2rem !important;
+	opacity: 0.5;
+	margin-bottom: 0.4rem;
 }
 
-.qdTilePurple .sapMTileCntIcon,
-.qdTilePurple .sapUiIcon {
-	background: var(--qd-accent-purple);
+.qdEmptyTitle.sapMTitle {
+	color: var(--qd-primary) !important;
+	font-size: 1rem !important;
 }
 
-.qdTileGreen .sapMTileCntIcon,
-.qdTileGreen .sapUiIcon {
-	background: var(--qd-accent-green);
+.qdEmptyText {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.85rem !important;
+	max-width: 28rem;
+}
+
+@keyframes qdFadeUp {
+	from { opacity: 0; transform: translateY(12px); }
+	to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive — mobile-first breakpoints */
+@media (max-width: 599px) {
+	.qdDashHero {
+		padding: 1.5rem 1.25rem;
+		margin: 0.75rem;
+	}
+	.qdHeroName.sapMTitle { font-size: 1.4rem !important; }
+	.qdHeroActions { margin-top: 1rem; }
+	.qdSection { margin: 1.25rem 0.75rem 0 0.75rem; }
+	.qdActionCard, .qdKpiCard { max-width: 100%; min-width: 100%; }
+	.qdKpiValue.sapMTitle { font-size: 1.6rem !important; }
 }
 
 /* ==========================================================================

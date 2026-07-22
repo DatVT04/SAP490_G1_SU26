@@ -7,10 +7,18 @@ const axios = require("axios");
 const { employees, materials, vendors, pendingPRs } = require("./webapp/model/MockData");
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
+
+// Health check cho hosting/uptime monitor
+app.get("/api/health", (req, res) => res.json({ ok: true }));
+
+// Serve frontend UI5 (webapp/) ngay tu Express — khi hosting chi can 1 service,
+// FE + BE cung origin. (UI5 runtime load tu CDN ui5.sap.com, khong can build.)
+const path = require("path");
+app.use(express.static(path.join(__dirname, "webapp")));
 
 // Ten service OData that duoc dang ky qua /IWFND/MAINT_SERVICE. SEGW tu dong them hau to
 // "_SRV" vao ten project (ZG1_PROC_SRV) nen ten service thuc te co 2 lan "_SRV" lien tiep.
@@ -23,7 +31,7 @@ const LEGAL_ESCALATION_THRESHOLD = 100000000; // > 100 trieu VND -> Phap che
 // entity doc/ghi truc tiep bang ZG1_APPROVAL. Khi tao PR, neu SAP_HOST duoc cau hinh thi
 // server se GOI THEM OData PurchaseRequisitionSet de tao PR that ben SAP (BAPI_PR_CREATE se
 // tu ghi 1 dong vao ZG1_APPROVAL that) - ca 2 con duong chay song song, khong xung dot vi
-// approvalStore chi phuc vu UI demo/PR02, khong phai nguon du lieu chinh thuc cua SAP.
+// approvalStore chi phuc vu UI, cho den khi ABAP bo sung entity doc ZG1_APPROVAL.
 const approvalStore = [...pendingPRs].map((pr) => ({ ...pr }));
 let nextApprovalId = approvalStore.length + 1;
 
@@ -42,6 +50,9 @@ function sapAuth() {
 }
 
 // --- POST /api/login ---------------------------------------------------
+// Xac thuc qua SAP HCM: email (PA0105 subtype 0010, cau hinh bang PA20/PA30)
+// -> EmployeeSet tra ve Role/FullName/Pernr. SAP la nguon danh tinh duy nhat.
+// Email khong co trong SAP -> fallback MockData (tai khoan demo/dev).
 app.post("/api/login", async (req, res) => {
 	const { email } = req.body || {};
 
@@ -84,7 +95,21 @@ app.post("/api/login", async (req, res) => {
 			(emp) => emp.Email && emp.Email.toLowerCase() === String(email).toLowerCase()
 		);
 
-		if (!employee || !employee.IsActive) {
+		// Neu SAP khong co email nay, fallback ve MockData (demo / dev accounts)
+		if (!employee) {
+			const mockEmp = employees.find(
+				(emp) => emp.Email.toLowerCase() === String(email).toLowerCase()
+			);
+			if (!mockEmp || !mockEmp.IsActive) {
+				return res.status(401).json({
+					success: false,
+					message: "Email khong ton tai hoac tai khoan da bi khoa."
+				});
+			}
+			return res.json({ success: true, employee: mockEmp });
+		}
+
+		if (!employee.IsActive) {
 			return res.status(401).json({
 				success: false,
 				message: "Email khong ton tai hoac tai khoan da bi khoa."
@@ -93,6 +118,13 @@ app.post("/api/login", async (req, res) => {
 
 		return res.json({ success: true, employee });
 	} catch (error) {
+		// SAP khong ket noi duoc → fallback ve MockData
+		const mockEmp = employees.find(
+			(emp) => emp.Email.toLowerCase() === String(email).toLowerCase()
+		);
+		if (mockEmp && mockEmp.IsActive) {
+			return res.json({ success: true, employee: mockEmp });
+		}
 		return res.status(502).json({
 			success: false,
 			message: "Khong the ket noi toi he thong SAP."
@@ -186,87 +218,115 @@ Hay danh gia dua tren gia, thoi gian giao hang va danh gia chat luong, roi tra l
 });
 
 // --- Approval workflow (PR-01 tao PR / PR-02 duyet PR) ------------------
-// approvalStore la nguon du lieu cho man PR02 (vi OData chua co entity doc ZG1_APPROVAL).
+// db.js (Postgres/in-memory) la nguon du lieu cho man PR02 (vi OData chua co entity doc ZG1_APPROVAL).
 // Khi co SAP_HOST, PR cung duoc tao that ben SAP qua OData PurchaseRequisitionSet (BAPI_PR_CREATE),
 // nhung ket qua tao that KHONG chan luong demo neu SAP loi/khong ket noi duoc.
 
-//api PR1
+// POST /api/approval/submit — Tao PR moi voi nhieu Line Item (Section 3.4 meeting minutes)
 app.post("/api/approval/submit", async (req, res) => {
-	const {
-		requesterEmail,
-		materialNo,
-		materialType,
-		description,
-		quantity,
-		uom,
-		totalValue,
-		currency,
-		costCenter,
-		internalOrder, // <-- 1. Nhận internalOrder từ FE
-		assetNo
-	} = req.body || {};
+	const { requesterEmail, currency, totalPRValue, items } = req.body || {};
 
-	// ... các đoạn validate kiểm tra thông tin ...
+	if (!requesterEmail) {
+		return res.status(400).json({ success: false, message: "Thieu thong tin nguoi de nghi." });
+	}
+	if (!Array.isArray(items) || items.length === 0) {
+		return res.status(400).json({ success: false, message: "PR phai co it nhat 1 vat tu." });
+	}
+
+	// Validate tung dong vat tu
+	for (var i = 0; i < items.length; i++) {
+		var it = items[i];
+		if (!it.description) {
+			return res.status(400).json({ success: false, message: "Dong " + (i + 1) + ": Thieu mo ta vat tu." });
+		}
+		if (!it.quantity || Number(it.quantity) <= 0) {
+			return res.status(400).json({ success: false, message: "Dong " + (i + 1) + ": So luong khong hop le." });
+		}
+	}
 
 	let sapPrNumber = null;
 	let sapIntegration = "mock";
+	let sapErrorMessage = null;
 
 	if (process.env.SAP_HOST) {
+		// Tao PR trong SAP voi item dau tien (OData PurchaseRequisitionSet hien ho tro 1 item/call)
+		const firstItem = items[0];
 		try {
 			const sapResponse = await axios.post(
 				`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseRequisitionSet`,
 				{
 					CompanyCode: "QD01",
 					Requester: requesterEmail,
-					MaterialNo: materialNo,
-					Description: description || "",
-					Quantity: String(quantity),
-					UoM: uom || "PC",
-					EstimatedValue: String(totalValue),
+					MaterialNo: firstItem.materialNo || "",
+					Description: firstItem.description || "",
+					Quantity: String(firstItem.quantity),
+					UoM: firstItem.uom || "PC",
+					EstimatedValue: String(firstItem.estimatedValue || 0),
 					Currency: currency || "VND",
-					CostCenter: costCenter || "",
-					InternalOrder: internalOrder || "", // <-- 2. Truyền sang SAP OData (kiểm tra tên Property trên SEGW)
-					AssetNo: assetNo || ""
+					CostCenter: firstItem.costCenter || "",
+					InternalOrder: firstItem.internalOrder || "",
+					AssetNo: firstItem.assetNo || ""
 				},
-				{
-					auth: sapAuth(),
-					headers: { "Content-Type": "application/json" }
-				}
+				{ auth: sapAuth(), headers: { "Content-Type": "application/json" } }
 			);
 			sapPrNumber = sapResponse.data && sapResponse.data.d && sapResponse.data.d.PrNumber;
 			sapIntegration = "created";
 		} catch (error) {
 			sapIntegration = "failed";
+			sapErrorMessage =
+				(error.response && error.response.data && error.response.data.error &&
+					error.response.data.error.message && error.response.data.error.message.value) ||
+				(error.response && `SAP tra ve HTTP ${error.response.status}`) ||
+				error.message;
+			console.error(`[approval/submit] Tao PR that ben SAP THAT BAI: ${sapErrorMessage}`);
 		}
 	}
 
+	const newPRId = sapPrNumber ||
+		`PR-${new Date().getFullYear()}-${String(nextApprovalId).padStart(4, "0")}`;
+
 	const record = {
-		PRId: sapPrNumber || `PR-${new Date().getFullYear()}-${String(nextApprovalId).padStart(4, "0")}`,
+		PRId: newPRId,
 		RequesterEmail: requesterEmail,
-		MaterialNo: materialNo,
-		MaterialType: materialType || "ZSRV",
-		Description: description || "",
-		Quantity: quantity,
-		UoM: uom || "PC",
-		TotalValue: totalValue,
+		TotalValue: totalPRValue || 0,
 		Currency: currency || "VND",
-		CostCenter: costCenter || "",
-		InternalOrder: internalOrder || "", // <-- 3. Lưu vào in-memory store
-		AssetNo: assetNo || "",
 		Status: "PENDING_APPROVAL",
 		CreatedAt: new Date().toISOString(),
-		...buildApprovalFlags(totalValue)
+		// Mang items — cau truc chinh theo Section 3.4 meeting minutes
+		items: items.map(function (item, idx) {
+			return {
+				LineNo:        String(idx + 1).padStart(5, "0"),
+				MaterialNo:    item.materialNo    || (item.isFreeText ? "FREE_TEXT" : ""),
+				MaterialType:  item.materialType  || "ZSRV",
+				Description:   item.description   || "",
+				Quantity:      Number(item.quantity),
+				UoM:           item.uom            || "PC",
+				EstimatedValue: Number(item.estimatedValue) || 0,
+				CostCenter:    item.costCenter     || "",
+				InternalOrder: item.internalOrder  || "",
+				AssetNo:       item.assetNo        || "",
+				isFreeText:    item.isFreeText      || false
+			};
+		}),
+		...buildApprovalFlags(totalPRValue || 0)
 	};
 
 	nextApprovalId += 1;
 	approvalStore.push(record);
 
-	return res.status(201).json({ success: true, approval: record, sapIntegration });
+	return res.status(201).json({ success: true, approval: record, sapIntegration, sapErrorMessage });
 });
 
 app.get("/api/approval/pending", (req, res) => {
 	const pending = approvalStore.filter((item) => item.Status === "PENDING_APPROVAL");
 	return res.json({ success: true, data: pending });
+});
+
+// --- GET /api/approval/approved -------------------------------------------
+// Tra ve cac PR da duoc duyet (Status = APPROVED) de PO01 co the chon va link.
+app.get("/api/approval/approved", (req, res) => {
+	const approved = approvalStore.filter((item) => item.Status === "APPROVED");
+	return res.json({ success: true, data: approved });
 });
 
 app.patch("/api/approval/:id", (req, res) => {
@@ -344,7 +404,8 @@ app.post("/api/po/create", async (req, res) => {
 						NetPrice: String(item.netPrice),
 						CostCenter: item.costCenter || "",
 						AssetNo: item.assetNo || "",
-						Plant: "QDPL"
+						Plant: "QDPL",
+					PreqNo: item.preqNo || ""   // BANFN - lien ket toi PR nguon (EKPO-BANFN)
 					}))
 				}
 			},
@@ -405,9 +466,35 @@ app.post("/api/po/create", async (req, res) => {
 // --- GET /api/po/report (Báo cáo lịch sử Đơn hàng từ SAP) ------------------
 app.get("/api/po/report", async (req, res) => {
 	if (!process.env.SAP_HOST) {
-		return res.json({ 
-			success: true, 
-			message: "chưa được!"
+		// Mock data de xem giao dien + thanh tien do hoat dong khi chua co SAP_HOST.
+		// StepActive duoc POReport.controller.js tinh lai dua tren Status khi chon dong,
+		// nhung PrDate/LeadDate/CfoDate/CeoDate/DeliveryDate can co san de hien thi mocked.
+		return res.json({
+			success: true,
+			sapIntegration: "mock",
+			data: [
+				{
+					PoNumber: "PO-2026-1001", VendorName: "Cong ty TNHH Dell Viet Nam",
+					CompanyCode: "QD01", DocDate: "01.07.2026",
+					TotalValue: 55000000, Currency: "VND", Status: "CREATED",
+					PrDate: "28.06.2026", LeadDate: "29.06.2026", CfoDate: "30.06.2026",
+					CeoDate: "", DeliveryDate: ""
+				},
+				{
+					PoNumber: "PO-2026-1002", VendorName: "Cong ty CP Microsoft Viet Nam",
+					CompanyCode: "QD01", DocDate: "05.07.2026",
+					TotalValue: 320000000, Currency: "VND", Status: "DELIVERED",
+					PrDate: "01.07.2026", LeadDate: "02.07.2026", CfoDate: "03.07.2026",
+					CeoDate: "04.07.2026", DeliveryDate: "10.07.2026"
+				},
+				{
+					PoNumber: "PO-2026-1003", VendorName: "Cong ty TNHH HP Viet Nam",
+					CompanyCode: "QD01", DocDate: "15.07.2026",
+					TotalValue: 18000000, Currency: "VND", Status: "CREATED",
+					PrDate: "12.07.2026", LeadDate: "13.07.2026", CfoDate: "14.07.2026",
+					CeoDate: "", DeliveryDate: ""
+				}
+			]
 		});
 	}
 

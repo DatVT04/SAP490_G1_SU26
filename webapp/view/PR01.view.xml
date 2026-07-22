@@ -2,51 +2,118 @@
 	controllerName="com.qdavy.procurement.controller.PR01"
 	xmlns="sap.m"
 	xmlns:mvc="sap.ui.core.mvc"
-	xmlns:form="sap.ui.layout.form"
 	xmlns:core="sap.ui.core"
 	displayBlock="true"
 >
-	<Page title="{i18n>tilePr01Title}" showNavButton="true" navButtonPress=".onNavBack">
+	<Page showHeader="false" class="qdInnerPage">
 		<content>
-			<VBox class="sapUiSmallMargin">
-				<!-- HEADER INFO -->
-				<form:SimpleForm
-					editable="true"
-					layout="ResponsiveGridLayout"
-					title="Thông tin chung PR"
+
+			<!-- ============ HERO ============ -->
+			<VBox class="qdPageHero qdPageHeroBlue">
+				<HBox alignItems="Center">
+					<Button icon="sap-icon://nav-back" press=".onNavBack" class="qdHeroBackBtn"/>
+					<VBox>
+						<Text text="Bước 1 · Đề nghị mua sắm" class="qdPageEyebrow"/>
+						<Title text="{i18n>tilePr01Title}" level="H1" class="qdPageTitle"/>
+						<Text text="Khai báo vật tư cần mua, hệ thống sẽ tạo Purchase Requisition trong SAP" class="qdPageSub"/>
+					</VBox>
+				</HBox>
+
+				<!-- Flow stepper: cho biet dang o dau trong quy trinh -->
+				<HBox class="qdFlowSteps">
+					<Text text="PR-01 Tạo đề nghị" class="qdFlowStep qdFlowStepActive"/>
+					<core:Icon src="sap-icon://navigation-right-arrow" class="qdFlowArrow"/>
+					<Text text="PR-02 Phê duyệt" class="qdFlowStep"/>
+					<core:Icon src="sap-icon://navigation-right-arrow" class="qdFlowArrow"/>
+					<Text text="PO-01 Tạo đơn hàng" class="qdFlowStep"/>
+				</HBox>
+			</VBox>
+
+			<!-- ============ THONG TIN CHUNG ============ -->
+			<VBox class="qdContentCard">
+				<HBox alignItems="Center" class="sapUiSmallMarginBottom">
+					<Text text="1" class="qdStepBadge"/>
+					<Title text="Thông tin chung" level="H3" class="qdCardTitle"/>
+				</HBox>
+
+				<HBox wrap="Wrap" class="qdInfoRow">
+					<VBox class="qdInfoCell">
+						<Label text="{i18n>prRequesterLabel}" class="qdInfoLabel"/>
+						<Text text="{user>/fullName}" class="qdInfoValue"/>
+						<Text text="{user>/email}" class="qdInfoHint"/>
+					</VBox>
+					<VBox class="qdInfoCell">
+						<Label text="Bộ phận / Vị trí" class="qdInfoLabel"/>
+						<Text text="{user>/position}" class="qdInfoValue"/>
+						<Text text="{= ${user>/costCenter} ? 'Cost Center: ' + ${user>/costCenter} : 'Chưa gán Cost Center' }" class="qdInfoHint"/>
+					</VBox>
+					<VBox class="qdInfoCell">
+						<Label text="{i18n>prCurrencyLabel}" class="qdInfoLabel"/>
+						<Select selectedKey="{/header/currency}" width="9rem" class="sapUiTinyMarginTop">
+							<core:Item key="VND" text="VND"/>
+							<core:Item key="USD" text="USD"/>
+						</Select>
+					</VBox>
+				</HBox>
+			</VBox>
+
+			<!-- ============ DANH SACH VAT TU ============ -->
+			<VBox class="qdContentCard">
+				<HBox alignItems="Center" justifyContent="SpaceBetween" wrap="Wrap" class="sapUiSmallMarginBottom">
+					<HBox alignItems="Center">
+						<Text text="2" class="qdStepBadge"/>
+						<Title text="Danh sách vật tư ({= ${/items}.length })" level="H3" class="qdCardTitle"/>
+					</HBox>
+					<HBox>
+						<Button
+							text="Vật tư trong danh mục"
+							icon="sap-icon://add"
+							press=".onAddItem"
+							class="sapUiTinyMarginEnd"
+						/>
+						<Button
+							text="Vật tư tự do"
+							icon="sap-icon://add-document"
+							press=".onAddFreeTextItem"
+						/>
+					</HBox>
+				</HBox>
+
+				<!-- Empty state khi chua co dong nao -->
+				<VBox
+					class="qdEmptyState"
+					alignItems="Center"
+					visible="{= ${/items}.length === 0 }"
 				>
-					<Label text="{i18n>prRequesterLabel}"/>
-					<Text text="{user>/fullName} ({user>/email})"/>
+					<core:Icon src="sap-icon://add-product" class="qdEmptyIcon"/>
+					<Title text="Chưa có vật tư nào" level="H3" class="qdEmptyTitle"/>
+					<Text
+						text="Bấm &quot;Vật tư trong danh mục&quot; để chọn từ danh sách SAP, hoặc &quot;Vật tư tự do&quot; nếu vật tư chưa có mã."
+						class="qdEmptyText"
+						textAlign="Center"
+					/>
+				</VBox>
 
-					<Label text="{i18n>prCurrencyLabel}"/>
-					<Select selectedKey="{/header/currency}" width="200px">
-						<core:Item key="VND" text="VND"/>
-						<core:Item key="USD" text="USD"/>
-					</Select>
-				</form:SimpleForm>
-
-				<!-- ITEMS TABLE -->
-				<Table id="itemsTable" items="{/items}" mode="Delete" delete=".onDeleteItem">
-					<headerToolbar>
-						<OverflowToolbar>
-							<Title text="Danh sách vật tư ({= ${/items}.length })" level="H3"/>
-							<ToolbarSpacer/>
-							<Button text="Thêm vật tư danh mục" icon="sap-icon://add" press=".onAddItem"/>
-							<Button text="Thêm vật tư tự do (Khác)" icon="sap-icon://add-document" press=".onAddFreeTextItem"/>
-						</OverflowToolbar>
-					</headerToolbar>
+				<Table
+					id="itemsTable"
+					items="{/items}"
+					mode="Delete"
+					delete=".onDeleteItem"
+					visible="{= ${/items}.length > 0 }"
+					class="qdItemsTable"
+				>
 					<columns>
-						<Column width="220px"><Text text="Mã / Loại vật tư"/></Column>
-						<Column width="200px"><Text text="Mô tả / Tên vật tư"/></Column>
-						<Column width="90px"><Text text="ĐVT"/></Column>
-						<Column width="110px"><Text text="Số lượng"/></Column>
-						<Column width="140px"><Text text="Giá trị ước tính"/></Column>
-						<Column width="140px"><Text text="Cost Center / IO / Asset"/></Column>
+						<Column width="13rem"><Text text="Mã / Loại vật tư"/></Column>
+						<Column width="13rem"><Text text="Mô tả"/></Column>
+						<Column width="6rem"><Text text="ĐVT"/></Column>
+						<Column width="7rem" hAlign="End"><Text text="Số lượng"/></Column>
+						<Column width="10rem" hAlign="End"><Text text="Giá trị ước tính"/></Column>
+						<Column width="12rem"><Text text="Hạch toán chi phí"/></Column>
 					</columns>
 					<items>
-						<ColumnListItem>
+						<ColumnListItem vAlign="Middle">
 							<cells>
-								<!-- Chọn Vật tư hoặc Nhập Loại vật tư nếu là Free-text -->
+								<!-- Chon vat tu tu danh muc, hoac nhap loai neu la free-text -->
 								<VBox>
 									<Select
 										visible="{= !${isFreeText} }"
@@ -58,38 +125,83 @@
 										<core:Item key="{MaterialNo}" text="{MaterialNo} - {Description}"/>
 									</Select>
 									<Input value="{materialType}" visible="{isFreeText}" placeholder="Loại VT (VD: ZROH)"/>
+									<Text
+										text="{= ${materialType} === 'ZAST' ? 'Tài sản (Acc.Assign A)' : 'Vật tư/DV (Acc.Assign K)' }"
+										class="qdCellHint"
+										visible="{= !!${materialType} }"
+									/>
 								</VBox>
 
-								<!-- Mô tả vật tư -->
 								<Input value="{description}" editable="{isFreeText}"/>
-
-								<!-- Đơn vị tính -->
 								<Input value="{uom}" editable="{isFreeText}"/>
+								<Input value="{quantity}" type="Number" textAlign="End" change=".onItemValueChange"/>
+								<Input value="{estimatedValue}" type="Number" textAlign="End" change=".onItemValueChange"/>
 
-								<!-- Số lượng -->
-								<Input value="{quantity}" type="Number"/>
-
-								<!-- Giá trị ước tính -->
-								<Input value="{estimatedValue}" type="Number"/>
-
-								<!-- Tài khoản phân bổ chi phí -->
+								<!-- Hach toan: ZAST -> Asset, con lai -> Cost Center / Internal Order -->
 								<VBox>
-									<Input value="{costCenter}" visible="{= ${materialType} !== 'ZAST' }" placeholder="Cost Center"/>
-									<Input value="{internalOrder}" visible="{= ${materialType} !== 'ZAST' }" placeholder="Internal Order"/>
-									<Input value="{assetNo}" visible="{= ${materialType} === 'ZAST' }" placeholder="Asset No"/>
+									<Input
+										value="{costCenter}"
+										visible="{= ${materialType} !== 'ZAST' }"
+										placeholder="Cost Center"
+										class="sapUiTinyMarginBottom"
+									/>
+									<Input
+										value="{internalOrder}"
+										visible="{= ${materialType} !== 'ZAST' }"
+										placeholder="Internal Order (nếu có)"
+									/>
+									<Input
+										value="{assetNo}"
+										visible="{= ${materialType} === 'ZAST' }"
+										placeholder="Asset No (từ AS01)"
+									/>
 								</VBox>
 							</cells>
 						</ColumnListItem>
 					</items>
 				</Table>
+
+				<!-- Tong gia tri — cap nhat realtime khi go so luong/don gia -->
+				<HBox
+					class="qdTotalBar"
+					justifyContent="SpaceBetween"
+					alignItems="Center"
+					visible="{= ${/items}.length > 0 }"
+				>
+					<VBox>
+						<Text text="Tổng giá trị đề nghị" class="qdTotalLabel"/>
+						<Text text="{= ${/items}.length } dòng vật tư" class="qdInfoHint"/>
+					</VBox>
+					<HBox alignItems="Baseline">
+						<Title text="{/totalText}" level="H2" class="qdTotalValue"/>
+						<Text text="{/header/currency}" class="sapUiTinyMarginBegin qdTotalLabel"/>
+					</HBox>
+				</HBox>
+
+				<!-- Canh bao leo thang phe duyet theo nguong -->
+				<MessageStrip
+					text="{/escalationText}"
+					type="Warning"
+					showIcon="true"
+					class="sapUiSmallMarginTop qdAiMessageStrip"
+					visible="{= !!${/escalationText} }"
+				/>
 			</VBox>
 
 		</content>
+
 		<footer>
-			<OverflowToolbar>
+			<OverflowToolbar class="qdPageFooter">
+				<Text text="{= ${/items}.length === 0 ? 'Thêm ít nhất 1 vật tư để gửi đề nghị' : 'Sẵn sàng gửi ' + ${/items}.length + ' dòng vật tư' }" class="qdFooterHint"/>
 				<ToolbarSpacer/>
-				<Button text="{i18n>prResetButton}" press=".onResetPress"/>
-				<Button text="{i18n>prSubmitButton}" type="Emphasized" press=".onSubmitPress"/>
+				<Button text="{i18n>prResetButton}" icon="sap-icon://clear-all" press=".onResetPress"/>
+				<Button
+					text="{i18n>prSubmitButton}"
+					type="Emphasized"
+					icon="sap-icon://paper-plane"
+					press=".onSubmitPress"
+					enabled="{= ${/items}.length > 0 }"
+				/>
 			</OverflowToolbar>
 		</footer>
 	</Page>

@@ -81,38 +81,76 @@ const employees = [
 // MaterialType: 'ZSRV' = vat tu/dich vu thuong (Account Assignment K - Cost Center),
 // 'ZAST' = tai san CNTT (Account Assignment A - Asset, phai co AssetNo tham chieu AS01).
 const materials = [
-	{ MaterialNo: "MAT-001", MaterialType: "ZSRV", MaterialGroup: "RAW-STEEL", Description: "Thep tam CT3", BaseUoM: "KG" },
-	{ MaterialNo: "MAT-002", MaterialType: "ZSRV", MaterialGroup: "HARDWARE", Description: "Bulong M10", BaseUoM: "PC" },
-	{ MaterialNo: "MAT-003", MaterialType: "ZSRV", MaterialGroup: "CHEMICAL", Description: "Son cong nghiep", BaseUoM: "LIT" },
-	{ MaterialNo: "MAT-100", MaterialType: "ZAST", MaterialGroup: "IT-EQUIP", Description: "Laptop Dell Latitude 5540", BaseUoM: "PC" },
-	{ MaterialNo: "MAT-101", MaterialType: "ZAST", MaterialGroup: "IT-EQUIP", Description: "Man hinh Dell 24 inch", BaseUoM: "PC" },
-	{ MaterialNo: "MAT-102", MaterialType: "ZAST", MaterialGroup: "IT-EQUIP", Description: "May chu Server Dell PowerEdge", BaseUoM: "PC" }
+	// ZAST - Tai san co dinh CNTT (Account Assignment A, bat buoc co AssetNo tu AS01)
+	{ MaterialNo: "LAPTOP-001",  MaterialType: "ZAST", MaterialGroup: "LAPTOP", Description: "Laptop Dell Latitude 5540 i5", BaseUoM: "ST" },
+	{ MaterialNo: "LAPTOP-002",  MaterialType: "ZAST", MaterialGroup: "LAPTOP", Description: "Laptop MacBook Pro 14 M3", BaseUoM: "ST" },
+	{ MaterialNo: "MON-001",     MaterialType: "ZAST", MaterialGroup: "83102",  Description: "Man hinh Dell 24 inch FHD", BaseUoM: "ST" },
+	{ MaterialNo: "MON-002",     MaterialType: "ZAST", MaterialGroup: "83102",  Description: "Man hinh LG 27 inch 4K", BaseUoM: "ST" },
+	{ MaterialNo: "MON-003",     MaterialType: "ZAST", MaterialGroup: "83102",  Description: "Man hinh HP 24 inch FHD", BaseUoM: "ST" },
+	{ MaterialNo: "SERVER-001",  MaterialType: "ZAST", MaterialGroup: "83102",  Description: "May chu Dell PowerEdge T40", BaseUoM: "ST" },
+	{ MaterialNo: "PHONE-001",   MaterialType: "ZAST", MaterialGroup: "LAPTOP", Description: "Dien thoai iPhone 15 Pro", BaseUoM: "ST" },
+	{ MaterialNo: "TABLET-001",  MaterialType: "ZAST", MaterialGroup: "LAPTOP", Description: "May tinh bang iPad Pro 12.9", BaseUoM: "ST" },
+	{ MaterialNo: "PRINTER-001", MaterialType: "ZAST", MaterialGroup: "83102",  Description: "May in laser HP LaserJet", BaseUoM: "ST" },
+	{ MaterialNo: "NAS-001",     MaterialType: "ZAST", MaterialGroup: "83102",  Description: "Thiet bi luu tru NAS Synology", BaseUoM: "ST" },
+	{ MaterialNo: "SWITCH-001",  MaterialType: "ZAST", MaterialGroup: "83102",  Description: "Bo chuyen mach Cisco 24 cong", BaseUoM: "ST" },
+	// ZSRV - Dich vu / Vat tu tieu hao (Account Assignment K, bat buoc co CostCenter)
+	{ MaterialNo: "SW-LIC-001",  MaterialType: "ZSRV", MaterialGroup: "004", Description: "Ban quyen Microsoft Office 365", BaseUoM: "EA" },
+	{ MaterialNo: "SW-LIC-002",  MaterialType: "ZSRV", MaterialGroup: "004", Description: "Ban quyen Adobe Creative Suite", BaseUoM: "EA" },
+	{ MaterialNo: "CLOUD-001",   MaterialType: "ZSRV", MaterialGroup: "004", Description: "Dich vu Cloud AWS Azure", BaseUoM: "EA" },
+	{ MaterialNo: "CLOUD-002",   MaterialType: "ZSRV", MaterialGroup: "004", Description: "Google Workspace for Business", BaseUoM: "EA" },
+	{ MaterialNo: "SUPPLY-001",  MaterialType: "ZSRV", MaterialGroup: "003", Description: "Van phong pham tong hop", BaseUoM: "BOX" },
+	{ MaterialNo: "SUPPLY-002",  MaterialType: "ZSRV", MaterialGroup: "003", Description: "Muc in toner HP", BaseUoM: "ST" },
+	{ MaterialNo: "MAINT-001",   MaterialType: "ZSRV", MaterialGroup: "004", Description: "Bao tri thiet bi IT dinh ky", BaseUoM: "EA" },
+	{ MaterialNo: "MAINT-002",   MaterialType: "ZSRV", MaterialGroup: "004", Description: "Ve sinh may tinh van phong", BaseUoM: "EA" },
+	{ MaterialNo: "TRAIN-001",   MaterialType: "ZSRV", MaterialGroup: "004", Description: "Dao tao nhan vien ky nang IT", BaseUoM: "EA" },
+	{ MaterialNo: "CONSULT-001", MaterialType: "ZSRV", MaterialGroup: "004", Description: "Tu van giai phap he thong IT", BaseUoM: "EA" }
 ];
 
 const vendors = [
-	{ VendorNo: "8000001", VendorName: "Cong ty TNHH Thep Viet", AccountGroup: "ZDO1", Email: "sales@thepviet.vn", Rating: 4.5, AvgLeadTimeDays: 7, PriceIndex: 1.0 },
-	{ VendorNo: "8000002", VendorName: "Cong ty CP Vat Tu Cong Nghiep", AccountGroup: "ZDO1", Email: "contact@vtcn.vn", Rating: 4.0, AvgLeadTimeDays: 5, PriceIndex: 1.1 },
-	{ VendorNo: "8000003", VendorName: "Cong ty TNHH Xuat Nhap Khau Kim Khi", AccountGroup: "ZDO1", Email: "info@xnkkimkhi.vn", Rating: 3.8, AvgLeadTimeDays: 10, PriceIndex: 0.9 }
+	{ VendorNo: "0050000007", VendorName: "Cong ty TNHH Dell Viet Nam",   AccountGroup: "KRED", Email: "sales@dell.vn",       Rating: 4.5, AvgLeadTimeDays: 7,  PriceIndex: 1.0 },
+	{ VendorNo: "0050000008", VendorName: "Cong ty CP Microsoft Viet Nam", AccountGroup: "KRED", Email: "contact@microsoft.vn", Rating: 4.0, AvgLeadTimeDays: 5,  PriceIndex: 1.1 },
+	{ VendorNo: "0050000009", VendorName: "Cong ty TNHH HP Viet Nam",      AccountGroup: "KRED", Email: "info@hp.vn",           Rating: 3.8, AvgLeadTimeDays: 10, PriceIndex: 0.9 }
 ];
 
-// Seed record cho GET /api/approval/pending khi chua co PR nao duoc tao qua UI.
+// Seed record cho GET /api/approval/pending — cau truc moi ho tro nhieu Line Item (Section 3.4).
 const pendingPRs = [
 	{
 		PRId: "PR-2026-0001",
 		RequesterEmail: "nhanvien@qdavy.com",
-		MaterialNo: "MAT-001",
-		MaterialType: "ZSRV",
-		Description: "Thep tam CT3",
-		Quantity: 500,
-		UoM: "KG",
-		TotalValue: 150000000,
+		TotalValue: 55000000,
 		Currency: "VND",
-		CostCenter: "CC-0300",
-		AssetNo: "",
 		Status: "PENDING_APPROVAL",
 		CreatedAt: "2026-07-01T09:00:00Z",
 		needsProcurementHeadReview: false,
-		needsLegalReview: true
+		needsLegalReview: false,
+		items: [
+			{
+				LineNo: "00001",
+				MaterialNo: "LAPTOP-001",
+				MaterialType: "ZAST",
+				Description: "Laptop Dell Latitude 5540 i5",
+				Quantity: 2,
+				UoM: "ST",
+				EstimatedValue: 25000000,
+				CostCenter: "",
+				InternalOrder: "",
+				AssetNo: "AST-2026-001",
+				isFreeText: false
+			},
+			{
+				LineNo: "00002",
+				MaterialNo: "MON-001",
+				MaterialType: "ZAST",
+				Description: "Man hinh Dell 24 inch FHD",
+				Quantity: 2,
+				UoM: "ST",
+				EstimatedValue: 2500000,
+				CostCenter: "",
+				InternalOrder: "",
+				AssetNo: "AST-2026-002",
+				isFreeText: false
+			}
+		]
 	}
 ];
 

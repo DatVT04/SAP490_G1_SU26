@@ -96,8 +96,8 @@ sap.ui.define([
         /**
          * ↩️ Quay lại màn hình Dashboard chính
          */
-        onNavBack: function () { 
-            this.getOwnerComponent().getRouter().navTo("Dashboard"); 
+        onNavBack: function () {
+            this.getOwnerComponent().getRouter().navTo("dashboard");
         },
 
         /**

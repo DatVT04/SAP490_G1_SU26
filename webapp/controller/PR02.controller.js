@@ -19,7 +19,14 @@ sap.ui.define([
 	return Controller.extend("com.qdavy.procurement.controller.PR02", {
 		onInit: function () {
 			this.getView().setModel(new JSONModel({ pending: [] }));
-			this._loadPending();
+
+			// UI5 giu nguyen view khi dieu huong qua lai giua cac tab (khong huy/tao lai),
+			// nen onInit chi chay 1 lan duy nhat. Phai gan patternMatched de moi lan
+			// NGUOI DUNG QUAY LAI man nay deu tu dong tai lai danh sach PR moi nhat —
+			// tranh tinh trang phai logout/login lai moi thay du lieu vua duyet o man khac.
+			this.getOwnerComponent().getRouter()
+				.getRoute("pr02")
+				.attachPatternMatched(this._loadPending, this);
 		},
 
 		_loadPending: function () {

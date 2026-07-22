@@ -5,19 +5,31 @@
     xmlns:f="sap.ui.layout.form"
     xmlns:core="sap.ui.core"
 >
-    <!-- Gắn class qdLoginPage để đồng bộ màu nền xám nhạt với toàn hệ thống -->
-    <Page title="Cấu Hình Quy Trình &amp; Ngưỡng Phê Duyệt (Dành cho CEO)" 
-          showNavButton="true" 
-          navButtonPress=".onNavBack"
-          class="qdLoginPage">
+    <Page showHeader="false" class="qdInnerPage">
         <content>
-            <VBox class="sapUiMediumMargin">
-                
+
+            <!-- ============ HERO ============ -->
+            <VBox class="qdPageHero">
+                <HBox alignItems="Center">
+                    <Button icon="sap-icon://nav-back" press=".onNavBack" class="qdHeroBackBtn"/>
+                    <VBox>
+                        <Text text="Quản trị hệ thống · CEO" class="qdPageEyebrow"/>
+                        <Title text="Cấu hình ngưỡng phê duyệt" level="H1" class="qdPageTitle"/>
+                        <Text text="Thiết lập mốc giá trị khiến đề nghị mua sắm phải leo thang lên cấp cao hơn" class="qdPageSub"/>
+                    </VBox>
+                </HBox>
+            </VBox>
+
+            <VBox>
+
                 <!-- THẺ CẤU HÌNH NGƯỠNG PHÊ DUYỆT PR -->
-                <VBox class="qdFormCard qdFormCardAmber sapUiMediumMarginBottom">
-                    <Title text="Thiết Lập Ngưỡng Leo Thang Phê Duyệt PR" level="H2" class="qdFormSectionTitleAmber sapUiSmallMarginBottom" />
-                    <Text text="Khi giá trị của Yêu cầu mua sắm (PR) vượt quá ngưỡng thiết lập dưới đây, quy trình duyệt sẽ tự động leo thang lên cấp cao nhất (CEO phê duyệt)." 
-                          class="qdMutedText sapUiSmallMarginBottom" />
+                <VBox class="qdContentCard">
+                    <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+                        <core:Icon src="sap-icon://settings" class="qdCardIcon"/>
+                        <Title text="Ngưỡng leo thang phê duyệt PR" level="H3" class="qdCardTitle" />
+                    </HBox>
+                    <Text text="Khi giá trị đề nghị mua sắm vượt ngưỡng dưới đây, quy trình duyệt sẽ tự động leo thang lên CEO phê duyệt."
+                          class="qdCellHint sapUiSmallMarginBottom" />
                     
                     <f:SimpleForm editable="true" layout="ResponsiveGridLayout" labelSpanL="4" columnsL="1">
                         <f:content>
@@ -46,12 +58,13 @@
                     </f:SimpleForm>
                 </VBox>
 
-                <!-- THÈ TIỆN ÍCH PHỤ TRỢ (Xem lịch sử thay đổi) -->
-                <VBox class="qdTableCard qdTableCardBlue">
+                <!-- THẺ TIỆN ÍCH PHỤ TRỢ (Xem lịch sử thay đổi) -->
+                <VBox class="qdContentCard qdCardTight">
                     <Table id="thresholdHistoryTable" items="{thresholdModel>/history}">
                         <headerToolbar>
                             <OverflowToolbar style="Clear">
-                                <Title text="Lịch sử cập nhật cấu hình hệ thống" level="H2" class="qdFormSectionTitleBlue"/>
+                                <core:Icon src="sap-icon://history" class="qdCardIcon"/>
+                                <Title text="Lịch sử thay đổi cấu hình" level="H3" class="qdCardTitle"/>
                             </OverflowToolbar>
                         </headerToolbar>
                         
@@ -95,12 +108,11 @@
                 </VBox>
 
                 <!-- KHU VỰC NÚT LƯU CẤU HÌNH -->
-                <HBox justifyContent="End" class="sapUiMediumMarginTop">
-                    <Button text="LƯU CẤU HÌNH NGAY" 
-                            type="Emphasized" 
-                            icon="sap-icon://save" 
-                            press=".onSaveThreshold" 
-                            class="sapUiSmallMarginEnd" />
+                <HBox justifyContent="End" class="sapUiMediumMarginBottom sapUiMediumMarginEnd">
+                    <Button text="Lưu cấu hình"
+                            type="Emphasized"
+                            icon="sap-icon://save"
+                            press=".onSaveThreshold" />
                 </HBox>
 
             </VBox>

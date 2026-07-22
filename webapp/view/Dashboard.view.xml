@@ -2,103 +2,166 @@
 	controllerName="com.qdavy.procurement.controller.Dashboard"
 	xmlns="sap.m"
 	xmlns:mvc="sap.ui.core.mvc"
-	xmlns:f="sap.f"
 	xmlns:core="sap.ui.core"
 	displayBlock="true"
 >
-	<Page title="{i18n>appTitle}" class="qdDashboardPage">
-		<headerContent>
-			<Button icon="sap-icon://log" text="{i18n>logoutButton}" press=".onLogoutPress"/>
-		</headerContent>
+	<Page showHeader="false" class="qdDashboardPage">
 		<content>
+
+			<!-- ================= HERO ================= -->
 			<VBox class="qdDashHero">
-				<Title text="{= ${i18n>dashGreeting} + ' ' + ${user>/fullName} }" level="H2" class="sapUiTinyMarginBottom"/>
-				<Text text="{user>/position}"/>
-				<Text class="qdRoleBadge" text="{user>/role}"/>
+				<HBox justifyContent="SpaceBetween" alignItems="Start" wrap="Wrap">
+					<VBox class="qdHeroIdentity">
+						<Text text="{dash>/greeting}" class="qdHeroEyebrow"/>
+						<Title text="{user>/fullName}" level="H1" class="qdHeroName"/>
+						<HBox alignItems="Center" wrap="Wrap" class="qdHeroMetaRow">
+							<Text text="{user>/position}" class="qdHeroPosition"/>
+							<Text class="qdRoleBadge" text="{user>/role}"/>
+						</HBox>
+					</VBox>
+					<HBox alignItems="Center" class="qdHeroActions">
+						<Button
+							icon="sap-icon://refresh"
+							tooltip="{i18n>dashRefresh}"
+							press=".onRefreshStats"
+							class="qdHeroBtn sapUiTinyMarginEnd"
+						/>
+						<Button
+							icon="sap-icon://log"
+							text="{i18n>logoutButton}"
+							press=".onLogoutPress"
+							class="qdHeroBtn"
+						/>
+					</HBox>
+				</HBox>
 			</VBox>
 
-			<Title text="{i18n>dashSectionTitle}" level="H4" class="qdSectionTitle"/>
+			<!-- ================= KPI OVERVIEW ================= -->
+			<VBox class="qdSection">
+				<VBox class="qdSectionHeading">
+					<Text text="{i18n>dashOverviewEyebrow}" class="qdEyebrow"/>
+					<Title text="{i18n>dashOverviewTitle}" level="H2" class="qdSectionH2"/>
+				</VBox>
 
-<!-- Bổ sung cấu hình layout chia Grid tự động giãn cách cho Container -->
-<f:GridContainer class="qdTileGrid">
-    <f:layout>
-        <f:GridContainerSettings rowSize="8rem" columnSize="12rem" gap="1rem" />
-    </f:layout>
-    
-    <f:items>
-        <GenericTile
-            class="qdTile qdTileBlue"
-            header="{i18n>tilePr01Title}"
-            subheader="{i18n>tilePr01Subtitle}"
-            press=".onNavToPR01"
-            visible="{= ${user>/role} === 'REQUESTER' }"
-        >
-            <TileContent footer="PR-01">
-                <content>
-                    <core:Icon src="sap-icon://add-document" size="2.5rem"/>
-                </content>
-            </TileContent>
-        </GenericTile>
+				<HBox wrap="Wrap" class="qdKpiRow">
+					<VBox class="qdKpiCard qdKpiAmber">
+						<HBox justifyContent="SpaceBetween" alignItems="Center">
+							<Text text="{i18n>dashKpiPending}" class="qdKpiLabel"/>
+							<core:Icon src="sap-icon://pending" class="qdKpiIcon"/>
+						</HBox>
+						<Title text="{dash>/pendingCount}" level="H1" class="qdKpiValue"/>
+						<Text text="{i18n>dashKpiUnit}" class="qdKpiUnit"/>
+					</VBox>
 
-        <GenericTile
-            class="qdTile qdTileAmber"
-            header="{i18n>tilePr02Title}"
-            subheader="{i18n>tilePr02Subtitle}"
-            press=".onNavToPR02"
-            visible="{= ['CEO','PURCHASING','CFO'].indexOf(${user>/role}) !== -1 }"
-        >
-            <TileContent footer="PR-02">
-                <content>
-                    <core:Icon src="sap-icon://approvals" size="2.5rem"/>
-                </content>
-            </TileContent>
-        </GenericTile>
+					<VBox class="qdKpiCard qdKpiGreen">
+						<HBox justifyContent="SpaceBetween" alignItems="Center">
+							<Text text="{i18n>dashKpiApproved}" class="qdKpiLabel"/>
+							<core:Icon src="sap-icon://accept" class="qdKpiIcon"/>
+						</HBox>
+						<Title text="{dash>/approvedCount}" level="H1" class="qdKpiValue"/>
+						<Text text="{i18n>dashKpiUnit}" class="qdKpiUnit"/>
+					</VBox>
 
-        <GenericTile
-            class="qdTile qdTilePurple"
-            header="{i18n>tilePo01Title}"
-            subheader="{i18n>tilePo01Subtitle}"
-            press=".onNavToPO01"
-            visible="{= ${user>/role} === 'PURCHASING' }"
-        >
-            <TileContent footer="PO-01">
-                <content>
-                    <core:Icon src="sap-icon://supplier" size="2.5rem"/>
-                </content>
-            </TileContent>
-        </GenericTile>
+					<VBox class="qdKpiCard qdKpiBlue">
+						<HBox justifyContent="SpaceBetween" alignItems="Center">
+							<Text text="{i18n>dashKpiValue}" class="qdKpiLabel"/>
+							<core:Icon src="sap-icon://money-bills" class="qdKpiIcon"/>
+						</HBox>
+						<Title text="{dash>/pendingValueText}" level="H1" class="qdKpiValue qdKpiValueSm"/>
+						<Text text="VND" class="qdKpiUnit"/>
+					</VBox>
+				</HBox>
+			</VBox>
 
-        <!-- Bổ sung đầy đủ class qdTile qdTileAmber để nhận CSS kích thước chuẩn của nhóm -->
-        <GenericTile
-            class="qdTile qdTileAmber"
-            header="Cấu hình hệ thống"
-            subheader="Thiết lập ngưỡng duyệt PR"
-            press=".onNavToThresholdConfig"
-            visible="{= ${user>/role} === 'CEO' }"
-        >
-            <TileContent footer="SYS-CONFIG">
-                <content>
-                    <core:Icon src="sap-icon://action-settings" size="2.5rem"/>
-                </content>
-            </TileContent>
-        </GenericTile>
+			<!-- ================= CHUC NANG ================= -->
+			<VBox class="qdSection">
+				<VBox class="qdSectionHeading">
+					<Text text="{i18n>dashSectionEyebrow}" class="qdEyebrow"/>
+					<Title text="{i18n>dashSectionTitle}" level="H2" class="qdSectionH2"/>
+					<Text text="{i18n>dashSectionSubtitle}" class="qdSectionSub"/>
+				</VBox>
 
-        <!-- Bổ sung đầy đủ class qdTile qdTileBlue để nhận CSS kích thước chuẩn của nhóm -->
-        <GenericTile
-            class="qdTile qdTileBlue"
-            header="Báo cáo tiến độ"
-            subheader="Theo dõi tỷ lệ giao hàng SAP"
-            press=".onNavToPOReport"
-            visible="{= ['REQUESTER', 'PURCHASING', 'CEO'].indexOf(${user>/role}) !== -1 }"
-        >
-            <TileContent footer="REPORTS">
-                <content>
-                    <core:Icon src="sap-icon://business-by-design" size="2.5rem"/>
-                </content>
-            </TileContent>
-        </GenericTile>
-    </f:items>
-</f:GridContainer>
+				<!-- Empty state: role chua duoc cap man hinh nao -->
+				<VBox
+					class="qdEmptyState"
+					alignItems="Center"
+					visible="{= ${dash>/tileCount} === 0 }"
+				>
+					<core:Icon src="sap-icon://locked" class="qdEmptyIcon"/>
+					<Title text="{i18n>dashEmptyTitle}" level="H3" class="qdEmptyTitle"/>
+					<Text text="{i18n>dashEmptyText}" class="qdEmptyText" textAlign="Center"/>
+				</VBox>
+
+				<HBox wrap="Wrap" class="qdActionGrid">
+
+					<VBox
+						class="qdActionCard qdAccentBlue"
+						visible="{= ${user>/role} === 'REQUESTER' }"
+					>
+						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
+							<VBox class="qdActionIconBox"><core:Icon src="sap-icon://add-document" class="qdActionIcon"/></VBox>
+							<Text text="PR-01" class="qdActionCode"/>
+						</HBox>
+						<Title text="{i18n>tilePr01Title}" level="H3" class="qdActionTitle"/>
+						<Text text="{i18n>tilePr01Subtitle}" class="qdActionDesc"/>
+						<Button text="{i18n>dashTileOpen}" icon="sap-icon://arrow-right" iconFirst="false" press=".onNavToPR01" class="qdActionBtn"/>
+					</VBox>
+
+					<VBox
+						class="qdActionCard qdAccentAmber"
+						visible="{= ['CEO','CFO','PURCHASING'].indexOf(${user>/role}) !== -1 }"
+					>
+						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
+							<VBox class="qdActionIconBox"><core:Icon src="sap-icon://approvals" class="qdActionIcon"/></VBox>
+							<Text text="PR-02" class="qdActionCode"/>
+						</HBox>
+						<Title text="{i18n>tilePr02Title}" level="H3" class="qdActionTitle"/>
+						<Text text="{i18n>tilePr02Subtitle}" class="qdActionDesc"/>
+						<Button text="{i18n>dashTileOpen}" icon="sap-icon://arrow-right" iconFirst="false" press=".onNavToPR02" class="qdActionBtn"/>
+					</VBox>
+
+					<VBox
+						class="qdActionCard qdAccentPurple"
+						visible="{= ${user>/role} === 'PURCHASING' }"
+					>
+						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
+							<VBox class="qdActionIconBox"><core:Icon src="sap-icon://supplier" class="qdActionIcon"/></VBox>
+							<Text text="PO-01" class="qdActionCode"/>
+						</HBox>
+						<Title text="{i18n>tilePo01Title}" level="H3" class="qdActionTitle"/>
+						<Text text="{i18n>tilePo01Subtitle}" class="qdActionDesc"/>
+						<Button text="{i18n>dashTileOpen}" icon="sap-icon://arrow-right" iconFirst="false" press=".onNavToPO01" class="qdActionBtn"/>
+					</VBox>
+
+					<VBox
+						class="qdActionCard qdAccentGreen"
+						visible="{= ['REQUESTER','PURCHASING','CEO','CFO','ACC'].indexOf(${user>/role}) !== -1 }"
+					>
+						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
+							<VBox class="qdActionIconBox"><core:Icon src="sap-icon://business-by-design" class="qdActionIcon"/></VBox>
+							<Text text="REPORT" class="qdActionCode"/>
+						</HBox>
+						<Title text="{i18n>tileReportTitle}" level="H3" class="qdActionTitle"/>
+						<Text text="{i18n>tileReportSubtitle}" class="qdActionDesc"/>
+						<Button text="{i18n>dashTileOpen}" icon="sap-icon://arrow-right" iconFirst="false" press=".onNavToPOReport" class="qdActionBtn"/>
+					</VBox>
+
+					<VBox
+						class="qdActionCard qdAccentSlate"
+						visible="{= ${user>/role} === 'CEO' }"
+					>
+						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
+							<VBox class="qdActionIconBox"><core:Icon src="sap-icon://action-settings" class="qdActionIcon"/></VBox>
+							<Text text="CONFIG" class="qdActionCode"/>
+						</HBox>
+						<Title text="{i18n>tileSysConfigTitle}" level="H3" class="qdActionTitle"/>
+						<Text text="{i18n>tileSysConfigSubtitle}" class="qdActionDesc"/>
+						<Button text="{i18n>dashTileOpen}" icon="sap-icon://arrow-right" iconFirst="false" press=".onNavToThresholdConfig" class="qdActionBtn"/>
+					</VBox>
+
+				</HBox>
+			</VBox>
+
 		</content>
 	</Page>
 </mvc:View>
