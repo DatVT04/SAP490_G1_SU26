@@ -407,7 +407,9 @@ sap.ui.define([
 
 		onAddItemPress: function () {
 			var oModel = this.getView().getModel();
-			var aItems = oModel.getProperty("/items") || [];
+			// Copy mang truoc khi push - JSONModel dua vao deepEqual(reference cu, moi) trong
+			// checkUpdate() de fire change; mutate thang mang goc se khien binding khong re-render UI
+			var aItems = (oModel.getProperty("/items") || []).slice();
 			aItems.push(emptyItem());
 			oModel.setProperty("/items", aItems);
 		},
@@ -416,7 +418,8 @@ sap.ui.define([
 			var oModel = this.getView().getModel();
 			var sPath  = oEvent.getSource().getBindingContext().getPath();
 			var iIndex = Number(sPath.split("/").pop());
-			var aItems = oModel.getProperty("/items") || [];
+			// Copy mang truoc khi splice - xem giai thich trong onAddItemPress
+			var aItems = (oModel.getProperty("/items") || []).slice();
 			if (aItems.length <= 1) { MessageBox.warning("Purchase Order can co it nhat 1 vat tu."); return; }
 			aItems.splice(iIndex, 1);
 			oModel.setProperty("/items", aItems);

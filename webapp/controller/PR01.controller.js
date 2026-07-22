@@ -68,7 +68,9 @@ sap.ui.define([
 		// Thêm dòng vật tư từ Danh mục
 		onAddItem: function () {
 			var oModel = this.getView().getModel();
-			var aItems = oModel.getProperty("/items");
+			// Copy mang truoc khi push - JSONModel dua vao so sanh reference/deepEqual
+			// trong checkUpdate(), mutate thang mang goc se khien binding khong thay doi va khong re-render UI
+			var aItems = oModel.getProperty("/items").slice();
 			aItems.push({
 				isFreeText: false,
 				materialNo: "",
@@ -87,7 +89,8 @@ sap.ui.define([
 		// Thêm dòng vật tư TỰ DO (Không có trong danh mục)
 		onAddFreeTextItem: function () {
 			var oModel = this.getView().getModel();
-			var aItems = oModel.getProperty("/items");
+			// Copy mang truoc khi push - xem giai thich trong onAddItem
+			var aItems = oModel.getProperty("/items").slice();
 			aItems.push({
 				isFreeText: true,
 				materialNo: "FREE_TEXT", // Mã đánh dấu vật tư ngoài danh mục
@@ -110,7 +113,8 @@ sap.ui.define([
 			var iIndex = parseInt(sPath.split("/").pop(), 10);
 			
 			var oModel = this.getView().getModel();
-			var aItems = oModel.getProperty("/items");
+			// Copy mang truoc khi splice - xem giai thich trong onAddItem
+			var aItems = oModel.getProperty("/items").slice();
 			aItems.splice(iIndex, 1);
 			oModel.setProperty("/items", aItems);
 			this._recalcTotal();
