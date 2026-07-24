@@ -48,7 +48,7 @@ sap.ui.define([
 				.getRoute("po01")
 				.attachPatternMatched(this._onRouteMatched, this);
 		},
-
+		
 		_onRouteMatched: function () {
 			// Dong khu vuc tao PO va xoa lua chon cu — tranh hien thi PR da bi xoa
 			// khoi danh sach (VD da tao PO roi) nhung form van con giu du lieu cu.
@@ -61,47 +61,46 @@ sap.ui.define([
 
 		// Load PR đã duyệt từ backend → populate bảng Splitter + dropdown Vá-3
 		_loadApprovedPRs: function () {
-			var oView = this.getView();
-			fetch(BACKEND + "/api/approval/approved")
-				.then(function (r) { return r.json(); })
-				.then(function (res) {
-					if (res && res.success) {
-						var aData = res.data || [];
-						// Default model (for dropdown / Vá-3)
-						oView.getModel().setProperty("/approvedPRs", aData);
+	var oView = this.getView();
+	fetch(BACKEND + "/api/approval/approved")
+		.then(function (r) { return r.json(); })
+		.then(function (res) {
+			if (res && res.success) {
+				var aData = res.data || [];
+				oView.getModel().setProperty("/approvedPRs", aData);
 
-						// Map sang shape Splitter table (mockData binding).
-						// PR moi co items[], lay summary tu item dau de hien thi tren bang.
-						var aMapped = aData.map(function (pr) {
-							var aItems   = pr.items || [];
-							var firstItem = aItems[0] || {};
-							var sDesc = aItems.length > 1
-								? (firstItem.Description || "") + " (+thêm " + (aItems.length - 1) + " vật tư)"
-								: (firstItem.Description || pr.Description || "");
+				var aMapped = aData.map(function (pr) {
+					var aItems    = pr.items || [];
+					var firstItem = aItems[0] || {};
+					var sDesc     = aItems.length > 1
+						? (firstItem.Description || "") + " (+thêm " + (aItems.length - 1) + " vật tư)"
+						: (firstItem.Description || pr.Description || "");
 
-							return {
-								PrNumber:       pr.PRId,
-								// Summary display — dung item dau tien neu co nhieu items
-								MaterialNo:     firstItem.MaterialNo  || pr.MaterialNo  || "",
-								Description:    sDesc,
-								Quantity:       firstItem.Quantity    || pr.Quantity    || 0,
-								UoM:            firstItem.UoM         || pr.UoM         || "EA",
-								MaterialType:   firstItem.MaterialType|| pr.MaterialType|| "ZSRV",
-								CostCenter:     firstItem.CostCenter  || pr.CostCenter  || "",
-								AssetNo:        firstItem.AssetNo     || pr.AssetNo     || "",
-								// Tong gia tri va tien te tu cap PR
-								EstimatedValue: pr.TotalValue         || 0,
-								Currency:       pr.Currency           || "VND",
-								Status:         pr.Status,
-								// Giu nguyen mang items goc de onConfirmCreatePO dung
-								_items:         aItems
-							};
-						});
-						oView.getModel("mockData").setProperty("/pendingPRs", aMapped);
-					}
-				})
-				.catch(function () { /* silent — table stays empty */ });
-		},
+					// FIX: Lấy EstimatedValue từ SAP trước, nếu không có mới lấy TotalValue
+					var fValue = pr.EstimatedValue !== undefined && pr.EstimatedValue !== null && pr.EstimatedValue !== ""
+						? Number(pr.EstimatedValue)
+						: (pr.TotalValue || 0);
+
+					return {
+						PrNumber:       pr.PRId || pr.PRNumber,
+						MaterialNo:     firstItem.MaterialNo  || pr.MaterialNo  || "",
+						Description:    sDesc,
+						Quantity:       firstItem.Quantity    || pr.Quantity    || 0,
+						UoM:            firstItem.UoM         || pr.UoM         || "EA",
+						MaterialType:   firstItem.MaterialType|| pr.MaterialType|| "ZSRV",
+						CostCenter:     firstItem.CostCenter  || pr.CostCenter  || "",
+						AssetNo:        firstItem.AssetNo     || pr.AssetNo     || "",
+						EstimatedValue: fValue, // Đã gán đúng giá trị từ SAP OData
+						Currency:       pr.Currency           || "VND",
+						Status:         pr.Status,
+						_items:         aItems
+					};
+				});
+				oView.getModel("mockData").setProperty("/pendingPRs", aMapped);
+			}
+		})
+		.catch(function () { /* silent — table stays empty */ });
+},
 
 		_loadLookups: function () {
 			var oModel = this.getView().getModel();

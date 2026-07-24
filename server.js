@@ -324,11 +324,52 @@ app.get("/api/approval/pending", (req, res) => {
 
 // --- GET /api/approval/approved -------------------------------------------
 // Tra ve cac PR da duoc duyet (Status = APPROVED) de PO01 co the chon va link.
-app.get("/api/approval/approved", (req, res) => {
-	const approved = approvalStore.filter((item) => item.Status === "APPROVED");
-	return res.json({ success: true, data: approved });
-});
+// app.get("/api/approval/approved", (req, res) => {
+// 	const approved = approvalStore.filter((item) => item.Status === "APPROVED");
+// 	return res.json({ success: true, data: approved });
+// });
+// --- GET /api/approval/approved -------------------------------------------
+// Trả về danh sách PR đã duyệt để màn PO01 chọn và lập PO
+app.get("/api/approval/approved", async (req, res) => {
+	const getLocalApproved = () => approvalStore.filter((item) => {
+		const s = String(item.Status || "").toUpperCase();
+		return s === "APPROVED" || s === "OPENED" || s === "OPEN";
+	});
 
+	if (!process.env.SAP_HOST) {
+		return res.json({ success: true, data: getLocalApproved() });
+	}
+
+	try {
+		// Gọi ĐÚNG EntitySet: PurchaseRequisitionHisSet
+		const response = await axios.get(
+			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseRequisitionHisSet`,
+			{
+				params: { "$format": "json" },
+				auth: sapAuth()
+			}
+		);
+
+		const results = (response.data && response.data.d && response.data.d.results) || [];
+
+		// Lọc PR có Status là "OPEN" (theo ảnh từ SAP) hoặc "OPENED" / "APPROVED"
+		// Map thêm trường PRId để FE (PO01.controller.js) đọc được mã PR
+		const approvedPRs = results
+			.filter((item) => {
+				const s = String(item.Status || "").toUpperCase();
+				return s === "OPEN" || s === "OPENED" || s === "APPROVED";
+			})
+			.map((item) => ({
+				...item,
+				PRId: item.PRNumber || item.PRId // Map PRNumber từ SAP thành PRId cho FE
+			}));
+
+		return res.json({ success: true, data: approvedPRs });
+	} catch (error) {
+		console.error("❌ Lỗi bốc PR từ SAP OData:", error.message);
+		return res.json({ success: true, data: getLocalApproved(), sapError: true });
+	}
+});
 app.patch("/api/approval/:id", (req, res) => {
 	const { id } = req.params;
 	const { status, comment, decidedByEmail } = req.body || {};
