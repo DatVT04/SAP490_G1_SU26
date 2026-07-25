@@ -69,7 +69,7 @@
 												<Text text="{mockData>MaterialNo}" class="qdCellHint"/>
 											</VBox>
 											<ObjectNumber
-												number="{mockData>EstimatedValue}"
+												number="{path: 'mockData>EstimatedValue', formatter: '.formatCurrency'}"
 												unit="{mockData>Currency}"
 											/>
 										</cells>
@@ -112,7 +112,6 @@
 							</HBox>
 						</VBox>
 
-						<!-- 3. AI goi y NCC -->
 						<!-- 3. AI gợi ý NCC & Chọn phương án -->
 						<VBox class="qdContentCard qdCardTight">
 							<HBox alignItems="Center" justifyContent="SpaceBetween" wrap="Wrap" class="sapUiSmallMargin">
@@ -199,23 +198,26 @@
 									<core:Title text="Thông tin Thương lượng" />
 									
 									<Label text="Nhà cung cấp lựa chọn" required="true"/>
-									<Input 
-										id="inSelectedVendor" 
-										editable="false" 
-										placeholder="← Click chọn 1 Nhà cung cấp ở bảng trên"
-										valueHelpOnly="true"
-										showValueHelp="false"
-									/>
+									<ComboBox
+										id="inSelectedVendor"
+										width="100%"
+										placeholder="Chọn hoặc tìm tên / mã Nhà cung cấp..."
+										items="{/vendors}"
+										showSecondaryValues="true"
+									>
+										<core:ListItem 
+											key="{VendorNo}" 
+											text="{VendorName} ({VendorNo})" 
+											additionalText="Mã: {VendorNo}"
+										/>
+									</ComboBox>
 
 									<Label text="Giá thương lượng cuối cùng (VND)" required="true"/>
-									<StepInput 
+									<Input 
 										id="inFinalPrice" 
 										width="100%" 
-										step="1000000" 
-										min="0" 
-										value="0"
-										displayValuePrecision="0"
-										change=".onFinalPriceChange"
+										placeholder="Nhập giá thương lượng..."
+										liveChange=".onFinalPriceLiveChange"
 									/>
 
 									<core:Title text="Điều khoản &amp; Giao nhận" />

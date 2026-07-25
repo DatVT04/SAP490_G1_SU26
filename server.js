@@ -152,6 +152,54 @@ app.get("/api/materials", async (req, res) => {
 });
 
 // --- GET /api/vendors ------------------------------------------------------
+
+// app.get("/api/vendors", async (req, res) => {
+// 	if (!process.env.SAP_HOST) {
+// 		return res.json({ success: true, data: vendors });
+// 	}
+
+// 	try {
+// 		const response = await axios.get(
+// 			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/VendorSet`,
+// 			{ params: { "$format": "json" }, auth: sapAuth() }
+// 		);
+// 		const results = (response.data && response.data.d && response.data.d.results) || [];
+
+// 		// 🎯 LỌC CỐ ĐỊNH THEO COMPANY CODE QD01 CỦA NHÓM
+// 		const myGroupVendors = results.filter((v) => {
+// 			// SAP OData có thể trả về tên trường CompanyCode, CoCode, hoặc Bukrs
+// 			const companyCode = String(v.CompanyCode || v.CoCode || v.Bukrs || "").toUpperCase();
+			
+// 			// Chỉ lấy những Vendor thuộc Company Code QD01
+// 			return companyCode === "QD01";
+// 		}).map((v) => ({
+// 			...v,
+// 			VendorNo: v.VendorNo || v.Lifnr || v.Vendor || "",
+// 			VendorName: v.VendorName || v.Name1 || v.Name || `Nhà cung cấp ${v.VendorNo || v.Lifnr}`
+// 		}));
+
+// 		if (myGroupVendors.length > 0) {
+// 			return res.json({ success: true, data: myGroupVendors });
+// 		} else {
+// 			const fallbackByCoCode = results.filter((v) => {
+// 				const vendorNo = String(v.VendorNo || v.Lifnr || "");
+// 				return vendorNo.includes("800000"); // Mã Vendor thuộc dải QD01
+// 			}).map((v) => ({
+// 				...v,
+// 				VendorNo: v.VendorNo || v.Lifnr || "",
+// 				VendorName: v.VendorName || v.Name1 || `Nhà cung cấp ${v.VendorNo || v.Lifnr}`
+// 			}));
+
+// 			return res.json({ success: true, data: fallbackByCoCode });
+// 		}
+
+// 	} catch (error) {
+// 		console.error("❌ Lỗi gọi VendorSet từ SAP:", error.message);
+// 		return res.json({ success: true, data: vendors, sapError: true });
+// 	}
+// });
+
+// --- GET /api/vendors ------------------------------------------------------
 app.get("/api/vendors", async (req, res) => {
 	if (!process.env.SAP_HOST) {
 		return res.json({ success: true, data: vendors });
@@ -163,8 +211,18 @@ app.get("/api/vendors", async (req, res) => {
 			{ params: { "$format": "json" }, auth: sapAuth() }
 		);
 		const results = (response.data && response.data.d && response.data.d.results) || [];
-		return res.json({ success: true, data: results });
+
+		// 🚀 BỎ LỌC: Map trực tiếp toàn bộ Vendor nhận từ SAP
+		const allVendors = results.map((v) => ({
+			...v,
+			VendorNo: v.VendorNo || v.Lifnr || v.Vendor || "",
+			VendorName: v.VendorName || v.Name1 || v.Name || `Nhà cung cấp ${v.VendorNo || v.Lifnr}`
+		}));
+
+		return res.json({ success: true, data: allVendors });
+
 	} catch (error) {
+		console.error("❌ Lỗi gọi VendorSet từ SAP:", error.message);
 		return res.json({ success: true, data: vendors, sapError: true });
 	}
 });
