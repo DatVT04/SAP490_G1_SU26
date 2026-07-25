@@ -110,53 +110,53 @@
 
                     <VBox class="sapUiLargeMarginTop sapUiLargeMarginBottom">
                         <!-- Khung chứa thanh tiến độ ngang -->
-<VBox class="qdProgressTimelineContainer">
-    <HBox justifyContent="SpaceBetween" class="qdTimelineTrack">
-        
-        <!-- Bước 1: Đang lập yêu cầu (Kích hoạt khi StepActive >= 1) -->
-        <VBox alignItems="Center" class="qdStepNode {= ${reportModel>/selectedPO/StepActive} >= 1 ? 'active' : '' }">
-            <Button icon="sap-icon://create" class="qdCircleBtn" type="{= ${reportModel>/selectedPO/StepActive} >= 1 ? 'Emphasized' : 'Default' }"/>
-            <Text text="Đang lập yêu cầu" class="qdStepLabel sapUiTinyMarginTop"/>
-            <Text text="{reportModel>/selectedPO/PrDate}" class="qdStepDate"/>
-        </VBox>
-        
-        <!-- Bước 2: Chờ Trưởng BP duyệt (Kích hoạt khi StepActive >= 2) -->
-        <VBox alignItems="Center" class="qdStepNode {= ${reportModel>/selectedPO/StepActive} >= 2 ? 'active' : '' }">
-            <Button icon="sap-icon://manager" class="qdCircleBtn" type="{= ${reportModel>/selectedPO/StepActive} >= 2 ? 'Emphasized' : 'Default' }"/>
-            <Text text="Chờ Trưởng bộ phận duyệt" class="qdStepLabel sapUiTinyMarginTop"/>
-            <Text text="{reportModel>/selectedPO/LeadDate}" class="qdStepDate"/>
-        </VBox>
-        
-        <!-- Bước 3: Chờ CFO xét duyệt (Kích hoạt khi StepActive >= 3) -->
-        <VBox alignItems="Center" class="qdStepNode {= ${reportModel>/selectedPO/StepActive} >= 3 ? 'active' : '' }">
-            <Button icon="sap-icon://hr-approval" class="qdCircleBtn" type="{= ${reportModel>/selectedPO/StepActive} >= 3 ? 'Emphasized' : 'Default' }"/>
-            <Text text="Chờ CFO xét duyệt" class="qdStepLabel sapUiTinyMarginTop"/>
-            <Text text="{reportModel>/selectedPO/CfoDate}" class="qdStepDate"/>
-        </VBox>
-        
-        <!-- Bước 4: Chờ CEO xét duyệt (Kích hoạt khi StepActive >= 4) -->
-        <VBox alignItems="Center" class="qdStepNode {= ${reportModel>/selectedPO/StepActive} >= 4 ? 'active' : '' }">
-            <Button icon="sap-icon://money-bills" class="qdCircleBtn" type="{= ${reportModel>/selectedPO/StepActive} >= 4 ? 'Emphasized' : 'Default' }"/>
-            <Text text="Chờ CEO xét duyệt" class="qdStepLabel sapUiTinyMarginTop"/>
-            <Text text="{reportModel>/selectedPO/CeoDate}" class="qdStepDate"/>
-        </VBox>
-        
-        <!-- Bước 5: Đã tạo PO sang SAP (Kích hoạt khi StepActive >= 5) -->
-        <VBox alignItems="Center" class="qdStepNode {= ${reportModel>/selectedPO/StepActive} >= 5 ? 'active' : '' }">
-            <Button icon="sap-icon://supplier" class="qdCircleBtn" type="{= ${reportModel>/selectedPO/StepActive} >= 5 ? 'Emphasized' : 'Default' }"/>
-            <Text text="Đã tạo PO sang SAP" class="qdStepLabel sapUiTinyMarginTop"/>
-            <Text text="{reportModel>/selectedPO/DocDate}" class="qdStepDate"/>
-        </VBox>
-        
-        <!-- Bước 6: Nhập kho hoàn tất (Kích hoạt khi StepActive >= 6) -->
-        <VBox alignItems="Center" class="qdStepNode {= ${reportModel>/selectedPO/StepActive} >= 6 ? 'active' : '' }">
-            <Button icon="sap-icon://accept" class="qdCircleBtn" type="{= ${reportModel>/selectedPO/StepActive} >= 6 ? 'Emphasized' : 'Default' }"/>
-            <Text text="Nhập kho hoàn tất" class="qdStepLabel sapUiTinyMarginTop"/>
-            <Text text="{reportModel>/selectedPO/DeliveryDate}" class="qdStepDate"/>
-        </VBox>
+                        <VBox class="qdProgressTimelineContainer">
+                            <HBox justifyContent="SpaceBetween" class="qdTimelineTrack">
+                                
+                                <!-- Bước 1: Đang lập yêu cầu (Kích hoạt khi StepActive >= 1) -->
+                                <VBox alignItems="Center" class="qdStepNode {= ${reportModel>/selectedPO/StepActive} >= 1 ? 'active' : '' }">
+                                    <Button icon="sap-icon://create" class="qdCircleBtn" type="{= ${reportModel>/selectedPO/StepActive} >= 1 ? 'Emphasized' : 'Default' }"/>
+                                    <Text text="Đang lập yêu cầu" class="qdStepLabel sapUiTinyMarginTop"/>
+                                    <Text text="{reportModel>/selectedPO/PrDate}" class="qdStepDate"/>
+                                </VBox>
+                                
+                                <!-- Bước 2: Chờ Trưởng BP duyệt (Kích hoạt khi StepActive >= 2) -->
+                                <VBox alignItems="Center" class="qdStepNode {= ${reportModel>/selectedPO/StepActive} >= 2 ? 'active' : '' }">
+                                    <Button icon="sap-icon://manager" class="qdCircleBtn" type="{= ${reportModel>/selectedPO/StepActive} >= 2 ? 'Emphasized' : 'Default' }"/>
+                                    <Text text="Chờ Trưởng bộ phận duyệt" class="qdStepLabel sapUiTinyMarginTop"/>
+                                    <Text text="{reportModel>/selectedPO/LeadDate}" class="qdStepDate"/>
+                                </VBox>
+                                
+                                <!-- Bước 3: Chờ CFO xét duyệt (Kích hoạt khi StepActive >= 3) -->
+                                <VBox alignItems="Center" class="qdStepNode {= ${reportModel>/selectedPO/StepActive} >= 3 ? 'active' : '' }">
+                                    <Button icon="sap-icon://hr-approval" class="qdCircleBtn" type="{= ${reportModel>/selectedPO/StepActive} >= 3 ? 'Emphasized' : 'Default' }"/>
+                                    <Text text="Chờ CFO xét duyệt" class="qdStepLabel sapUiTinyMarginTop"/>
+                                    <Text text="{reportModel>/selectedPO/CfoDate}" class="qdStepDate"/>
+                                </VBox>
+                                
+                                <!-- Bước 4: Chờ CEO xét duyệt (Kích hoạt khi StepActive >= 4) -->
+                                <VBox alignItems="Center" class="qdStepNode {= ${reportModel>/selectedPO/StepActive} >= 4 ? 'active' : '' }">
+                                    <Button icon="sap-icon://money-bills" class="qdCircleBtn" type="{= ${reportModel>/selectedPO/StepActive} >= 4 ? 'Emphasized' : 'Default' }"/>
+                                    <Text text="Chờ CEO xét duyệt" class="qdStepLabel sapUiTinyMarginTop"/>
+                                    <Text text="{reportModel>/selectedPO/CeoDate}" class="qdStepDate"/>
+                                </VBox>
+                                
+                                <!-- Bước 5: Đã tạo PO sang SAP (Kích hoạt khi StepActive >= 5) -->
+                                <VBox alignItems="Center" class="qdStepNode {= ${reportModel>/selectedPO/StepActive} >= 5 ? 'active' : '' }">
+                                    <Button icon="sap-icon://supplier" class="qdCircleBtn" type="{= ${reportModel>/selectedPO/StepActive} >= 5 ? 'Emphasized' : 'Default' }"/>
+                                    <Text text="Đã tạo PO sang SAP" class="qdStepLabel sapUiTinyMarginTop"/>
+                                    <Text text="{reportModel>/selectedPO/DocDate}" class="qdStepDate"/>
+                                </VBox>
+                                
+                                <!-- Bước 6: Nhập kho hoàn tất (Kích hoạt khi StepActive >= 6) -->
+                                <VBox alignItems="Center" class="qdStepNode {= ${reportModel>/selectedPO/StepActive} >= 6 ? 'active' : '' }">
+                                    <Button icon="sap-icon://accept" class="qdCircleBtn" type="{= ${reportModel>/selectedPO/StepActive} >= 6 ? 'Emphasized' : 'Default' }"/>
+                                    <Text text="Nhập kho hoàn tất" class="qdStepLabel sapUiTinyMarginTop"/>
+                                    <Text text="{reportModel>/selectedPO/DeliveryDate}" class="qdStepDate"/>
+                                </VBox>
 
-    </HBox>
-</VBox>
+                            </HBox>
+                        </VBox>
                     </VBox>
                 </VBox>
 

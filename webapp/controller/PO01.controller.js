@@ -67,34 +67,33 @@ sap.ui.define([
 				.then(function (res) {
 					if (res && res.success) {
 						var aData = res.data || [];
-						// Default model (for dropdown / Vá-3)
 						oView.getModel().setProperty("/approvedPRs", aData);
 
-						// Map sang shape Splitter table (mockData binding).
-						// PR moi co items[], lay summary tu item dau de hien thi tren bang.
 						var aMapped = aData.map(function (pr) {
-							var aItems   = pr.items || [];
+							var aItems = pr.items || [];
 							var firstItem = aItems[0] || {};
 							var sDesc = aItems.length > 1
 								? (firstItem.Description || "") + " (+thêm " + (aItems.length - 1) + " vật tư)"
 								: (firstItem.Description || pr.Description || "");
 
+							// FIX: Lấy EstimatedValue từ SAP trước, nếu không có mới lấy TotalValue
+							var fValue = pr.EstimatedValue !== undefined && pr.EstimatedValue !== null && pr.EstimatedValue !== ""
+								? Number(pr.EstimatedValue)
+								: (pr.TotalValue || 0);
+
 							return {
-								PrNumber:       pr.PRId,
-								// Summary display — dung item dau tien neu co nhieu items
-								MaterialNo:     firstItem.MaterialNo  || pr.MaterialNo  || "",
-								Description:    sDesc,
-								Quantity:       firstItem.Quantity    || pr.Quantity    || 0,
-								UoM:            firstItem.UoM         || pr.UoM         || "EA",
-								MaterialType:   firstItem.MaterialType|| pr.MaterialType|| "ZSRV",
-								CostCenter:     firstItem.CostCenter  || pr.CostCenter  || "",
-								AssetNo:        firstItem.AssetNo     || pr.AssetNo     || "",
-								// Tong gia tri va tien te tu cap PR
-								EstimatedValue: pr.TotalValue         || 0,
-								Currency:       pr.Currency           || "VND",
-								Status:         pr.Status,
-								// Giu nguyen mang items goc de onConfirmCreatePO dung
-								_items:         aItems
+								PrNumber: pr.PRId || pr.PRNumber,
+								MaterialNo: firstItem.MaterialNo || pr.MaterialNo || "",
+								Description: sDesc,
+								Quantity: firstItem.Quantity || pr.Quantity || 0,
+								UoM: firstItem.UoM || pr.UoM || "EA",
+								MaterialType: firstItem.MaterialType || pr.MaterialType || "ZSRV",
+								CostCenter: firstItem.CostCenter || pr.CostCenter || "",
+								AssetNo: firstItem.AssetNo || pr.AssetNo || "",
+								EstimatedValue: fValue, // Đã gán đúng giá trị từ SAP OData
+								Currency: pr.Currency || "VND",
+								Status: pr.Status,
+								_items: aItems
 							};
 						});
 						oView.getModel("mockData").setProperty("/pendingPRs", aMapped);
@@ -125,6 +124,17 @@ sap.ui.define([
 				.catch(function () { MessageBox.error("Khong tai duoc danh sach vat tu."); });
 		},
 
+		// ── Formatters ────────────────────────────────────────────────────────
+
+		formatCurrency: function (fValue) {
+			if (fValue === undefined || fValue === null || fValue === "") { return "0"; }
+			return Number(fValue).toLocaleString("vi-VN");
+		},
+
+		formatRating: function (fRating) {
+			return (fRating !== undefined && fRating !== null) ? Number(fRating).toFixed(1) + "*" : "";
+		},
+
 		// ── Navigation ────────────────────────────────────────────────────────
 
 		onNavBack: function () {
@@ -139,34 +149,33 @@ sap.ui.define([
 			var oContext = oSelectedItem.getBindingContext("mockData");
 			var oPRData = oContext.getObject();
 
-			// Hiển thị khu vực bên phải
+			// Lưu lại PR đang chọn vào controller để dùng khi submit
+			this._currentPR = oPRData;
+
+			// Hiển thị khu vực form bên phải
 			this.getView().byId("poCreationArea").setVisible(true);
 
-			// Dòng mô tả vật tư: dùng summary Description từ _loadApprovedPRs
+			// Điền thông tin PR vào các thẻ hiển thị phía trên (Khu vực 2)
 			var sMaterialInfo = oPRData.Description || "";
 			if (oPRData.MaterialNo) { sMaterialInfo += " (" + oPRData.MaterialNo + ")"; }
 
-			// Hiển thị số lượng: neu co nhieu items thi hien "N dong vat tu"
 			var aItems = oPRData._items || [];
-			var sQty;
-			if (aItems.length > 1) {
-				sQty = aItems.length + " dòng vật tư";
-			} else {
-				sQty = (oPRData.Quantity || "") + " " + (oPRData.UoM || "PC");
-			}
+			var sQty = aItems.length > 1
+				? aItems.length + " dòng vật tư"
+				: (oPRData.Quantity || "") + " " + (oPRData.UoM || "EA");
 
-			// Điền thông tin PR vào Form chi tiết
 			this.getView().byId("txtSelectedPR").setText(oPRData.PrNumber);
 			this.getView().byId("txtMaterialInfo").setText(sMaterialInfo);
 			this.getView().byId("txtQuantity").setText(sQty);
 			this.getView().byId("numEstimatedValue").setNumber(oPRData.EstimatedValue);
-			this.getView().byId("numEstimatedValue").setUnit(oPRData.Currency);
+			this.getView().byId("numEstimatedValue").setUnit(oPRData.Currency || "VND");
 
-			// Reset form PO
+			// Reset Form nhập liệu (Khu vực 4)
+			this.getView().byId("inSelectedVendor").setSelectedKey("");
 			this.getView().byId("inSelectedVendor").setValue("");
-			this.getView().byId("inFinalPrice").setValue(oPRData.EstimatedValue);
+			this.getView().byId("inFinalPrice").setValue(this.formatCurrency(oPRData.EstimatedValue));
 
-			// Gọi AI gợi ý NCC (dùng MaterialNo item đầu để phân loại)
+			// Gọi AI gợi ý NCC
 			this._getAIVendorRecommendations(oPRData.MaterialNo, oPRData.EstimatedValue);
 		},
 
@@ -180,19 +189,19 @@ sap.ui.define([
 
 			if (sM.indexOf("LAPTOP") >= 0 || sM.indexOf("TABLET") >= 0 || sM.indexOf("PHONE") >= 0) {
 				aMockAIVendors = [
-					{ VendorNo: "0050000007", VendorName: "Cong ty TNHH Dell Viet Nam",   Rating: 4.5, PriceProposal: Math.round(fEstimatedValue * 0.97), AiReason: "Khop 100% ky thuat, gia re hon 3% so voi ngan sach. Thoi gian giao hang 7 ngay." },
-					{ VendorNo: "0050000009", VendorName: "Cong ty TNHH HP Viet Nam",      Rating: 3.8, PriceProposal: Math.round(fEstimatedValue * 0.90), AiReason: "Gia tot nhat. Thoi gian giao hang 10 ngay, bao hanh noi dia." }
+					{ VendorNo: "0050000007", VendorName: "Cong ty TNHH Dell Viet Nam", Rating: 4.5, PriceProposal: Math.round(fEstimatedValue * 0.97), AiReason: "Khop 100% ky thuat, gia re hon 3% so voi ngan sach. Thoi gian giao hang 7 ngay." },
+					{ VendorNo: "0050000009", VendorName: "Cong ty TNHH HP Viet Nam", Rating: 3.8, PriceProposal: Math.round(fEstimatedValue * 0.90), AiReason: "Gia tot nhat. Thoi gian giao hang 10 ngay, bao hanh noi dia." }
 				];
 			} else if (sM.indexOf("SERVER") >= 0 || sM.indexOf("NAS") >= 0 || sM.indexOf("SWITCH") >= 0) {
 				aMockAIVendors = [
-					{ VendorNo: "0050000009", VendorName: "Cong ty TNHH HP Viet Nam",      Rating: 4.8, PriceProposal: Math.round(fEstimatedValue * 0.97), AiReason: "Xep hang toi uu - lich su cap hang Server on dinh, mien phi lap dat cau hinh rack." },
-					{ VendorNo: "0050000007", VendorName: "Cong ty TNHH Dell Viet Nam",    Rating: 4.5, PriceProposal: Math.round(fEstimatedValue * 1.02), AiReason: "Cao hon ngan sach 2%, giao hang 7 ngay, ho tro ky thuat tot." }
+					{ VendorNo: "0050000009", VendorName: "Cong ty TNHH HP Viet Nam", Rating: 4.8, PriceProposal: Math.round(fEstimatedValue * 0.97), AiReason: "Xep hang toi uu - lich su cap hang Server on dinh, mien phi lap dat cau hinh rack." },
+					{ VendorNo: "0050000007", VendorName: "Cong ty TNHH Dell Viet Nam", Rating: 4.5, PriceProposal: Math.round(fEstimatedValue * 1.02), AiReason: "Cao hon ngan sach 2%, giao hang 7 ngay, ho tro ky thuat tot." }
 				];
 			} else {
 				// SW-LIC, CLOUD, SUPPLY, MAINT, TRAIN, CONSULT
 				aMockAIVendors = [
 					{ VendorNo: "0050000008", VendorName: "Cong ty CP Microsoft Viet Nam", Rating: 4.0, PriceProposal: Math.round(fEstimatedValue * 0.95), AiReason: "Phu hop vat tu dich vu/phan mem. Giao hang nhanh 5 ngay." },
-					{ VendorNo: "0050000007", VendorName: "Cong ty TNHH Dell Viet Nam",    Rating: 4.5, PriceProposal: Math.round(fEstimatedValue * 1.0),  AiReason: "NCC da dang, co the cung cap nhieu chung loai vat tu CNTT." }
+					{ VendorNo: "0050000007", VendorName: "Cong ty TNHH Dell Viet Nam", Rating: 4.5, PriceProposal: Math.round(fEstimatedValue * 1.0), AiReason: "NCC da dang, co the cung cap nhieu chung loai vat tu CNTT." }
 				];
 			}
 
@@ -219,156 +228,148 @@ sap.ui.define([
 			var oContext = oSelectedItem.getBindingContext("mockData");
 			var oVendorData = oContext.getObject();
 
-			this.getView().byId("inSelectedVendor").setValue(
-				oVendorData.VendorName + " (" + oVendorData.VendorNo + ")"
-			);
-			this.getView().byId("inFinalPrice").setValue(oVendorData.PriceProposal);
+			// Dùng setSelectedKey để ComboBox map chính xác mã Vendor
+			this.getView().byId("inSelectedVendor").setSelectedKey(oVendorData.VendorNo);
+
+			// Gán giá gợi ý từ AI đã được format dấu chấm phân cách nghìn
+			this.getView().byId("inFinalPrice").setValue(this.formatCurrency(oVendorData.PriceProposal));
 		},
 
-		// XÁC NHẬN TẠO PO → gọi real backend (thay mock setTimeout)
+		// XÁC NHẬN TẠO PO
 		onConfirmCreatePO: function () {
-			var oView       = this.getView();
-			var sPRId       = oView.byId("txtSelectedPR").getText();
-			var sVendorInfo = oView.byId("inSelectedVendor").getValue();
-			var fFinalPrice = Number(oView.byId("inFinalPrice").getValue());
+			var oView = this.getView();
+			var sPRId = oView.byId("txtSelectedPR").getText();
 
-			if (!sVendorInfo) {
-				MessageBox.error("Vui long chon mot nha cung cap tu phuong an de xuat cua AI.");
+			var oVendorCombo = oView.byId("inSelectedVendor");
+			var sVendorNo = oVendorCombo.getSelectedKey() || oVendorCombo.getValue();
+
+			var sRawPriceStr = oView.byId("inFinalPrice").getValue() || "";
+			var fFinalPrice = Number(sRawPriceStr.replace(/\./g, ""));
+
+			if (!sPRId) {
+				MessageBox.error("Vui lòng chọn 1 Yêu cầu mua hàng (PR) ở danh sách bên trái.");
+				return;
+			}
+			if (!sVendorNo) {
+				MessageBox.error("Vui lòng chọn một Nhà cung cấp.");
 				return;
 			}
 			if (!fFinalPrice || fFinalPrice <= 0) {
-				MessageBox.error("Gia thuong luong cuoi cung cua PO phai lon hon 0 VND.");
+				MessageBox.error("Giá thương lượng cuối cùng của PO phải lớn hơn 0 VND.");
 				return;
 			}
 
-			// Tách VendorNo từ "VendorName (VendorNo)"
-			var sVendorNo = sVendorInfo.substring(
-				sVendorInfo.lastIndexOf("(") + 1,
-				sVendorInfo.lastIndexOf(")")
-			);
+			var oSelectedPR = this._currentPR;
+			if (!oSelectedPR) {
+				var aPRs = oView.getModel("mockData").getProperty("/pendingPRs") || [];
+				oSelectedPR = aPRs.filter(function (pr) { return pr.PrNumber === sPRId; })[0] || {};
+			}
 
-			// Lấy chi tiết PR để build item payload
-			var aPRs = oView.getModel("mockData").getProperty("/pendingPRs") || [];
-			var oPR  = aPRs.filter(function (pr) { return pr.PrNumber === sPRId; })[0] || {};
+			var aRawItems = oSelectedPR._items || [];
 
-			// Build items tu _items[] (multi-item PR). Phan bo fFinalPrice theo ty le EstimatedValue.
-			var aRawItems     = oPR._items || [];
-			var fTotalEstimated = aRawItems.reduce(function (s, it) { return s + (Number(it.EstimatedValue) || 0); }, 0);
-			var aPOItems;
-			if (aRawItems.length > 0) {
-				aPOItems = aRawItems.map(function (item) {
-					// Don gia cho PO = fFinalPrice phan bo theo ty le uoc tinh moi item
-					var fShare   = fTotalEstimated > 0 ? ((Number(item.EstimatedValue) || 0) / fTotalEstimated) : (1 / aRawItems.length);
-					var fNetPrice = Math.round(fFinalPrice * fShare);
-					return {
-						materialNo:   item.MaterialNo   || "",
-						materialType: item.MaterialType || "ZSRV",
-						description:  item.Description  || "",
-						quantity:     Number(item.Quantity) || 1,
-						uom:          item.UoM          || "EA",
-						netPrice:     fNetPrice,
-						costCenter:   item.CostCenter   || "",
-						assetNo:      item.AssetNo      || "",
-						preqNo:       sPRId              // BANFN — lien ket EKPO toi PR nguon
-					};
-				});
-			} else {
-				// Fallback: single item tu flat fields (PR cu truoc khi refactor)
-				aPOItems = [{
-					materialNo:   oPR.MaterialNo   || "",
-					materialType: oPR.MaterialType || "ZSRV",
-					description:  oPR.Description  || "",
-					quantity:     Number(oPR.Quantity) || 1,
-					uom:          oPR.UoM          || "EA",
-					netPrice:     fFinalPrice,
-					costCenter:   oPR.CostCenter   || "",
-					assetNo:      oPR.AssetNo      || "",
-					preqNo:       sPRId
+			// Tự đóng gói nếu danh sách items rỗng
+			if (!aRawItems || aRawItems.length === 0) {
+				aRawItems = [{
+					preqNo: sPRId,
+					materialNo: oSelectedPR.MaterialNo || "",
+					description: oSelectedPR.Description || oView.byId("txtMaterialInfo").getText(),
+					quantity: Number(oSelectedPR.Quantity) || 1,
+					uom: oSelectedPR.UoM || "EA",
+					materialType: oSelectedPR.MaterialType || "ZSRV",
+					netPrice: fFinalPrice,
+					costCenter: oSelectedPR.CostCenter || "CCADM",
+					assetNo: oSelectedPR.AssetNo || ""
 				}];
 			}
+
+			// CHUẨN HÓA DỮ LIỆU ITEMS (Map PascalCase -> camelCase & gán CostCenter/NetPrice)
+			var aFormattedItems = aRawItems.map(function (item) {
+				return {
+					preqNo: item.preqNo || item.PRNumber || item.PRId || sPRId,
+					materialNo: item.materialNo || item.MaterialNo || "",
+					materialType: item.materialType || item.MaterialType || "ZSRV",
+					description: item.description || item.Description || "",
+					quantity: Number(item.quantity || item.Quantity || 1),
+					uom: item.uom || item.UoM || "EA",
+					// Nếu đơn giá từng dòng không có, chia đều hoặc lấy fFinalPrice
+					netPrice: Number(item.netPrice || item.NetPrice || item.Price || fFinalPrice),
+					// Đảm bảo luôn lấy CostCenter (ưu tiên camelCase -> PascalCase -> mặc định CCADM)
+					costCenter: item.costCenter || item.CostCenter || "CCADM",
+					assetNo: item.assetNo || item.AssetNo || ""
+				};
+			});
 
 			oView.setBusy(true);
 
 			fetch(BACKEND + "/api/po/create", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ vendorNo: sVendorNo, items: aPOItems })
-			})
-				.then(function (oResp) {
-					return oResp.json().then(function (d) { return { status: oResp.status, body: d }; });
+				body: JSON.stringify({
+					vendorNo: sVendorNo,
+					prNumber: sPRId,
+					finalPrice: fFinalPrice,
+					deliveryTerms: oView.byId("inDeliveryTerms").getValue(),
+					poRemark: oView.byId("inPoRemark").getValue(),
+					items: aFormattedItems // Gửi mảng đã chuẩn hóa
 				})
-				.then(function (oResult) {
+			})
+				.then(function (r) { return r.json(); })
+				.then(function (res) {
 					oView.setBusy(false);
-
-					if (!oResult.body || !oResult.body.success) {
-						MessageBox.error((oResult.body && oResult.body.message) || "Khong tao duoc Purchase Order.");
-						return;
-					}
-
-					var oPo       = oResult.body.po;
-					var sPoNumber = (oPo && (oPo.PoNumber || oPo.PONumber)) || "(SAP tra ve)";
-
-					MessageBox.success(
-						"Da tao Purchase Order " + sPoNumber + " tu PR " + sPRId + ".",
-						{
-							title: "PO-01 Thanh cong",
+					if (res && res.success) {
+						MessageBox.success("Tạo PO thành công! Mã PO: " + (res.poNumber || res.poId), {
 							onClose: function () {
-								// Xoá PR đã xử lý khỏi bảng chờ
-								var oMock     = oView.getModel("mockData");
-								var aFiltered = (oMock.getProperty("/pendingPRs") || [])
-									.filter(function (pr) { return pr.PrNumber !== sPRId; });
-								oMock.setProperty("/pendingPRs", aFiltered);
-								oMock.setProperty("/aiSuggestedVendors", []);
-								oView.byId("poCreationArea").setVisible(false);
-							}
-						}
-					);
+								this._currentPR = null;
+								this._onRouteMatched();
+							}.bind(this)
+						});
+					} else {
+						MessageBox.error((res && res.message) || "Không thể tạo PO sang SAP.");
+					}
 				}.bind(this))
 				.catch(function () {
 					oView.setBusy(false);
-					MessageBox.error("Khong the ket noi toi may chu.");
+					MessageBox.error("Lỗi kết nối máy chủ backend.");
 				});
 		},
 
 		// ── Vá-3: PR→PO dropdown methods (dùng khi view có Select#prSelect) ──
 
 		onLoadFromPRPress: function () {
-			var oModel        = this.getView().getModel();
+			var oModel = this.getView().getModel();
 			var sSelectedPRId = oModel.getProperty("/selectedPRId");
-			var aApprovedPRs  = oModel.getProperty("/approvedPRs") || [];
-			var oPR           = aApprovedPRs.filter(function (pr) { return pr.PRId === sSelectedPRId; })[0];
+			var aApprovedPRs = oModel.getProperty("/approvedPRs") || [];
+			var oPR = aApprovedPRs.filter(function (pr) { return pr.PRId === sSelectedPRId; })[0];
 
 			if (!oPR) { MessageBox.warning("Vui long chon mot PR da duyet."); return; }
 
-			// PR moi co items[]. Map sang format form PO (camelCase, netPrice null de user nhap).
 			var aRawItems = oPR.items || [];
 			var aFormItems;
 			if (aRawItems.length > 0) {
 				aFormItems = aRawItems.map(function (item) {
 					return {
-						materialNo:   item.MaterialNo   || "",
+						materialNo: item.MaterialNo || "",
 						materialType: item.MaterialType || "",
-						description:  item.Description  || "",
-						uom:          item.UoM          || "",
-						quantity:     Number(item.Quantity) || null,
-						netPrice:     null,             // User tu nhap don gia thuong luong
-						costCenter:   item.CostCenter   || "",
-						assetNo:      item.AssetNo      || "",
-						preqNo:       oPR.PRId           // BANFN — toan bo items thuoc cung 1 PR
+						description: item.Description || "",
+						uom: item.UoM || "",
+						quantity: Number(item.Quantity) || null,
+						netPrice: null,             // User tu nhap don gia thuong luong
+						costCenter: item.CostCenter || "CCADM",
+						assetNo: item.AssetNo || "",
+						preqNo: oPR.PRId           // BANFN — toan bo items thuoc cung 1 PR
 					};
 				});
 			} else {
-				// Fallback: PR cu (flat fields)
 				aFormItems = [{
-					materialNo:   oPR.MaterialNo   || "",
+					materialNo: oPR.MaterialNo || "",
 					materialType: oPR.MaterialType || "",
-					description:  oPR.Description  || "",
-					uom:          oPR.UoM           || "",
-					quantity:     Number(oPR.Quantity) || null,
-					netPrice:     null,
-					costCenter:   oPR.CostCenter    || "",
-					assetNo:      oPR.AssetNo        || "",
-					preqNo:       oPR.PRId
+					description: oPR.Description || "",
+					uom: oPR.UoM || "",
+					quantity: Number(oPR.Quantity) || null,
+					netPrice: null,
+					costCenter: oPR.CostCenter || "",
+					assetNo: oPR.AssetNo || "",
+					preqNo: oPR.PRId
 				}];
 			}
 
@@ -377,21 +378,22 @@ sap.ui.define([
 			MessageToast.show("Da load " + aFormItems.length + " vat tu tu " + oPR.PRId + ". Vui long nhap don gia.");
 		},
 
-		formatRating: function (fRating) {
-			return (fRating !== undefined && fRating !== null) ? Number(fRating).toFixed(1) + "*" : "";
-		},
-
 		onItemMaterialChange: function (oEvent) {
-			var sKey      = oEvent.getParameter("selectedItem") && oEvent.getParameter("selectedItem").getKey();
-			var oModel    = this.getView().getModel();
+			var sKey = oEvent.getParameter("selectedItem") && oEvent.getParameter("selectedItem").getKey();
+			var oModel = this.getView().getModel();
 			var oMaterial = (oModel.getProperty("/materials") || []).filter(function (m) { return m.MaterialNo === sKey; })[0];
-			var sPath     = oEvent.getSource().getBindingContext().getPath();
+			var sPath = oEvent.getSource().getBindingContext().getPath();
 			if (!oMaterial) { return; }
+
 			oModel.setProperty(sPath + "/materialType", oMaterial.MaterialType);
-			oModel.setProperty(sPath + "/description",  oMaterial.Description);
-			oModel.setProperty(sPath + "/uom",          oMaterial.BaseUoM);
-			oModel.setProperty(sPath + "/costCenter",   "");
-			oModel.setProperty(sPath + "/assetNo",      "");
+			oModel.setProperty(sPath + "/description", oMaterial.Description);
+			oModel.setProperty(sPath + "/uom", oMaterial.BaseUoM);
+
+			// Gán mặc định CCADM nếu chưa có thay vì gán rỗng ""
+			var sCurrentCC = oModel.getProperty(sPath + "/costCenter");
+			if (!sCurrentCC) {
+				oModel.setProperty(sPath + "/costCenter", "CCADM");
+			}
 		},
 
 		onItemValueChange: function () { this._recalcTotal(); },
@@ -407,8 +409,6 @@ sap.ui.define([
 
 		onAddItemPress: function () {
 			var oModel = this.getView().getModel();
-			// Copy mang truoc khi push - JSONModel dua vao deepEqual(reference cu, moi) trong
-			// checkUpdate() de fire change; mutate thang mang goc se khien binding khong re-render UI
 			var aItems = (oModel.getProperty("/items") || []).slice();
 			aItems.push(emptyItem());
 			oModel.setProperty("/items", aItems);
@@ -416,9 +416,8 @@ sap.ui.define([
 
 		onRemoveItemPress: function (oEvent) {
 			var oModel = this.getView().getModel();
-			var sPath  = oEvent.getSource().getBindingContext().getPath();
+			var sPath = oEvent.getSource().getBindingContext().getPath();
 			var iIndex = Number(sPath.split("/").pop());
-			// Copy mang truoc khi splice - xem giai thich trong onAddItemPress
 			var aItems = (oModel.getProperty("/items") || []).slice();
 			if (aItems.length <= 1) { MessageBox.warning("Purchase Order can co it nhat 1 vat tu."); return; }
 			aItems.splice(iIndex, 1);
@@ -427,8 +426,8 @@ sap.ui.define([
 		},
 
 		onAiSuggestPress: function () {
-			var oModel     = this.getView().getModel();
-			var aItems     = oModel.getProperty("/items") || [];
+			var oModel = this.getView().getModel();
+			var aItems = oModel.getProperty("/items") || [];
 			var oFirstItem = aItems[0];
 			if (!oFirstItem || !oFirstItem.materialNo) {
 				MessageBox.warning("Vui long chon it nhat 1 vat tu truoc khi xin goi y AI.");
@@ -439,10 +438,10 @@ sap.ui.define([
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
-					materialName:  oFirstItem.description,
+					materialName: oFirstItem.description,
 					materialGroup: oFirstItem.materialType,
-					quantity:      oFirstItem.quantity,
-					budget:        (oFirstItem.netPrice && oFirstItem.quantity)
+					quantity: oFirstItem.quantity,
+					budget: (oFirstItem.netPrice && oFirstItem.quantity)
 						? oFirstItem.netPrice * oFirstItem.quantity : undefined,
 					vendors: oModel.getProperty("/vendors")
 				})
@@ -462,27 +461,79 @@ sap.ui.define([
 				}.bind(this));
 		},
 
-		// onSubmitPress: dùng khi view có form manual (default model binding)
+		// Format giá trực tiếp khi người dùng gõ
+		onFinalPriceLiveChange: function (oEvent) {
+			var oInput = oEvent.getSource();
+			var sValue = oEvent.getParameter("newValue");
+
+			var oDomRef = oInput.getFocusDomRef();
+			var iCursorPos = oDomRef ? oDomRef.selectionStart : 0;
+
+			// FIX: đếm số CHỮ SỐ đứng trước con trỏ (bỏ qua dấu chấm phân cách),
+			// thay vì dùng độ dài chuỗi thô. Cách cũ dùng độ dài chuỗi ký tự làm
+			// mốc "vị trí cũ" nên khi dấu chấm bị chèn/dịch chuyển giữa các lần
+			// gõ (vd 5.000 -> 50.000), việc đặt lại con trỏ bị lệch, khiến ký tự
+			// gõ tiếp theo chèn nhầm vị trí và sinh ra số sai (vd 500000 ra 555000).
+			var iDigitsBeforeCursor = sValue.slice(0, iCursorPos).replace(/\D/g, "").length;
+
+			// 1. Chỉ giữ lại chữ số
+			var sCleanValue = sValue.replace(/\D/g, "");
+
+			if (sCleanValue) {
+				// 2. Format dấu chấm phân cách hàng nghìn
+				var sFormattedValue = new Intl.NumberFormat("vi-VN").format(sCleanValue);
+				oInput.setValue(sFormattedValue);
+
+				// 3. Đặt lại con trỏ ngay sau chữ số thứ N (N = số chữ số đã gõ
+				// trước đó), bất kể dấu chấm nằm ở đâu trong chuỗi mới.
+				if (oDomRef) {
+					var iSeenDigits = 0;
+					var iTargetPos = sFormattedValue.length;
+					for (var i = 0; i < sFormattedValue.length; i++) {
+						if (/\d/.test(sFormattedValue[i])) {
+							iSeenDigits++;
+							if (iSeenDigits === iDigitsBeforeCursor) {
+								iTargetPos = i + 1;
+								break;
+							}
+						}
+					}
+
+					setTimeout(function () {
+						oDomRef.setSelectionRange(iTargetPos, iTargetPos);
+					}, 0);
+				}
+			} else {
+				oInput.setValue("");
+			}
+		},
+
+		// onSubmitPress: dùng khi view có form manual
 		onSubmitPress: function () {
-			var oView     = this.getView();
-			var oModel    = oView.getModel();
+			var oView = this.getView();
+			var oModel = oView.getModel();
 			var sVendorNo = oModel.getProperty("/vendorNo");
-			var aItems    = oModel.getProperty("/items") || [];
+			var aItems = oModel.getProperty("/items") || [];
 
 			if (!sVendorNo) { MessageBox.warning("Vui long chon nha cung cap."); return; }
 
+			// Sửa đoạn check trong onSubmitPress:
 			for (var i = 0; i < aItems.length; i++) {
 				var item = aItems[i];
-				if (!item.materialNo || !item.quantity || !item.netPrice) {
+				var sCostCenter = item.costCenter || item.CostCenter; // Lấy cả 2 kiểu viết hoa/thường
+				var sMaterialType = item.materialType || item.MaterialType;
+				var sMaterialNo = item.materialNo || item.MaterialNo;
+
+				if (!sMaterialNo || !item.quantity || !(item.netPrice || item.NetPrice)) {
 					MessageBox.warning("Vui long dien day du Vat tu / So luong / Don gia cho tat ca dong.");
 					return;
 				}
-				if (item.materialType === "ZAST" && !item.assetNo) {
-					MessageBox.warning("Vat tu " + item.materialNo + " la tai san (ZAST), bat buoc phai co Asset No.");
+				if (sMaterialType === "ZAST" && !(item.assetNo || item.AssetNo)) {
+					MessageBox.warning("Vat tu " + sMaterialNo + " la tai san (ZAST), bat buoc phai co Asset No.");
 					return;
 				}
-				if (item.materialType !== "ZAST" && !item.costCenter) {
-					MessageBox.warning("Vat tu " + item.materialNo + " bat buoc phai co Cost Center.");
+				if (sMaterialType !== "ZAST" && !sCostCenter) {
+					MessageBox.warning("Vat tu " + sMaterialNo + " bat buoc phai co Cost Center.");
 					return;
 				}
 			}
@@ -496,15 +547,15 @@ sap.ui.define([
 					vendorNo: sVendorNo,
 					items: aItems.map(function (item) {
 						return {
-							materialNo:   item.materialNo,
+							materialNo: item.materialNo,
 							materialType: item.materialType,
-							description:  item.description,
-							quantity:     Number(item.quantity),
-							uom:          item.uom,
-							netPrice:     Number(item.netPrice),
-							costCenter:   item.costCenter,
-							assetNo:      item.assetNo,
-							preqNo:       item.preqNo || ""
+							description: item.description,
+							quantity: Number(item.quantity),
+							uom: item.uom,
+							netPrice: Number(item.netPrice),
+							costCenter: item.costCenter,
+							assetNo: item.assetNo,
+							preqNo: item.preqNo || ""
 						};
 					})
 				})
@@ -520,7 +571,7 @@ sap.ui.define([
 						MessageBox.error((oResult.body && oResult.body.message) || "Khong tao duoc Purchase Order.");
 						return;
 					}
-					var oPo       = oResult.body.po;
+					var oPo = oResult.body.po;
 					var sPoNumber = (oPo && (oPo.PoNumber || oPo.PONumber)) || "(SAP tra ve)";
 					MessageBox.success("Da tao Purchase Order " + sPoNumber + ".", {
 						title: "PO-01",

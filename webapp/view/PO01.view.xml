@@ -69,7 +69,7 @@
 												<Text text="{mockData>MaterialNo}" class="qdCellHint"/>
 											</VBox>
 											<ObjectNumber
-												number="{mockData>EstimatedValue}"
+												number="{path: 'mockData>EstimatedValue', formatter: '.formatCurrency'}"
 												unit="{mockData>Currency}"
 											/>
 										</cells>
@@ -112,14 +112,14 @@
 							</HBox>
 						</VBox>
 
-						<!-- 3. AI goi y NCC -->
+						<!-- 3. AI gợi ý NCC & Chọn phương án -->
 						<VBox class="qdContentCard qdCardTight">
 							<HBox alignItems="Center" justifyContent="SpaceBetween" wrap="Wrap" class="sapUiSmallMargin">
 								<HBox alignItems="Center">
 									<Text text="3" class="qdStepBadge"/>
 									<VBox>
-										<Title text="Phương án mua sắm" level="H3" class="qdCardTitle"/>
-										<Text text="AI phân tích giá, thời gian giao hàng và đánh giá NCC" class="qdCellHint"/>
+										<Title text="Phương án &amp; Gợi ý Nhà cung cấp" level="H3" class="qdCardTitle"/>
+										<Text text="AI phân tích đánh giá, năng lực và giá đề xuất từ hệ thống SAP" class="qdCellHint"/>
 									</VBox>
 								</HBox>
 								<Button
@@ -133,68 +133,123 @@
 							<Table
 								id="aiVendorTable"
 								items="{mockData>/aiSuggestedVendors}"
-								mode="SingleSelectLeft"
+								mode="SingleSelectMaster"
 								selectionChange=".onVendorSelect"
-								noDataText="Chọn một PR ở bảng bên trái để AI đề xuất nhà cung cấp."
+								noDataText="Vui lòng chọn một PR ở bảng bên trái để hiển thị nhà cung cấp gợi ý."
+								class="sapUiTinyMarginBottom"
 							>
 								<columns>
-									<Column width="30%"><Text text="Nhà cung cấp"/></Column>
-									<Column hAlign="Center" width="7rem"><Text text="Đánh giá"/></Column>
-									<Column hAlign="End" width="9rem"><Text text="Giá đề xuất"/></Column>
-									<Column minScreenWidth="Desktop" demandPopin="true"><Text text="Phân tích từ AI"/></Column>
+									<Column width="35%"><Text text="Nhà cung cấp (SAP LIFNR)"/></Column>
+									<Column hAlign="Center" width="10rem"><Text text="Đánh giá chất lượng"/></Column>
+									<Column hAlign="End" width="10rem"><Text text="Giá đề xuất (VND)"/></Column>
+									<Column minScreenWidth="Desktop" demandPopin="true"><Text text="Phân tích &amp; Lý do chọn từ AI"/></Column>
 								</columns>
 								<items>
-									<ColumnListItem>
+									<ColumnListItem type="Active">
 										<cells>
-											<ObjectIdentifier title="{mockData>VendorName}" text="Mã: {mockData>VendorNo}"/>
-											<RatingIndicator
-												value="{mockData>Rating}"
-												maxValue="5"
-												visualMode="Half"
-												iconSize="0.8rem"
-												enabled="false"
+											<ObjectIdentifier 
+												title="{mockData>VendorName}" 
+												text="Mã NCC: {mockData>VendorNo}"
 											/>
-											<ObjectNumber number="{mockData>PriceProposal}" unit="VND"/>
-											<Text text="{mockData>AiReason}" class="qdAiReason"/>
+											<VBox alignItems="Center">
+												<RatingIndicator
+													value="{mockData>Rating}"
+													maxValue="5"
+													visualMode="Half"
+													iconSize="0.85rem"
+													enabled="false"
+												/>
+												<Text text="{path: 'mockData>Rating', formatter: '.formatRating'}" class="qdCellHint"/>
+											</VBox>
+											<ObjectNumber 
+												number="{path: 'mockData>PriceProposal', formatter: '.formatCurrency'}" 
+												unit="VND"
+												state="Success"
+											/>
+											<VBox>
+												<Text text="{mockData>AiReason}" class="qdAiReason"/>
+											</VBox>
 										</cells>
 									</ColumnListItem>
 								</items>
 							</Table>
 						</VBox>
 
-						<!-- 4. Xac nhan tao PO -->
+						<!-- 4. Xác nhận đơn mua hàng (PO Form) -->
 						<VBox class="qdContentCard">
 							<HBox alignItems="Center" class="sapUiSmallMarginBottom">
 								<Text text="4" class="qdStepBadge"/>
-								<Title text="Xác nhận đơn mua hàng" level="H3" class="qdCardTitle"/>
+								<VBox>
+									<Title text="Xác nhận chi tiết Purchase Order" level="H3" class="qdCardTitle"/>
+									<Text text="Kiểm tra thông tin nhà cung cấp và giá thương lượng trước khi ghi sang SAP" class="qdCellHint"/>
+								</VBox>
 							</HBox>
 
-							<f:SimpleForm editable="true" layout="ResponsiveGridLayout" labelSpanL="4" columnsL="1">
+							<f:SimpleForm 
+								editable="true" 
+								layout="ColumnLayout" 
+								columnsM="2" 
+								columnsL="2"
+								labelSpanM="12"
+								labelSpanL="12"
+								class="sapUiNoContentPadding"
+							>
 								<f:content>
+									<core:Title text="Thông tin Thương lượng" />
+									
 									<Label text="Nhà cung cấp lựa chọn" required="true"/>
-									<Input id="inSelectedVendor" editable="false" placeholder="Chọn 1 nhà cung cấp ở bảng trên"/>
+									<ComboBox
+										id="inSelectedVendor"
+										width="100%"
+										placeholder="Chọn hoặc tìm tên / mã Nhà cung cấp..."
+										items="{/vendors}"
+										showSecondaryValues="true"
+									>
+										<core:ListItem 
+											key="{VendorNo}" 
+											text="{VendorName} ({VendorNo})" 
+											additionalText="Mã: {VendorNo}"
+										/>
+									</ComboBox>
 
-									<Label text="Giá thương lượng cuối cùng" required="true"/>
-									<StepInput id="inFinalPrice" width="100%" step="500000" min="0" value="0"/>
+									<Label text="Giá thương lượng cuối cùng (VND)" required="true"/>
+									<Input 
+										id="inFinalPrice" 
+										width="100%" 
+										placeholder="Nhập giá thương lượng..."
+										liveChange=".onFinalPriceLiveChange"
+									/>
+
+									<core:Title text="Điều khoản &amp; Giao nhận" />
 
 									<Label text="Điều khoản giao hàng"/>
-									<Input id="inDeliveryTerms" placeholder="VD: Giao tại kho QDPL trong 7 ngày"/>
+									<Input 
+										id="inDeliveryTerms" 
+										placeholder="VD: Giao tại kho QDPL trong 7 ngày làm việc"
+									/>
+
+									<Label text="Ghi chú đơn hàng (Header Text)"/>
+									<Input 
+										id="inPoRemark" 
+										placeholder="VD: Đơn hàng ưu tiên cấp phép theo PR phê duyệt"
+									/>
 								</f:content>
 							</f:SimpleForm>
 
 							<MessageStrip
-								text="PO sẽ được ghi vào SAP kèm liên kết BANFN về PR gốc — có thể tra cứu bằng ME23N."
+								text="Sau khi bấm xác nhận, PO sẽ được ghi trực tiếp vào SAP Gateway (Table EKKO/EKPO) kèm liên kết BANFN về PR gốc."
 								type="Information"
 								showIcon="true"
 								class="sapUiSmallMarginTop qdAiMessageStrip"
 							/>
 
-							<HBox justifyContent="End" class="sapUiMediumMarginTop">
+							<HBox justifyContent="End" alignItems="Center" class="sapUiMediumMarginTop">
 								<Button
 									text="Tạo Purchase Order sang SAP"
 									type="Emphasized"
 									icon="sap-icon://accept"
 									press=".onConfirmCreatePO"
+									class="qdPrimarySubmitBtn"
 								/>
 							</HBox>
 						</VBox>
