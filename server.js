@@ -29,7 +29,7 @@ const LEGAL_ESCALATION_THRESHOLD = 100000000; // > 100 trieu VND -> Phap che
 
 // In-memory stand-in cho ZG1_APPROVAL de UI co the hien thi/duyet ngay, vi OData chua co
 // entity doc/ghi truc tiep bang ZG1_APPROVAL. Khi tao PR, neu SAP_HOST duoc cau hinh thi
-// server se GOI THEM OData PurchaseRequisitionSet de tao PR that ben SAP (BAPI_PR_CREATE se
+// server se GOI THEM OData PurchaseRequisitionHisSet de tao PR that ben SAP (BAPI_PR_CREATE se
 // tu ghi 1 dong vao ZG1_APPROVAL that) - ca 2 con duong chay song song, khong xung dot vi
 // approvalStore chi phuc vu UI, cho den khi ABAP bo sung entity doc ZG1_APPROVAL.
 const approvalStore = [...pendingPRs].map((pr) => ({ ...pr }));
@@ -40,6 +40,20 @@ function buildApprovalFlags(totalValue) {
 		needsProcurementHeadReview: totalValue > PAMS_ESCALATION_THRESHOLD,
 		needsLegalReview: totalValue > LEGAL_ESCALATION_THRESHOLD
 	};
+}
+
+// GL Account mac dinh theo Material Type — GIA DINH TAM THOI vi FE chua co o nhap
+// GLAccount rieng va Blueprint khong neu ro bang mapping nay cho buoc tao PR (Blueprint
+// chi neu GL 156100/335000/331xxx/112xxx cho buoc GR/Payment, khong phai luc tao PR).
+// CAN nguoi phu trach FI (theo Blueprint: Duong Thi Quynh) xac nhan lai ma tai khoan
+// dung, hoac bo sung o nhap GLAccount ngay tren form PR01 de nguoi dung tu chon.
+function defaultGLAccount(materialType) {
+	var GL_MAP = {
+		ZAST: "211100", // Tai san co dinh (tam thoi - can FI xac nhan)
+		ZSRV: "641000", // Chi phi dich vu (tam thoi - can FI xac nhan)
+		ZROH: "641000"  // Vat tu/hang hoa thong thuong (tam thoi - can FI xac nhan)
+	};
+	return GL_MAP[materialType] || "641000";
 }
 
 function sapAuth() {
@@ -277,7 +291,7 @@ Hay danh gia dua tren gia, thoi gian giao hang va danh gia chat luong, roi tra l
 
 // --- Approval workflow (PR-01 tao PR / PR-02 duyet PR) ------------------
 // db.js (Postgres/in-memory) la nguon du lieu cho man PR02 (vi OData chua co entity doc ZG1_APPROVAL).
-// Khi co SAP_HOST, PR cung duoc tao that ben SAP qua OData PurchaseRequisitionSet (BAPI_PR_CREATE),
+// Khi co SAP_HOST, PR cung duoc tao that ben SAP qua OData PurchaseRequisitionHisSet (BAPI_PR_CREATE),
 // nhung ket qua tao that KHONG chan luong demo neu SAP loi/khong ket noi duoc.
 
 // POST /api/approval/submit — Tao PR moi voi nhieu Line Item (Section 3.4 meeting minutes)
@@ -307,36 +321,93 @@ app.post("/api/approval/submit", async (req, res) => {
 	let sapErrorMessage = null;
 
 	if (process.env.SAP_HOST) {
-		// Tao PR trong SAP voi item dau tien (OData PurchaseRequisitionSet hien ho tro 1 item/call)
+		// Tao PR trong SAP voi item dau tien (OData PurchaseRequisitionHisSet hien ho tro 1 item/call)
 		const firstItem = items[0];
 		try {
-			const sapResponse = await axios.post(
-				`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseRequisitionSet`,
+			// Thu ep sap-language=EN — BAPI dang sinh loi "ME/083 Bitte Kurztext eingeben"
+			// bat ke Description gui len la gi, nghi ngo BAPI tu dong tra Kurztext tu
+			// bang MAKT (Material Short Text) theo ngon ngu he thong (mac dinh DE) thay vi
+			// dung field Description minh gui. Thu doi ngon ngu request sang EN xem SAP co
+			// fallback dung Kurztext da maintain hay khong. KHONG CHAC se khac phuc duoc vi
+			// day co the la loi mapping trong lop ABAP (DPC_EXT) — neu van loi, can nguoi
+			// phu trach ABAP (theo Blueprint: Vu Tien Dat) kiem tra lai CREATE_ENTITY /
+			// CREATE_DEEP_ENTITY cua PurchaseRequisitionHisSet co map dung field Description
+			// sang tham so short text cua BAPI hay khong.
+			const tokenResponse = await axios.get(
+				`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}`,
 				{
-					CompanyCode: "QD01",
-					Requester: requesterEmail,
+					auth: sapAuth(),
+					headers: {
+						"X-CSRF-Token": "Fetch",
+						"sap-language": "EN"
+					}
+				}
+			);
+
+			const csrfToken = tokenResponse.headers["x-csrf-token"];
+			const cookies = tokenResponse.headers["set-cookie"];
+
+			console.log("CSRF:", csrfToken);
+			console.log("COOKIE:", cookies);
+
+			// SUA: field dung dung TEN + CASE that ma SAP chap nhan (xac nhan qua SAP
+			// Gateway Client test truc tiep - xem anh chup Postman/Gateway Client):
+			//   - "Uom" (khong phai "UoM"), OData phan biet hoa/thuong.
+			//   - "GLAccount" la field BAT BUOC ma truoc do code chua he gui.
+			//   - Entity nay KHONG co field CompanyCode/AssetNo/MaterialType — bo hoan
+			//     toan, gui thua co the bi SAP tu choi hoac bo qua tuy cau hinh.
+			const sapResponse = await axios.post(
+				`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseRequisitionHisSet`,
+				{
 					MaterialNo: firstItem.materialNo || "",
 					Description: firstItem.description || "",
 					Quantity: String(firstItem.quantity),
-					UoM: firstItem.uom || "PC",
+					Uom: firstItem.uom || "PC",
 					EstimatedValue: String(firstItem.estimatedValue || 0),
 					Currency: currency || "VND",
 					CostCenter: firstItem.costCenter || "",
 					InternalOrder: firstItem.internalOrder || "",
-					AssetNo: firstItem.assetNo || ""
+					GLAccount: firstItem.glAccount || defaultGLAccount(firstItem.materialType)
 				},
-				{ auth: sapAuth(), headers: { "Content-Type": "application/json" } }
+				{
+					auth: sapAuth(),
+					headers: {
+						"Content-Type": "application/json",
+						"X-CSRF-Token": csrfToken,
+						"Cookie": cookies ? cookies.join("; ") : "",
+						"sap-language": "EN"
+					}
+				}
 			);
-			sapPrNumber = sapResponse.data && sapResponse.data.d && sapResponse.data.d.PrNumber;
-			sapIntegration = "created";
+
+			// SAP tra ve so PR that o field "PRNumber" (xac nhan qua Gateway Client,
+			// VD: "0010003924") — KHONG phai "Banfn" nhu gia dinh truoc do.
+			sapPrNumber = sapResponse.data && sapResponse.data.d && sapResponse.data.d.PRNumber;
 		} catch (error) {
+			console.log("STATUS:", error.response?.status);
+			console.log("HEADERS:", error.response?.headers);
+			console.log("DATA:", JSON.stringify(error.response?.data, null, 2));
 			sapIntegration = "failed";
-			sapErrorMessage =
-				(error.response && error.response.data && error.response.data.error &&
-					error.response.data.error.message && error.response.data.error.message.value) ||
-				(error.response && `SAP tra ve HTTP ${error.response.status}`) ||
-				error.message;
-			console.error(`[approval/submit] Tao PR that ben SAP THAT BAI: ${sapErrorMessage}`);
+
+			// Loc rieng cac loi severity="error" trong errordetails (neu co) de tra ve
+			// thong bao cu the cho FE hien thi, thay vi chi 1 cau tieng Duc chung chung
+			// "Es ist eine Ausnahme aufgetreten" khong ai hieu duoc dang loi gi.
+			const errorDetails = error.response?.data?.error?.innererror?.errordetails;
+			if (Array.isArray(errorDetails)) {
+				const realErrors = errorDetails
+					.filter((d) => d.severity === "error" && d.code !== "/IWBEP/CX_MGW_BUSI_EXCEPTION")
+					.map((d) => d.message);
+				if (realErrors.length) {
+					sapErrorMessage = realErrors.join("; ");
+				}
+			}
+			if (!sapErrorMessage) {
+				sapErrorMessage =
+					error.response?.data?.error?.message?.value ||
+					(error.response ? `SAP tra ve HTTP ${error.response.status}` : error.message);
+			}
+
+			console.error("[approval/submit] Tao PR that ben SAP THAT BAI:", sapErrorMessage);
 		}
 	}
 
@@ -353,17 +424,17 @@ app.post("/api/approval/submit", async (req, res) => {
 		// Mang items — cau truc chinh theo Section 3.4 meeting minutes
 		items: items.map(function (item, idx) {
 			return {
-				LineNo:        String(idx + 1).padStart(5, "0"),
-				MaterialNo:    item.materialNo    || (item.isFreeText ? "FREE_TEXT" : ""),
-				MaterialType:  item.materialType  || "ZSRV",
-				Description:   item.description   || "",
-				Quantity:      Number(item.quantity),
-				UoM:           item.uom            || "PC",
+				LineNo: String(idx + 1).padStart(5, "0"),
+				MaterialNo: item.materialNo || (item.isFreeText ? "FREE_TEXT" : ""),
+				MaterialType: item.materialType || "ZSRV",
+				Description: item.description || "",
+				Quantity: Number(item.quantity),
+				UoM: item.uom || "PC",
 				EstimatedValue: Number(item.estimatedValue) || 0,
-				CostCenter:    item.costCenter     || "",
-				InternalOrder: item.internalOrder  || "",
-				AssetNo:       item.assetNo        || "",
-				isFreeText:    item.isFreeText      || false
+				CostCenter: item.costCenter || "",
+				InternalOrder: item.internalOrder || "",
+				AssetNo: item.assetNo || "",
+				isFreeText: item.isFreeText || false
 			};
 		}),
 		...buildApprovalFlags(totalPRValue || 0)
@@ -504,7 +575,7 @@ app.post("/api/po/create", async (req, res) => {
 						CostCenter: item.costCenter || "",
 						AssetNo: item.assetNo || "",
 						Plant: "QDPL",
-					PreqNo: item.preqNo || ""   // BANFN - lien ket toi PR nguon (EKPO-BANFN)
+						PreqNo: item.preqNo || ""   // BANFN - lien ket toi PR nguon (EKPO-BANFN)
 					}))
 				}
 			},
@@ -527,41 +598,6 @@ app.post("/api/po/create", async (req, res) => {
 	}
 });
 
-// --- GET /api/po/report (BỔ SUNG THÊM ÔNG NÀY ĐỂ MÀN REPORT GỌI) ---
-// app.get("/api/po/report", async (req, res) => {
-// 	// 1. Nếu không có cấu hình SAP, trả về danh sách trống hoặc mock data để test UI
-// 	if (!process.env.SAP_HOST) {
-// 		return res.json({ 
-// 			success: true, 
-// 			sapIntegration: "mock", 
-// 			data: [
-// 				{ PoNumber: "PO-2026-1001", VendorNo: "VEND01", TotalValue: "150000000", Currency: "VND", Status: "CREATED" },
-// 				{ PoNumber: "PO-2026-1002", VendorNo: "VEND02", TotalValue: "450000000", Currency: "VND", Status: "APPROVED" }
-// 			] 
-// 		});
-// 	}
-
-// 	// 2. Nếu có SAP_HOST, tiến hành gọi sang OData Set của SAP để bốc dữ liệu PO thật về
-// 	try {
-// 		const response = await axios.get(
-// 			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseOrderHistorySet`, // Thay đúng tên EntitySet chứa danh sách PO trên SEGW của bạn nếu có khác biệt
-// 			{ 
-// 				params: { "$format": "json" }, 
-// 				auth: sapAuth() 
-// 			}
-// 		);
-// 		const results = (response.data && response.data.d && response.data.d.results) || [];
-// 		return res.json({ success: true, sapIntegration: "fetched", data: results });
-// 	} catch (error) {
-// 		// Fallback dữ liệu tạm nếu nghẽn mạng SAP để tránh sập màn hình report
-// 		return res.json({ 
-// 			success: true, 
-// 			sapError: true, 
-// 			message: "Không thể lấy dữ liệu trực tiếp từ SAP, hiển thị dữ liệu dự phòng.",
-// 			data: [] 
-// 		});
-// 	}
-// });
 // --- GET /api/po/report (Báo cáo lịch sử Đơn hàng từ SAP) ------------------
 app.get("/api/po/report", async (req, res) => {
 	if (!process.env.SAP_HOST) {
@@ -600,14 +636,14 @@ app.get("/api/po/report", async (req, res) => {
 	try {
 		// Gọi chính xác tới EntitySet Lịch sử PO hoạt động trên Gateway thật của bạn
 		const response = await axios.get(
-			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseOrderHistorySet`, 
-			{ 
-				params: { "$format": "json" }, 
-				auth: sapAuth() 
+			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseOrderHistorySet`,
+			{
+				params: { "$format": "json" },
+				auth: sapAuth()
 			}
 		);
 		const results = (response.data && response.data.d && response.data.d.results) || [];
-		
+
 		// Trả về dữ liệu thật từ SAP thành công
 		return res.json({ success: true, sapIntegration: "fetched", data: results });
 
@@ -622,10 +658,10 @@ app.get("/api/po/report", async (req, res) => {
 		}
 
 		// Trả về lỗi rõ ràng cho Front-End thay vì lấp liếm bằng dữ liệu mock
-		return res.status(502).json({ 
-			success: false, 
-			sapError: true, 
-			message: "Node.js không thể kết nối tới SAP Gateway thật!" 
+		return res.status(502).json({
+			success: false,
+			sapError: true,
+			message: "Node.js không thể kết nối tới SAP Gateway thật!"
 		});
 	}
 });

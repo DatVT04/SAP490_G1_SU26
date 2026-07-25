@@ -11,11 +11,11 @@ sap.ui.define([
 	// Bao nhieu tile moi role duoc thay — dung de hien empty state khi = 0.
 	// Phai khop voi dieu kien visible trong Dashboard.view.xml.
 	var TILES_BY_ROLE = {
-		REQUESTER:  ["pr01", "report"],
-		PURCHASING: ["pr02", "po01", "report"],
-		CFO:        ["pr02", "report"],
-		CEO:        ["pr02", "report", "config"],
-		ACC:        ["report"]
+		REQUESTER:  ["pr01", "report", "profile"],
+		PURCHASING: ["pr02", "po01", "report", "profile"],
+		CFO:        ["pr02", "report", "profile"],
+		CEO:        ["pr02", "report", "config", "profile"],
+		ACC:        ["report", "profile"]
 	};
 
 	var oValueFormat = NumberFormat.getIntegerInstance({
@@ -121,6 +121,10 @@ sap.ui.define([
 			this.getOwnerComponent().getRouter().navTo("poReport");
 		},
 
+		onNavToProfile: function () {
+			this.getOwnerComponent().getRouter().navTo("profile");
+		},
+
 		onLogoutPress: function () {
 			var oUserModel = this.getOwnerComponent().getModel("user");
 			oUserModel.setData({
@@ -130,6 +134,12 @@ sap.ui.define([
 				role: "",
 				position: "",
 				costCenter: "",
+				firstName: "",
+				lastName: "",
+				phoneNumber: "",
+				street: "",
+				city: "",
+				postalCode: "",
 				isLoggedIn: false
 			});
 			this.getOwnerComponent().getRouter().navTo("login");

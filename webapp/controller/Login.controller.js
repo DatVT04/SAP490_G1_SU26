@@ -47,18 +47,29 @@ sap.ui.define([
 
 					var oEmployee = oResult.body.employee;
 					var oUserModel = this.getOwnerComponent().getModel("user");
+					var sFullName = Config.buildFullName(oEmployee.LastName, oEmployee.FirstName, oEmployee.FullName);
 
 					oUserModel.setData({
 						email: oEmployee.Email,
-						fullName: oEmployee.FullName,
+						fullName: sFullName,
 						pernr: oEmployee.Pernr,
 						role: oEmployee.Role,
 						position: oEmployee.Position,
 						costCenter: oEmployee.CostCenter,
+						// Cac field ho so ca nhan (man Profile) — chi co du lieu that neu
+						// ABAP GET_ENTITYSET da duoc mo rong doc them PA0006 (xem HUONG_DAN).
+						// Neu chua lam ben SAP, cac field nay se rong — man Profile van mo
+						// duoc, chi la form trong, khong loi.
+						firstName: oEmployee.FirstName || "",
+						lastName: oEmployee.LastName || "",
+						phoneNumber: oEmployee.PhoneNumber || "",
+						street: oEmployee.Street || "",
+						city: oEmployee.City || "",
+						postalCode: oEmployee.PostalCode || "",
 						isLoggedIn: true
 					});
 
-					MessageToast.show("Xin chào " + oEmployee.FullName);
+					MessageToast.show("Xin chào " + sFullName);
 					this.getOwnerComponent().getRouter().navTo("dashboard");
 				}.bind(this))
 				.catch(function (oError) {
