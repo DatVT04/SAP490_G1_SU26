@@ -159,6 +159,19 @@
 						<Button text="{i18n>dashTileOpen}" icon="sap-icon://arrow-right" iconFirst="false" press=".onNavToThresholdConfig" class="qdActionBtn"/>
 					</VBox>
 
+					<VBox
+						class="qdActionCard qdAccentSlate"
+						visible="{= ['REQUESTER','PURCHASING','CEO','CFO','ACC'].indexOf(${user>/role}) !== -1 }"
+					>
+						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
+							<VBox class="qdActionIconBox"><core:Icon src="sap-icon://person-placeholder" class="qdActionIcon"/></VBox>
+							<Text text="PROFILE" class="qdActionCode"/>
+						</HBox>
+						<Title text="{i18n>tileProfileTitle}" level="H3" class="qdActionTitle"/>
+						<Text text="{i18n>tileProfileSubtitle}" class="qdActionDesc"/>
+						<Button text="{i18n>dashTileOpen}" icon="sap-icon://arrow-right" iconFirst="false" press=".onNavToProfile" class="qdActionBtn"/>
+					</VBox>
+
 				</HBox>
 			</VBox>
 
