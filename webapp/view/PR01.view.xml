@@ -69,6 +69,7 @@
 							text="Vật tư trong danh mục"
 							icon="sap-icon://add"
 							press=".onAddItem"
+							enabled="{= !${/materialsLoading} }"
 							class="sapUiTinyMarginEnd"
 						/>
 						<Button
@@ -94,27 +95,34 @@
 					/>
 				</VBox>
 
-				<Table
-					id="itemsTable"
+				<!-- Danh sach vat tu dang CARD thay vi Table nhieu cot co dinh — Table cu
+				     co tong do rong cot 13+13+6+7+10+12 = 61rem, chua ke noi dung ben
+				     trong con xep chong Select/Input/Text, nen bi tran ngang khi thu
+				     nho cua so hoac dung man hinh laptop. O day moi dong vat tu la 1
+				     card, cac truong ben trong dung HBox wrap="Wrap" nen tu dong xuong
+				     dong thay vi bi ep chat lai — khong con phu thuoc vao be rong man
+				     hinh nua. -->
+				<List
+					id="itemsList"
 					items="{/items}"
-					mode="Delete"
-					delete=".onDeleteItem"
+					mode="None"
 					visible="{= ${/items}.length > 0 }"
-					class="qdItemsTable"
+					class="qdItemsList"
+					showSeparators="Inner"
 				>
-					<columns>
-						<Column width="13rem"><Text text="Mã / Loại vật tư"/></Column>
-						<Column width="13rem"><Text text="Mô tả"/></Column>
-						<Column width="6rem"><Text text="ĐVT"/></Column>
-						<Column width="7rem" hAlign="End"><Text text="Số lượng"/></Column>
-						<Column width="10rem" hAlign="End"><Text text="Giá trị ước tính"/></Column>
-						<Column width="12rem"><Text text="Hạch toán chi phí"/></Column>
-					</columns>
-					<items>
-						<ColumnListItem vAlign="Middle">
-							<cells>
-								<!-- Chon vat tu tu danh muc, hoac nhap loai neu la free-text -->
-								<VBox>
+					<CustomListItem>
+						<VBox class="qdItemCard">
+							<HBox justifyContent="SpaceBetween" alignItems="Center" class="sapUiTinyMarginBottom">
+								<ObjectStatus
+									text="{= ${materialType} === 'ZAST' ? 'Tài sản (Acc.Assign A)' : ${materialType} ? 'Vật tư/DV (Acc.Assign K)' : 'Chưa chọn vật tư' }"
+									state="{= ${materialType} === 'ZAST' ? 'Warning' : ${materialType} ? 'Success' : 'None' }"
+								/>
+								<Button icon="sap-icon://delete" type="Transparent" press=".onDeleteItem" tooltip="Xóa dòng này"/>
+							</HBox>
+
+							<HBox wrap="Wrap" class="qdItemFieldsRow">
+								<VBox class="qdItemField sapUiTinyMarginEnd sapUiTinyMarginBottom" width="16rem">
+									<Label text="Vật tư" class="qdInfoLabel"/>
 									<Select
 										visible="{= !${isFreeText} }"
 										selectedKey="{materialNo}"
@@ -124,42 +132,63 @@
 									>
 										<core:Item key="{MaterialNo}" text="{MaterialNo} - {Description}"/>
 									</Select>
-									<Input value="{materialType}" visible="{isFreeText}" placeholder="Loại VT (VD: ZROH)"/>
-									<Text
-										text="{= ${materialType} === 'ZAST' ? 'Tài sản (Acc.Assign A)' : 'Vật tư/DV (Acc.Assign K)' }"
-										class="qdCellHint"
-										visible="{= !!${materialType} }"
-									/>
+									<Input value="{materialType}" visible="{isFreeText}" placeholder="Loại VT (VD: ZROH)" width="100%"/>
 								</VBox>
 
-								<Input value="{description}" editable="{isFreeText}"/>
-								<Input value="{uom}" editable="{isFreeText}"/>
-								<Input value="{quantity}" type="Number" textAlign="End" change=".onItemValueChange"/>
-								<Input value="{estimatedValue}" type="Number" textAlign="End" change=".onItemValueChange"/>
+								<VBox class="qdItemField sapUiTinyMarginEnd sapUiTinyMarginBottom" width="14rem">
+									<Label text="Mô tả *" class="qdInfoLabel"/>
+									<Input value="{description}" width="100%"/>
+								</VBox>
 
-								<!-- Hach toan: ZAST -> Asset, con lai -> Cost Center / Internal Order -->
-								<VBox>
+								<VBox class="qdItemField sapUiTinyMarginEnd sapUiTinyMarginBottom" width="5rem">
+									<Label text="ĐVT" class="qdInfoLabel"/>
+									<Input value="{uom}" editable="{isFreeText}" width="100%"/>
+								</VBox>
+
+								<VBox class="qdItemField sapUiTinyMarginEnd sapUiTinyMarginBottom" width="6.5rem">
+									<Label text="Số lượng" class="qdInfoLabel"/>
+									<Input value="{quantity}" type="Number" textAlign="End" change=".onItemValueChange" width="100%"/>
+								</VBox>
+
+								<VBox class="qdItemField sapUiTinyMarginEnd sapUiTinyMarginBottom" width="9rem">
+									<Label text="Giá trị ước tính" class="qdInfoLabel"/>
+									<Input value="{estimatedValue}" type="Number" textAlign="End" change=".onItemValueChange" width="100%"/>
+								</VBox>
+
+								<!-- Hach toan: GL Account bat buoc cho MOI dong (SAP that yeu cau qua
+								     test Gateway Client), Cost Center/Internal Order tuy chon,
+								     Asset No chi danh rieng cho ZAST -->
+								<VBox class="qdItemField sapUiTinyMarginBottom" width="10rem">
+									<Label text="Hạch toán chi phí" class="qdInfoLabel"/>
+									<Input
+										value="{glAccount}"
+										placeholder="GL Account *"
+										class="sapUiTinyMarginBottom"
+										width="100%"
+									/>
 									<Input
 										value="{costCenter}"
-										visible="{= ${materialType} !== 'ZAST' }"
 										placeholder="Cost Center"
 										class="sapUiTinyMarginBottom"
+										width="100%"
 									/>
 									<Input
 										value="{internalOrder}"
-										visible="{= ${materialType} !== 'ZAST' }"
 										placeholder="Internal Order (nếu có)"
+										class="sapUiTinyMarginBottom"
+										width="100%"
 									/>
 									<Input
 										value="{assetNo}"
 										visible="{= ${materialType} === 'ZAST' }"
-										placeholder="Asset No (từ AS01)"
+										placeholder="VD: 100001 (mã tài sản đã tạo qua t-code AS01)"
+										width="100%"
 									/>
 								</VBox>
-							</cells>
-						</ColumnListItem>
-					</items>
-				</Table>
+							</HBox>
+						</VBox>
+					</CustomListItem>
+				</List>
 
 				<!-- Tong gia tri — cap nhat realtime khi go so luong/don gia -->
 				<HBox
@@ -194,7 +223,7 @@
 			<OverflowToolbar class="qdPageFooter">
 				<Text text="{= ${/items}.length === 0 ? 'Thêm ít nhất 1 vật tư để gửi đề nghị' : 'Sẵn sàng gửi ' + ${/items}.length + ' dòng vật tư' }" class="qdFooterHint"/>
 				<ToolbarSpacer/>
-				<Button text="{i18n>prResetButton}" icon="sap-icon://clear-all" press=".onResetPress"/>
+				<Button text="{i18n>prResetButton}" icon="sap-icon://clear-all" press=".onResetPress" enabled="{= ${/items}.length > 0 }"/>
 				<Button
 					text="{i18n>prSubmitButton}"
 					type="Emphasized"
