@@ -236,32 +236,31 @@ sap.ui.define([
 					}
 
 					var oApproval = oResult.approval || {};
+					var sPrNumber = oApproval.PRId || "";
+					var iItemCount = (oApproval.items && oApproval.items.length) || 0;
 					var aWarnings = [];
 					// TODO xac nhan lai voi BE: ten field co dung "needsLegalReview"/
 					// "needsProcurementHeadReview" khong, hay day la nham lan voi
 					// CFO/CEO — Blueprint chi mo ta luong Requester -> Truong BP mua
 					// sam -> CFO -> CEO, khong co vai tro "Phap che/Legal" nao ca.
 					if (oApproval.needsLegalReview) {
-						aWarnings.push("- Cần Phòng Phụ trách xem trước (giá trị > 100 triệu VND)");
+						aWarnings.push("• Cần Phòng Phụ trách xem trước (giá trị > 100 triệu VND)");
 					}
 					if (oApproval.needsProcurementHeadReview) {
-						aWarnings.push("- Cần Trưởng Bộ phận Mua sắm xem trước (giá trị > 300 triệu VND)");
+						aWarnings.push("• Cần Trưởng Bộ phận Mua sắm xem trước (giá trị > 300 triệu VND)");
 					}
 
-					var sMsg = "Đã tạo đề nghị mua sắm " + oApproval.PRId + ".";
+					// Thong bao dang SAP GUI: dan dau bang so PR that, nhu man ME51N bao
+					// "Purchase requisition number 10000042 created".
+					var sMsg = "✓ Đã tạo Purchase Requisition số " + sPrNumber + "\n\n"
+						+ "Gồm " + iItemCount + " dòng vật tư, đang chờ phê duyệt.\n"
+						+ "Có thể tra cứu bằng ME53N với mã PR: " + sPrNumber + ".";
 					if (aWarnings.length) {
 						sMsg += "\n\nLưu ý leo thang phê duyệt:\n" + aWarnings.join("\n");
 					}
-					// Canh bao ro neu PR chi luu local, KHONG ghi duoc vao SAP that
-					// (thuong do MaterialNo chua ton tai ben SAP - chua chay MM01).
-					if (oResult.sapIntegration === "failed") {
-						sMsg += "\n\nCẢNH BÁO: PR chưa được ghi vào SAP thật"
-							+ (oResult.sapErrorMessage ? " - " + oResult.sapErrorMessage : "")
-							+ ". PR này sẽ KHÔNG xem được bằng ME53N.";
-					}
 
 					MessageBox.success(sMsg, {
-						title: "PR-01",
+						title: "Tạo PR thành công — " + sPrNumber,
 						onClose: function () {
 							oModel.setProperty("/items", []);
 							this._recalcTotal();

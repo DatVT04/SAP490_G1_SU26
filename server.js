@@ -1,10 +1,13 @@
 require("dotenv").config();
 
+if (!process.env.SAP_HOST) {
+	console.error("Thieu SAP_HOST trong .env — server chi chay voi SAP that, khong con che do mock.");
+	process.exit(1);
+}
+
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
-
-const { employees, materials, vendors, pendingPRs } = require("./webapp/model/MockData");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -27,13 +30,12 @@ const ODATA_SERVICE_PATH = "/sap/opu/odata/sap/ZG1_PROC_SRV_SRV";
 const PAMS_ESCALATION_THRESHOLD = 300000000; // > 300 trieu VND -> Truong bo phan mua sam
 const LEGAL_ESCALATION_THRESHOLD = 100000000; // > 100 trieu VND -> Phap che
 
-// In-memory stand-in cho ZG1_APPROVAL de UI co the hien thi/duyet ngay, vi OData chua co
-// entity doc/ghi truc tiep bang ZG1_APPROVAL. Khi tao PR, neu SAP_HOST duoc cau hinh thi
-// server se GOI THEM OData PurchaseRequisitionSet de tao PR that ben SAP (BAPI_PR_CREATE se
-// tu ghi 1 dong vao ZG1_APPROVAL that) - ca 2 con duong chay song song, khong xung dot vi
-// approvalStore chi phuc vu UI, cho den khi ABAP bo sung entity doc ZG1_APPROVAL.
-const approvalStore = [...pendingPRs].map((pr) => ({ ...pr }));
-let nextApprovalId = approvalStore.length + 1;
+// In-memory cache cho ZG1_APPROVAL — chi luu PR/PO THAT nguoi dung tao qua app nay,
+// khong con seed du lieu gia. Ton tai vi OData chua co entity doc/ghi truc tiep
+// ZG1_APPROVAL (BE-2 chua lam xong); moi PR van duoc ghi that ben SAP qua
+// PurchaseRequisitionSet (BAPI_PR_CREATE), cache nay chi phuc vu UI PR-02 hien danh sach.
+const approvalStore = [];
+let nextApprovalId = 1;
 
 function buildApprovalFlags(totalValue) {
 	return {
@@ -49,30 +51,34 @@ function sapAuth() {
 	};
 }
 
+// Xin X-CSRF-Token truoc khi goi POST/MERGE/PATCH/DELETE vao SAP Gateway.
+// Cac route PR/PO create hien tai chua can cai nay (co the vi CSRF check dang
+// tat cho nhung method do, hoac chua thuc su test qua) — nhung EmployeeSet
+// UPDATE_ENTITY dang tra 403 khong co body JSON chuan, dau hieu dien hinh cua
+// CSRF bi tu choi o tang framework (truoc khi vao toi ABAP method).
+async function fetchSapCsrfToken() {
+	const response = await axios.get(
+		`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/`,
+		{
+			auth: sapAuth(),
+			headers: { "X-CSRF-Token": "Fetch" }
+		}
+	);
+	const token = response.headers["x-csrf-token"];
+	const setCookieHeaders = response.headers["set-cookie"] || [];
+	const cookie = setCookieHeaders.map((c) => c.split(";")[0]).join("; ");
+	return { token, cookie };
+}
+
 // --- POST /api/login ---------------------------------------------------
 // Xac thuc qua SAP HCM: email (PA0105 subtype 0010, cau hinh bang PA20/PA30)
-// -> EmployeeSet tra ve Role/FullName/Pernr. SAP la nguon danh tinh duy nhat.
-// Email khong co trong SAP -> fallback MockData (tai khoan demo/dev).
+// -> EmployeeSet tra ve Role/FullName/Pernr. SAP la nguon danh tinh duy nhat,
+// khong con fallback ve du lieu gia khi SAP loi hoac khong tim thay email.
 app.post("/api/login", async (req, res) => {
 	const { email } = req.body || {};
 
 	if (!email) {
 		return res.status(400).json({ success: false, message: "Thieu email." });
-	}
-
-	if (!process.env.SAP_HOST) {
-		const employee = employees.find(
-			(emp) => emp.Email.toLowerCase() === String(email).toLowerCase()
-		);
-
-		if (!employee || !employee.IsActive) {
-			return res.status(401).json({
-				success: false,
-				message: "Email khong ton tai hoac tai khoan da bi khoa."
-			});
-		}
-
-		return res.json({ success: true, employee });
 	}
 
 	try {
@@ -95,21 +101,7 @@ app.post("/api/login", async (req, res) => {
 			(emp) => emp.Email && emp.Email.toLowerCase() === String(email).toLowerCase()
 		);
 
-		// Neu SAP khong co email nay, fallback ve MockData (demo / dev accounts)
-		if (!employee) {
-			const mockEmp = employees.find(
-				(emp) => emp.Email.toLowerCase() === String(email).toLowerCase()
-			);
-			if (!mockEmp || !mockEmp.IsActive) {
-				return res.status(401).json({
-					success: false,
-					message: "Email khong ton tai hoac tai khoan da bi khoa."
-				});
-			}
-			return res.json({ success: true, employee: mockEmp });
-		}
-
-		if (!employee.IsActive) {
+		if (!employee || !employee.IsActive) {
 			return res.status(401).json({
 				success: false,
 				message: "Email khong ton tai hoac tai khoan da bi khoa."
@@ -118,13 +110,6 @@ app.post("/api/login", async (req, res) => {
 
 		return res.json({ success: true, employee });
 	} catch (error) {
-		// SAP khong ket noi duoc → fallback ve MockData
-		const mockEmp = employees.find(
-			(emp) => emp.Email.toLowerCase() === String(email).toLowerCase()
-		);
-		if (mockEmp && mockEmp.IsActive) {
-			return res.json({ success: true, employee: mockEmp });
-		}
 		return res.status(502).json({
 			success: false,
 			message: "Khong the ket noi toi he thong SAP."
@@ -132,12 +117,82 @@ app.post("/api/login", async (req, res) => {
 	}
 });
 
-// --- GET /api/materials --------------------------------------------------
-app.get("/api/materials", async (req, res) => {
-	if (!process.env.SAP_HOST) {
-		return res.json({ success: true, data: materials });
+// --- PATCH /api/profile -----------------------------------------------------
+// Cap nhat thong tin ca nhan (Ho ten, SDT, dia chi), ghi that vao SAP HCM
+// (Infotype 0002 + 0006) qua OData EmployeeSet MERGE -> method EMPLOYEESET_UPDATE_ENTITY
+// ben ABAP (BE-2). KHONG cho sua Email o day — Email la key dinh danh dang nhap,
+// doi email phai lam truc tiep qua PA30 (Infotype 0105), khong qua route nay.
+//
+// Neu SAP tra loi CSRF token error (403 Forbidden voi header x-csrf-token: Required),
+// nghia la service ZG1_PROC_SRV_SRV chua tat CSRF check — can GET truoc voi header
+// "X-CSRF-Token: Fetch!" de lay token roi moi goi MERGE kem token + cookie do.
+app.patch("/api/profile", async (req, res) => {
+	const { email, firstName, lastName, phoneNumber, street, city, postalCode } = req.body || {};
+
+	if (!email) {
+		return res.status(400).json({ success: false, message: "Thieu email." });
 	}
 
+	const payload = {};
+	if (firstName !== undefined) { payload.FirstName = firstName; }
+	if (lastName !== undefined) { payload.LastName = lastName; }
+	if (phoneNumber !== undefined) { payload.PhoneNumber = phoneNumber; }
+	if (street !== undefined) { payload.Street = street; }
+	if (city !== undefined) { payload.City = city; }
+	if (postalCode !== undefined) { payload.PostalCode = postalCode; }
+
+	if (Object.keys(payload).length === 0) {
+		return res.status(400).json({ success: false, message: "Khong co truong nao de cap nhat." });
+	}
+
+	try {
+		const { token, cookie } = await fetchSapCsrfToken();
+		console.log(`[profile] CSRF token nhan duoc: ${token ? "co (" + token.slice(0, 8) + "...)" : "KHONG CO / undefined"}, cookie: ${cookie ? "co" : "KHONG CO"}`);
+
+		await axios({
+			method: "MERGE",
+			url: `${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/EmployeeSet('${encodeURIComponent(email)}')`,
+			data: payload,
+			auth: sapAuth(),
+			headers: {
+				"Content-Type": "application/json",
+				"X-CSRF-Token": token,
+				"Cookie": cookie
+			}
+		});
+
+		// MERGE thanh cong thuong tra 204 No Content (khong co body) -> doc lai
+		// EmployeeSet de FE nhan duoc du lieu moi nhat, dong bo lai model "user".
+		const response = await axios.get(
+			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/EmployeeSet`,
+			{ params: { "$filter": `Email eq '${email}'`, "$format": "json" }, auth: sapAuth() }
+		);
+		const results = (response.data && response.data.d && response.data.d.results) || [];
+		const employee = results.find(
+			(emp) => emp.Email && emp.Email.toLowerCase() === String(email).toLowerCase()
+		);
+
+		return res.json({ success: true, employee: employee || null });
+	} catch (error) {
+		const sapMessage =
+			(error.response && error.response.data && error.response.data.error &&
+				error.response.data.error.message && error.response.data.error.message.value) ||
+			(error.response && `SAP tra ve HTTP ${error.response.status}`) ||
+			error.message;
+		console.error(`[profile] Cap nhat ho so that bai: ${sapMessage}`);
+		console.error(`[profile] DEBUG - request URL: ${error.config && error.config.url}`);
+		console.error(`[profile] DEBUG - response status: ${error.response && error.response.status}`);
+		console.error(`[profile] DEBUG - response headers: ${JSON.stringify(error.response && error.response.headers)}`);
+		console.error(`[profile] DEBUG - response data: ${JSON.stringify(error.response && error.response.data)}`);
+		return res.status(422).json({
+			success: false,
+			message: "Khong the cap nhat ho so: " + sapMessage
+		});
+	}
+});
+
+// --- GET /api/materials --------------------------------------------------
+app.get("/api/materials", async (req, res) => {
 	try {
 		const response = await axios.get(
 			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/MaterialSet`,
@@ -146,17 +201,12 @@ app.get("/api/materials", async (req, res) => {
 		const results = (response.data && response.data.d && response.data.d.results) || [];
 		return res.json({ success: true, data: results });
 	} catch (error) {
-		// Fallback ve mock neu SAP tam thoi khong truy cap duoc, de UI van demo duoc.
-		return res.json({ success: true, data: materials, sapError: true });
+		return res.status(502).json({ success: false, message: "Khong the lay danh sach vat tu tu SAP." });
 	}
 });
 
 // --- GET /api/vendors ------------------------------------------------------
 app.get("/api/vendors", async (req, res) => {
-	if (!process.env.SAP_HOST) {
-		return res.json({ success: true, data: vendors });
-	}
-
 	try {
 		const response = await axios.get(
 			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/VendorSet`,
@@ -165,7 +215,7 @@ app.get("/api/vendors", async (req, res) => {
 		const results = (response.data && response.data.d && response.data.d.results) || [];
 		return res.json({ success: true, data: results });
 	} catch (error) {
-		return res.json({ success: true, data: vendors, sapError: true });
+		return res.status(502).json({ success: false, message: "Khong the lay danh sach nha cung cap tu SAP." });
 	}
 });
 
@@ -180,7 +230,16 @@ app.post("/api/ai/recommend-vendor", async (req, res) => {
 		});
 	}
 
-	const vendorList = candidateVendors && candidateVendors.length ? candidateVendors : vendors;
+	// Khong con fallback ve danh sach vendor gia — FE bat buoc phai truyen candidateVendors
+	// (lay tu /api/vendors, tuc VendorSet that ben SAP) thi moi goi y duoc.
+	if (!candidateVendors || !candidateVendors.length) {
+		return res.status(400).json({
+			success: false,
+			message: "Thieu danh sach nha cung cap ung vien (goi /api/vendors truoc de lay tu SAP)."
+		});
+	}
+
+	const vendorList = candidateVendors;
 
 	const prompt = `Ban la chuyen gia mua hang. Hay de xuat nha cung cap phu hop nhat cho:
 - Vat tu: ${materialName || "N/A"} (nhom: ${materialGroup || "N/A"})
@@ -245,41 +304,62 @@ app.post("/api/approval/submit", async (req, res) => {
 	}
 
 	let sapPrNumber = null;
-	let sapIntegration = "mock";
+	let sapIntegration = "created";
 	let sapErrorMessage = null;
 
-	if (process.env.SAP_HOST) {
-		// Tao PR trong SAP voi item dau tien (OData PurchaseRequisitionSet hien ho tro 1 item/call)
-		const firstItem = items[0];
-		try {
-			const sapResponse = await axios.post(
-				`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseRequisitionSet`,
-				{
-					CompanyCode: "QD01",
-					Requester: requesterEmail,
-					MaterialNo: firstItem.materialNo || "",
-					Description: firstItem.description || "",
-					Quantity: String(firstItem.quantity),
-					UoM: firstItem.uom || "PC",
-					EstimatedValue: String(firstItem.estimatedValue || 0),
-					Currency: currency || "VND",
-					CostCenter: firstItem.costCenter || "",
-					InternalOrder: firstItem.internalOrder || "",
-					AssetNo: firstItem.assetNo || ""
-				},
-				{ auth: sapAuth(), headers: { "Content-Type": "application/json" } }
-			);
-			sapPrNumber = sapResponse.data && sapResponse.data.d && sapResponse.data.d.PrNumber;
-			sapIntegration = "created";
-		} catch (error) {
-			sapIntegration = "failed";
-			sapErrorMessage =
-				(error.response && error.response.data && error.response.data.error &&
-					error.response.data.error.message && error.response.data.error.message.value) ||
-				(error.response && `SAP tra ve HTTP ${error.response.status}`) ||
-				error.message;
-			console.error(`[approval/submit] Tao PR that ben SAP THAT BAI: ${sapErrorMessage}`);
-		}
+	// Tao PR trong SAP voi TAT CA line items qua deep-insert: POST PurchaseReqHeaderSet
+	// kem navigation property PRToItems -> BAPI_PR_CREATE nhan bang pritem nhieu dong,
+	// tra ve 1 so PR duy nhat (giong ME51N nhap nhieu dong tren cung 1 PR). Cach nay
+	// thay cho PurchaseRequisitionSet phang cu (1 item/call). Cau truc mirror PurchaseOrder
+	// (PurchaseOrderHeaderSet + POToItems). Xem HUONG_DAN_PR_DEEP_ENTITY.md.
+	try {
+		const sapResponse = await axios.post(
+			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseReqHeaderSet`,
+			{
+				CompanyCode: "QD01",
+				Requester: requesterEmail,
+				Currency: currency || "VND",
+				TotalValue: String(totalPRValue || 0),
+				PRToItems: {
+					results: items.map(function (item, idx) {
+						return {
+							PreqItem:       String(idx + 1).padStart(5, "0"),
+							MaterialNo:     item.materialNo || "",
+							MaterialType:   item.materialType || "",
+							Description:    item.description || "",
+							Quantity:       String(item.quantity),
+							UoM:            item.uom || "PC",
+							EstimatedValue: String(item.estimatedValue || 0),
+							CostCenter:     item.costCenter || "",
+							InternalOrder:  item.internalOrder || "",
+							AssetNo:        item.assetNo || ""
+						};
+					})
+				}
+			},
+			{ auth: sapAuth(), headers: { "Content-Type": "application/json" } }
+		);
+		sapPrNumber = sapResponse.data && sapResponse.data.d && sapResponse.data.d.PrNumber;
+	} catch (error) {
+		sapIntegration = "failed";
+		sapErrorMessage =
+			(error.response && error.response.data && error.response.data.error &&
+				error.response.data.error.message && error.response.data.error.message.value) ||
+			(error.response && `SAP tra ve HTTP ${error.response.status}`) ||
+			error.message;
+		console.error(`[approval/submit] Tao PR that ben SAP THAT BAI: ${sapErrorMessage}`);
+	}
+
+	// Khong con che do mock — SAP tu choi ghi thi tra loi that cho nguoi dung, khong
+	// tao PR gia trong bo nho roi bao "thanh cong". Dung 422 (khong phai 502) de FE
+	// hien duoc chinh xac thong bao loi tu SAP thay vi "may chu gap su co" chung chung.
+	if (sapIntegration === "failed") {
+		return res.status(422).json({
+			success: false,
+			sapIntegration: "failed",
+			sapErrorMessage: sapErrorMessage,
+			message: "Khong the ghi de nghi mua sam vao SAP: " + sapErrorMessage
+		});
 	}
 
 	const newPRId = sapPrNumber ||
@@ -314,7 +394,7 @@ app.post("/api/approval/submit", async (req, res) => {
 	nextApprovalId += 1;
 	approvalStore.push(record);
 
-	return res.status(201).json({ success: true, approval: record, sapIntegration, sapErrorMessage });
+	return res.status(201).json({ success: true, approval: record, sapIntegration });
 });
 
 app.get("/api/approval/pending", (req, res) => {
@@ -369,21 +449,6 @@ app.post("/api/po/create", async (req, res) => {
 
 	const totalValue = items.reduce((sum, item) => sum + (Number(item.netPrice) || 0) * (Number(item.quantity) || 0), 0);
 
-	if (!process.env.SAP_HOST) {
-		return res.status(201).json({
-			success: true,
-			sapIntegration: "mock",
-			po: {
-				PoNumber: `PO-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`,
-				VendorNo: vendorNo,
-				TotalValue: totalValue,
-				Currency: "VND",
-				Status: "CREATED",
-				Items: items
-			}
-		});
-	}
-
 	try {
 		const sapResponse = await axios.post(
 			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseOrderHeaderSet`,
@@ -428,76 +493,8 @@ app.post("/api/po/create", async (req, res) => {
 	}
 });
 
-// --- GET /api/po/report (BỔ SUNG THÊM ÔNG NÀY ĐỂ MÀN REPORT GỌI) ---
-// app.get("/api/po/report", async (req, res) => {
-// 	// 1. Nếu không có cấu hình SAP, trả về danh sách trống hoặc mock data để test UI
-// 	if (!process.env.SAP_HOST) {
-// 		return res.json({ 
-// 			success: true, 
-// 			sapIntegration: "mock", 
-// 			data: [
-// 				{ PoNumber: "PO-2026-1001", VendorNo: "VEND01", TotalValue: "150000000", Currency: "VND", Status: "CREATED" },
-// 				{ PoNumber: "PO-2026-1002", VendorNo: "VEND02", TotalValue: "450000000", Currency: "VND", Status: "APPROVED" }
-// 			] 
-// 		});
-// 	}
-
-// 	// 2. Nếu có SAP_HOST, tiến hành gọi sang OData Set của SAP để bốc dữ liệu PO thật về
-// 	try {
-// 		const response = await axios.get(
-// 			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseOrderHistorySet`, // Thay đúng tên EntitySet chứa danh sách PO trên SEGW của bạn nếu có khác biệt
-// 			{ 
-// 				params: { "$format": "json" }, 
-// 				auth: sapAuth() 
-// 			}
-// 		);
-// 		const results = (response.data && response.data.d && response.data.d.results) || [];
-// 		return res.json({ success: true, sapIntegration: "fetched", data: results });
-// 	} catch (error) {
-// 		// Fallback dữ liệu tạm nếu nghẽn mạng SAP để tránh sập màn hình report
-// 		return res.json({ 
-// 			success: true, 
-// 			sapError: true, 
-// 			message: "Không thể lấy dữ liệu trực tiếp từ SAP, hiển thị dữ liệu dự phòng.",
-// 			data: [] 
-// 		});
-// 	}
-// });
 // --- GET /api/po/report (Báo cáo lịch sử Đơn hàng từ SAP) ------------------
 app.get("/api/po/report", async (req, res) => {
-	if (!process.env.SAP_HOST) {
-		// Mock data de xem giao dien + thanh tien do hoat dong khi chua co SAP_HOST.
-		// StepActive duoc POReport.controller.js tinh lai dua tren Status khi chon dong,
-		// nhung PrDate/LeadDate/CfoDate/CeoDate/DeliveryDate can co san de hien thi mocked.
-		return res.json({
-			success: true,
-			sapIntegration: "mock",
-			data: [
-				{
-					PoNumber: "PO-2026-1001", VendorName: "Cong ty TNHH Dell Viet Nam",
-					CompanyCode: "QD01", DocDate: "01.07.2026",
-					TotalValue: 55000000, Currency: "VND", Status: "CREATED",
-					PrDate: "28.06.2026", LeadDate: "29.06.2026", CfoDate: "30.06.2026",
-					CeoDate: "", DeliveryDate: ""
-				},
-				{
-					PoNumber: "PO-2026-1002", VendorName: "Cong ty CP Microsoft Viet Nam",
-					CompanyCode: "QD01", DocDate: "05.07.2026",
-					TotalValue: 320000000, Currency: "VND", Status: "DELIVERED",
-					PrDate: "01.07.2026", LeadDate: "02.07.2026", CfoDate: "03.07.2026",
-					CeoDate: "04.07.2026", DeliveryDate: "10.07.2026"
-				},
-				{
-					PoNumber: "PO-2026-1003", VendorName: "Cong ty TNHH HP Viet Nam",
-					CompanyCode: "QD01", DocDate: "15.07.2026",
-					TotalValue: 18000000, Currency: "VND", Status: "CREATED",
-					PrDate: "12.07.2026", LeadDate: "13.07.2026", CfoDate: "14.07.2026",
-					CeoDate: "", DeliveryDate: ""
-				}
-			]
-		});
-	}
-
 	try {
 		// Gọi chính xác tới EntitySet Lịch sử PO hoạt động trên Gateway thật của bạn
 		const response = await axios.get(

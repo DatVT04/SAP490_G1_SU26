@@ -1,0 +1,86 @@
+<mvc:View
+	controllerName="com.qdavy.procurement.controller.Profile"
+	xmlns="sap.m"
+	xmlns:mvc="sap.ui.core.mvc"
+	xmlns:f="sap.ui.layout.form"
+	xmlns:core="sap.ui.core"
+>
+	<Page showHeader="false" class="qdInnerPage">
+		<content>
+
+			<!-- ============ HERO ============ -->
+			<VBox class="qdPageHero">
+				<HBox alignItems="Center">
+					<Button icon="sap-icon://nav-back" press=".onNavBack" class="qdHeroBackBtn"/>
+					<VBox>
+						<Text text="{i18n>profileTitle}" class="qdPageEyebrow"/>
+						<Title text="{user>/fullName}" level="H1" class="qdPageTitle"/>
+						<Text text="{i18n>profileSubtitle}" class="qdPageSub"/>
+					</VBox>
+				</HBox>
+			</VBox>
+
+			<VBox>
+
+				<!-- THE THONG TIN DINH DANH (READ-ONLY) -->
+				<VBox class="qdContentCard">
+					<HBox alignItems="Center" class="sapUiSmallMarginBottom">
+						<core:Icon src="sap-icon://email" class="qdCardIcon"/>
+						<Title text="{i18n>profileEmailLabel}" level="H3" class="qdCardTitle"/>
+					</HBox>
+					<Input value="{user>/email}" editable="false" width="100%"/>
+					<Text text="{i18n>profileEmailNote}" class="qdCellHint sapUiTinyMarginTop"/>
+				</VBox>
+
+				<!-- THE HO TEN -->
+				<VBox class="qdContentCard">
+					<HBox alignItems="Center" class="sapUiSmallMarginBottom">
+						<core:Icon src="sap-icon://person-placeholder" class="qdCardIcon"/>
+						<Title text="Họ tên" level="H3" class="qdCardTitle"/>
+					</HBox>
+
+					<f:SimpleForm editable="true" layout="ResponsiveGridLayout" labelSpanL="4" columnsL="1">
+						<f:content>
+							<Label text="{i18n>profileLastNameLabel}" required="true"/>
+							<Input id="inLastName" value="{profile>/lastName}" maxLength="40" width="100%"/>
+
+							<Label text="{i18n>profileFirstNameLabel}" required="true"/>
+							<Input id="inFirstName" value="{profile>/firstName}" maxLength="40" width="100%"/>
+						</f:content>
+					</f:SimpleForm>
+				</VBox>
+
+				<!-- THE LIEN HE -->
+				<VBox class="qdContentCard">
+					<HBox alignItems="Center" class="sapUiSmallMarginBottom">
+						<core:Icon src="sap-icon://phone" class="qdCardIcon"/>
+						<Title text="Liên hệ &amp; địa chỉ" level="H3" class="qdCardTitle"/>
+					</HBox>
+
+					<f:SimpleForm editable="true" layout="ResponsiveGridLayout" labelSpanL="4" columnsL="1">
+						<f:content>
+							<Label text="{i18n>profilePhoneLabel}"/>
+							<Input id="inPhone" value="{profile>/phoneNumber}" type="Tel" maxLength="30" width="100%"/>
+
+							<Label text="{i18n>profileStreetLabel}"/>
+							<Input id="inStreet" value="{profile>/street}" maxLength="60" width="100%"/>
+
+							<Label text="{i18n>profileCityLabel}"/>
+							<Input id="inCity" value="{profile>/city}" maxLength="40" width="100%"/>
+
+							<Label text="{i18n>profilePostalCodeLabel}"/>
+							<Input id="inPostalCode" value="{profile>/postalCode}" maxLength="10" width="100%"/>
+						</f:content>
+					</f:SimpleForm>
+				</VBox>
+
+				<!-- KHU VUC NUT LUU -->
+				<HBox justifyContent="End" class="sapUiMediumMarginBottom sapUiMediumMarginEnd">
+					<Button text="{i18n>profileBackButton}" press=".onNavBack" class="sapUiTinyMarginEnd"/>
+					<Button text="{i18n>profileSaveButton}" type="Emphasized" icon="sap-icon://save" press=".onSaveProfile"/>
+				</HBox>
+
+			</VBox>
+		</content>
+	</Page>
+</mvc:View>

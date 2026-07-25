@@ -13,6 +13,21 @@ sap.ui.define([], function () {
 	var bIsLocal = sHostname === "localhost" || sHostname === "127.0.0.1";
 
 	return {
-		BACKEND: bIsLocal ? "http://localhost:3001" : ""
+		BACKEND: bIsLocal ? "http://localhost:3001" : "",
+
+		/**
+		 * Ghep Ho + Ten theo dung thu tu tieng Viet (Ho truoc, Ten/Ten dem sau).
+		 * Khong dung truc tiep FullName tra ve tu SAP vi ben ABAP dang ghep theo
+		 * thu tu Vorna+Nachn (kieu phuong Tay: Ten truoc, Ho sau) -> sai chieu hien thi.
+		 * Sua o day (FE) thay vi sua ABAP theo yeu cau.
+		 */
+		buildFullName: function (sLastName, sFirstName, sFallback) {
+			var sLast = (sLastName || "").trim();
+			var sFirst = (sFirstName || "").trim();
+			if (sLast || sFirst) {
+				return (sLast + " " + sFirst).trim();
+			}
+			return sFallback || "";
+		}
 	};
 });
