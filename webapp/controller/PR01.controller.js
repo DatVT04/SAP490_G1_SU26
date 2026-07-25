@@ -22,7 +22,7 @@ sap.ui.define([
 			isFreeText: false,
 			materialNo: "", materialType: "", description: "", uom: "",
 			quantity: null, estimatedValue: null,
-			costCenter: "", internalOrder: "", assetNo: ""
+			costCenter: "", internalOrder: "", assetNo: "", glAccount: ""
 		};
 	}
 
@@ -31,7 +31,7 @@ sap.ui.define([
 			isFreeText: true,
 			materialNo: "FREE_TEXT", materialType: "ZROH", description: "", uom: "PC",
 			quantity: 1, estimatedValue: null,
-			costCenter: "", internalOrder: "", assetNo: ""
+			costCenter: "", internalOrder: "", assetNo: "", glAccount: ""
 		};
 	}
 
@@ -144,15 +144,10 @@ sap.ui.define([
 				oModel.setProperty(sPath + "/description", oMaterial.Description);
 				oModel.setProperty(sPath + "/uom", oMaterial.BaseUoM);
 
-				// QUAN TRONG: xoa du lieu hach toan cu khi doi vat tu, tranh truong hop
-				// doi tu ZAST (tai san, dung Asset No) sang vat tu thuong (dung Cost
-				// Center/Internal Order) hoac nguoc lai ma van con dinh gia tri cu, dan
-				// den hach toan sai ma khong ai de y (Input bi visible="false" nen nguoi
-				// dung khong con nhin thay de tu xoa).
-				if (oMaterial.MaterialType === "ZAST") {
-					oModel.setProperty(sPath + "/costCenter", "");
-					oModel.setProperty(sPath + "/internalOrder", "");
-				} else {
+				// Cost Center / Internal Order ap dung cho MOI loai vat tu (ke ca ZAST)
+				// nen khong can xoa khi doi vat tu nua. Rieng Asset No van chi danh cho
+				// ZAST — xoa khi doi sang loai vat tu khac de tranh dinh gia tri cu sai.
+				if (oMaterial.MaterialType !== "ZAST") {
 					oModel.setProperty(sPath + "/assetNo", "");
 				}
 			}
@@ -192,6 +187,14 @@ sap.ui.define([
 				var item = aItems[i];
 				var idx = i + 1;
 
+				// QUAN TRONG: SAP THAT bat buoc phai co Kurztext (= Mo ta) khi tao PR —
+				// da xac nhan qua loi that "ME/083: Bitte Kurztext eingeben" khi de trong.
+				// Truoc do co bo validate nay theo yeu cau, nhung bang chung SAP that cho
+				// thay phai bat buoc lai, neu khong PR se luon bi SAP tu choi.
+				if (!item.description) {
+					MessageBox.warning("Dòng " + idx + ": Vui lòng nhập Mô tả (SAP bắt buộc phải có Kurztext).");
+					return;
+				}
 				if (!item.quantity || Number(item.quantity) <= 0) {
 					MessageBox.warning("Dòng " + idx + ": Vui lòng nhập số lượng hợp lệ.");
 					return;
@@ -200,11 +203,16 @@ sap.ui.define([
 					MessageBox.warning("Dòng " + idx + ": Vui lòng nhập giá trị ước tính hợp lệ.");
 					return;
 				}
-				if (item.materialType === "ZAST" && !item.assetNo) {
-					MessageBox.warning("Dòng " + idx + ": Vật tư tài sản (ZAST) bắt buộc phải có Asset No.");
+				if (!item.glAccount) {
+					MessageBox.warning("Dòng " + idx + ": Vui lòng nhập GL Account (bắt buộc để SAP hạch toán).");
 					return;
 				}
-				if (item.materialType !== "ZAST" && !item.costCenter && !item.internalOrder) {
+				// GHI CHU: truoc day bat buoc Asset No khi ZAST, nhung test that qua SAP
+				// Gateway Client cho thay entity PurchaseRequisitionHisSet KHONG can Asset
+				// No cho vat tu tai san — chi can GLAccount + InternalOrder la du. Nen bo
+				// bat buoc Asset No, chi con GL Account la bat buoc chung cho moi dong
+				// (da validate o tren).
+				if (!item.costCenter && !item.internalOrder) {
 					MessageBox.warning("Dòng " + idx + ": Vui lòng nhập Cost Center hoặc Internal Order.");
 					return;
 				}

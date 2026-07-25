@@ -10,39 +10,76 @@ sap.ui.define([
 	"sap/m/TextArea",
 	"sap/m/VBox",
 	"sap/m/Label",
+	"sap/m/Text",
 	"com/qdavy/procurement/model/Config"
-], function (Controller, JSONModel, MessageBox, MessageToast, Dialog, DialogType, Button, ButtonType, TextArea, VBox, Label, Config) {
+], function (
+	Controller, JSONModel, MessageBox, MessageToast,
+	Dialog, DialogType, Button, ButtonType,
+	TextArea, VBox, Label, Text,
+	Config
+) {
 	"use strict";
 
 	var BACKEND = Config.BACKEND;
+	var REQUEST_TIMEOUT_MS = 15000;
 
 	return Controller.extend("com.qdavy.procurement.controller.PR02", {
-		onInit: function () {
-			this.getView().setModel(new JSONModel({ pending: [] }));
 
-			// UI5 giu nguyen view khi dieu huong qua lai giua cac tab (khong huy/tao lai),
-			// nen onInit chi chay 1 lan duy nhat. Phai gan patternMatched de moi lan
-			// NGUOI DUNG QUAY LAI man nay deu tu dong tai lai danh sach PR moi nhat —
-			// tranh tinh trang phai logout/login lai moi thay du lieu vua duyet o man khac.
+		// ── Lifecycle ────────────────────────────────────────────────────────
+
+		onInit: function () {
+			this.getView().setModel(new JSONModel({
+				pending: [],
+				loading: false
+			}));
+
 			this.getOwnerComponent().getRouter()
 				.getRoute("pr02")
-				.attachPatternMatched(this._loadPending, this);
+				.attachPatternMatched(this._onRouteMatched, this);
 		},
 
+		_onRouteMatched: function () {
+			var sRole = this.getOwnerComponent().getModel("user").getProperty("/role");
+			if (sRole === "REQUESTER") {
+				MessageBox.error("Bạn không có quyền truy cập màn phê duyệt. Chỉ Trưởng bộ phận mua sắm hoặc CEO mới có thể phê duyệt.");
+				this.getOwnerComponent().getRouter().navTo("dashboard");
+				return;
+			}
+			this._loadPending();
+		},
+
+		// ── Data loading ─────────────────────────────────────────────────────
+
 		_loadPending: function () {
-			var oView = this.getView();
+			var oView  = this.getView();
+			var oModel = oView.getModel();
+
+			oModel.setProperty("/loading", true);
 			oView.setBusy(true);
-			fetch(BACKEND + "/api/approval/pending")
-				.then(function (oResponse) { return oResponse.json(); })
+
+			this._fetchWithTimeout(BACKEND + "/api/approval/pending")
 				.then(function (oResult) {
 					oView.setBusy(false);
-					if (oResult && oResult.success) {
-						oView.getModel().setProperty("/pending", oResult.data || []);
+					oModel.setProperty("/loading", false);
+
+					if (!oResult || !oResult.success) {
+						MessageBox.error((oResult && oResult.message) || "Không tải được danh sách đề nghị mua sắm đang chờ duyệt.");
+						return;
 					}
+
+					// Sắp xếp: PR leo thang lên trước
+					var aData = (oResult.data || []).sort(function (a, b) {
+						var aScore = (a.needsProcurementHeadReview ? 2 : 0) + (a.needsLegalReview ? 1 : 0);
+						var bScore = (b.needsProcurementHeadReview ? 2 : 0) + (b.needsLegalReview ? 1 : 0);
+						return bScore - aScore;
+					});
+
+					oModel.setProperty("/pending", aData);
 				})
-				.catch(function () {
+				.catch(function (oError) {
 					oView.setBusy(false);
-					MessageBox.error("Khong tai duoc danh sach de nghi mua sam dang cho duyet.");
+					oModel.setProperty("/loading", false);
+					MessageBox.error(oError.message || "Không thể kết nối tới máy chủ.");
 				});
 		},
 
@@ -50,102 +87,198 @@ sap.ui.define([
 			this._loadPending();
 		},
 
-		formatQty: function (fQuantity, sUom) {
-			if (fQuantity === undefined || fQuantity === null) {
-				return "";
-			}
-			return fQuantity + " " + (sUom || "");
+		// ── Formatters ────────────────────────────────────────────────────────
+
+		getPendingCount: function(aPending) {
+			return aPending ? aPending.length : 0;
+		},
+
+		getProcurementHeadReviewCount: function(aPending) {
+			if (!aPending) return 0;
+			return aPending.filter(function(p) {
+				return !!p.needsProcurementHeadReview;
+			}).length;
+		},
+
+		getLegalReviewCount: function(aPending) {
+			if (!aPending) return 0;
+			return aPending.filter(function(p) {
+				return !!p.needsLegalReview;
+			}).length;
 		},
 
 		formatValue: function (fValue, sCurrency) {
-			if (fValue === undefined || fValue === null) {
-				return "";
-			}
-			var sFormatted = Number(fValue).toLocaleString("vi-VN");
-			return sFormatted + " " + (sCurrency || "VND");
+			if (fValue === undefined || fValue === null) { return ""; }
+			return Number(fValue).toLocaleString("vi-VN") + " " + (sCurrency || "VND");
 		},
 
-		_openDecisionDialog: function (sPRId, sStatus, sTitle, sButtonType) {
+		// ── Decision dialog ───────────────────────────────────────────────────
+
+		onApprovePress: function (oEvent) {
+			var oPR = oEvent.getSource().getBindingContext().getObject();
+			this._openDecisionDialog(oPR.PRId, oPR.TotalValue, oPR.Currency, "APPROVED");
+		},
+
+		onRejectPress: function (oEvent) {
+			var oPR = oEvent.getSource().getBindingContext().getObject();
+			this._openDecisionDialog(oPR.PRId, oPR.TotalValue, oPR.Currency, "REJECTED");
+		},
+
+		_openDecisionDialog: function (sPRId, nTotalValue, sCurrency, sStatus) {
 			var that = this;
+			var bIsApprove = sStatus === "APPROVED";
+
+			var sSummary = "PR: " + sPRId
+				+ "\nGiá trị: " + Number(nTotalValue).toLocaleString("vi-VN") + " " + (sCurrency || "VND")
+				+ "\nHành động: " + (bIsApprove ? "PHÊ DUYỆT" : "TỪ CHỐI");
+
 			var oTextArea = new TextArea({
+				id: "decisionComment",
 				width: "100%",
 				rows: 3,
-				placeholder: this.getView().getModel("i18n") ?
-					this.getView().getModel("i18n").getResourceBundle().getText("pr02CommentPlaceholder") :
-					"Ghi chu (tuy chon)"
+				maxLength: 255,
+				placeholder: bIsApprove
+					? "Ghi chú phê duyệt (tùy chọn)"
+					: "Lý do từ chối (bắt buộc)"
 			});
 
 			var oDialog = new Dialog({
-				type: DialogType.Message,
-				title: sTitle,
+				type: bIsApprove ? DialogType.Message : DialogType.Message,
+				title: bIsApprove ? "Xác nhận phê duyệt" : "Xác nhận từ chối",
 				content: [
 					new VBox({
 						items: [
-							new Label({ text: "Ghi chu quyet dinh:" }),
+							new Text({ text: sSummary, wrapping: true }).addStyleClass("sapUiSmallMarginBottom"),
+							new Label({ text: bIsApprove ? "Ghi chú (tùy chọn):" : "Lý do từ chối (bắt buộc):", required: !bIsApprove }),
 							oTextArea
 						]
 					})
 				],
 				beginButton: new Button({
-					text: sTitle,
-					type: sButtonType,
+					text: bIsApprove ? "Phê duyệt" : "Từ chối",
+					type: bIsApprove ? ButtonType.Accept : ButtonType.Reject,
 					press: function () {
+						var sComment = oTextArea.getValue().trim();
+
+						if (!bIsApprove && !sComment) {
+							oTextArea.setValueState("Error");
+							oTextArea.setValueStateText("Vui lòng nhập lý do từ chối.");
+							return;
+						}
 						oDialog.close();
-						that._submitDecision(sPRId, sStatus, oTextArea.getValue());
+						that._submitDecision(sPRId, sStatus, sComment);
 					}
 				}),
 				endButton: new Button({
-					text: "Huy",
+					text: "Hủy",
 					press: function () { oDialog.close(); }
 				}),
 				afterClose: function () { oDialog.destroy(); }
 			});
 
+			this.getView().addDependent(oDialog);
 			oDialog.open();
 		},
 
-		onApprovePress: function (oEvent) {
-			var oPR = oEvent.getSource().getBindingContext().getObject();
-			this._openDecisionDialog(oPR.PRId, "APPROVED", "Duyet", ButtonType.Accept);
-		},
-
-		onRejectPress: function (oEvent) {
-			var oPR = oEvent.getSource().getBindingContext().getObject();
-			this._openDecisionDialog(oPR.PRId, "REJECTED", "Tu choi", ButtonType.Reject);
-		},
+		// ── Submit decision ───────────────────────────────────────────────────
 
 		_submitDecision: function (sPRId, sStatus, sComment) {
-			var oView = this.getView();
-			var oUser = this.getOwnerComponent().getModel("user").getData();
+			var oView  = this.getView();
+			var oUser  = this.getOwnerComponent().getModel("user").getData();
+
+			var sRole = oUser.role;
+			if (!sRole || sRole === "REQUESTER") {
+				MessageBox.error("Bạn không có quyền phê duyệt đề nghị mua sắm.");
+				return;
+			}
 
 			oView.setBusy(true);
-			fetch(BACKEND + "/api/approval/" + encodeURIComponent(sPRId), {
+
+			this._fetchWithTimeout(BACKEND + "/api/approval/" + encodeURIComponent(sPRId), {
 				method: "PATCH",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
-					status: sStatus,
-					comment: sComment,
-					decidedByEmail: oUser.email
+					status:          sStatus,
+					comment:         sComment,
+					decidedByEmail:  oUser.email,
+					decidedByRole:   oUser.role
 				})
 			})
-				.then(function (oResponse) { return oResponse.json(); })
 				.then(function (oResult) {
 					oView.setBusy(false);
+
 					if (!oResult || !oResult.success) {
-						MessageBox.error((oResult && oResult.message) || "Khong cap nhat duoc trang thai.");
+						MessageBox.error((oResult && oResult.message) || "Không cập nhật được trạng thái. Vui lòng thử lại.");
 						return;
 					}
-					MessageToast.show(sPRId + " -> " + sStatus);
-					this._loadPending();
+
+					var sMsg = sStatus === "APPROVED"
+						? "Đã phê duyệt " + sPRId + ". Bộ phận mua sắm sẽ tiến hành tạo PO."
+						: "Đã từ chối " + sPRId + ". Người đề nghị sẽ nhận được thông báo.";
+
+					if (oResult.sapStatus === "released") {
+						sMsg += "\nPR đã được Release trong SAP (ME53N: " + sPRId + ").";
+					}
+
+					MessageToast.show(sMsg, { duration: 3000 });
+
+					// Optimistic UI update
+					var oModel  = oView.getModel();
+					var aFiltered = (oModel.getProperty("/pending") || [])
+						.filter(function (pr) { return pr.PRId !== sPRId; });
+					oModel.setProperty("/pending", aFiltered);
+
 				}.bind(this))
-				.catch(function () {
+				.catch(function (oError) {
 					oView.setBusy(false);
-					MessageBox.error("Khong the ket noi toi may chu.");
+					MessageBox.error(oError.message || "Không thể kết nối tới máy chủ.");
 				});
 		},
 
+		// ── Navigation ────────────────────────────────────────────────────────
+
 		onNavBack: function () {
 			this.getOwnerComponent().getRouter().navTo("dashboard");
+		},
+
+		// ── Fetch với timeout ─────────────────────────────────────────────────
+
+		_fetchWithTimeout: function (sUrl, oOptions) {
+			var oAbort = (typeof AbortController !== "undefined") ? new AbortController() : null;
+			var iTimer = oAbort
+				? setTimeout(function () { oAbort.abort(); }, REQUEST_TIMEOUT_MS)
+				: null;
+
+			var oFetchOptions = Object.assign({}, oOptions, {
+				signal: oAbort ? oAbort.signal : undefined
+			});
+
+			return fetch(sUrl, oFetchOptions)
+				.then(function (oResponse) {
+					if (iTimer) { clearTimeout(iTimer); }
+
+					return oResponse.json()
+						.catch(function () { return {}; })
+						.then(function (oBody) {
+							if (oResponse.status === 401 || oResponse.status === 403) {
+								throw new Error("Bạn không có quyền thực hiện thao tác này. Vui lòng đăng nhập lại.");
+							}
+							if (oResponse.status >= 500) {
+								throw new Error("Máy chủ đang gặp sự cố. Vui lòng thử lại sau.");
+							}
+							return oBody;
+						});
+				})
+				.catch(function (oError) {
+					if (iTimer) { clearTimeout(iTimer); }
+					if (oError && oError.name === "AbortError") {
+						throw new Error("Server phản hồi quá lâu. Vui lòng kiểm tra mạng và thử lại.");
+					}
+					if (oError instanceof TypeError) {
+						throw new Error("Không thể kết nối tới máy chủ. Vui lòng kiểm tra server đang chạy.");
+					}
+					throw oError;
+				});
 		}
 	});
 });
