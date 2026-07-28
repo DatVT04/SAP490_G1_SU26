@@ -34,6 +34,7 @@ const LEGAL_ESCALATION_THRESHOLD = 100000000; // > 100 trieu VND -> Phap che
 // approvalStore chi phuc vu UI, cho den khi ABAP bo sung entity doc ZG1_APPROVAL.
 const approvalStore = [...pendingPRs].map((pr) => ({ ...pr }));
 let nextApprovalId = approvalStore.length + 1;
+const completedPRs = new Set();
 
 function buildApprovalFlags(totalValue) {
 	return {
@@ -466,8 +467,8 @@ app.get("/api/approval/approved", async (req, res) => {
 	const getLocalApproved = () => approvalStore.filter((item) => {
 		const s = String(item.Status || "").toUpperCase();
 		return s === "APPROVED" || s === "OPENED" || s === "OPEN";
-	});
-
+	})
+		.filter((item) => !completedPRs.has(String(item.PRId || item.PRNumber)));
 	if (!process.env.SAP_HOST) {
 		return res.json({ success: true, data: getLocalApproved() });
 	}
@@ -494,8 +495,8 @@ app.get("/api/approval/approved", async (req, res) => {
 			.map((item) => ({
 				...item,
 				PRId: item.PRNumber || item.PRId // Map PRNumber từ SAP thành PRId cho FE
-			}));
-
+			}))
+			.filter((item) => !completedPRs.has(String(item.PRId)));
 		return res.json({ success: true, data: approvedPRs });
 	} catch (error) {
 		console.error("❌ Lỗi bốc PR từ SAP OData:", error.message);
@@ -521,87 +522,7 @@ app.patch("/api/approval/:id", (req, res) => {
 });
 
 // --- POST /api/po/create --------------------------------------------------
-// Tao Purchase Order (PO-01). Khi co SAP_HOST, goi OData deep-insert
-// PurchaseOrderHeaderSet (kem nav property POToItems) -> BAPI_PO_CREATE1 ben SAP.
-// Khi khong co SAP_HOST (che do mock/demo), tra ve 1 PO gia lap de UI van hoan tat luong.
-// app.post("/api/po/create", async (req, res) => {
-// 	const { vendorNo, items } = req.body || {};
 
-// 	if (!vendorNo || !Array.isArray(items) || items.length === 0) {
-// 		return res.status(400).json({ success: false, message: "Thieu nha cung cap hoac danh sach vat tu." });
-// 	}
-
-// 	for (const item of items) {
-// 		if (item.materialType === "ZAST" && !item.assetNo) {
-// 			return res.status(400).json({ success: false, message: `Vat tu ${item.materialNo} la tai san (ZAST), bat buoc phai co Asset No.` });
-// 		}
-// 		if (item.materialType !== "ZAST" && !item.costCenter) {
-// 			return res.status(400).json({ success: false, message: `Vat tu ${item.materialNo} bat buoc phai co Cost Center.` });
-// 		}
-// 	}
-
-// 	const totalValue = items.reduce((sum, item) => sum + (Number(item.netPrice) || 0) * (Number(item.quantity) || 0), 0);
-
-// 	if (!process.env.SAP_HOST) {
-// 		return res.status(201).json({
-// 			success: true,
-// 			sapIntegration: "mock",
-// 			po: {
-// 				PoNumber: `PO-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`,
-// 				VendorNo: vendorNo,
-// 				TotalValue: totalValue,
-// 				Currency: "VND",
-// 				Status: "CREATED",
-// 				Items: items
-// 			}
-// 		});
-// 	}
-
-// 	try {
-// 		const sapResponse = await axios.post(
-// 			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseOrderHeaderSet`,
-// 			{
-// 				CompanyCode: "QD01",
-// 				DocType: "ZPO",
-// 				VendorNo: vendorNo,
-// 				PurchOrg: "QDPO",
-// 				PurchGroup: "QDG",
-// 				Currency: "VND",
-// 				POToItems: {
-// 					results: items.map((item, idx) => ({
-// 						ItemNo: String(idx + 1).padStart(5, "0"),
-// 						MaterialNo: item.materialNo,
-// 						Description: item.description || "",
-// 						Quantity: String(item.quantity),
-// 						UoM: item.uom || "PC",
-// 						NetPrice: String(item.netPrice),
-// 						CostCenter: item.costCenter || "",
-// 						AssetNo: item.assetNo || "",
-// 						Plant: "QDPL",
-// 						PreqNo: item.preqNo || ""   // BANFN - lien ket toi PR nguon (EKPO-BANFN)
-// 					}))
-// 				}
-// 			},
-// 			{
-// 				auth: sapAuth(),
-// 				headers: { "Content-Type": "application/json" }
-// 			}
-// 		);
-
-// 		return res.status(201).json({
-// 			success: true,
-// 			sapIntegration: "created",
-// 			po: sapResponse.data && sapResponse.data.d
-// 		});
-// 	} catch (error) {
-// 		return res.status(502).json({
-// 			success: false,
-// 			message: "Khong the tao PO qua SAP. Kiem tra ket noi/du lieu roi thu lai."
-// 		});
-// 	}
-// });
-// --- POST /api/po/create --------------------------------------------------
-// --- POST /api/po/create (FIX TRIỆT ĐỂ CSRF TOKEN & COOKIE DÀNH CHO BE) ------------------
 app.post("/api/po/create", async (req, res) => {
 	const { vendorNo, items } = req.body || {};
 
@@ -636,7 +557,7 @@ app.post("/api/po/create", async (req, res) => {
 	}
 
 	try {
-		// 🔑 BƯỚC 1: Fetch CSRF Token & Session Cookies từ SAP Gateway
+		// 🔑 BƯỚC 1: Fetch CSRF Token & Session Cookies
 		const tokenResponse = await axios.get(
 			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseOrderHeaderSet`,
 			{
@@ -651,30 +572,52 @@ app.post("/api/po/create", async (req, res) => {
 		const csrfToken = tokenResponse.headers["x-csrf-token"];
 		const cookies = tokenResponse.headers["set-cookie"];
 
-		// 📦 BƯỚC 2: Chuẩn hóa Payload - BỎ TRƯỜNG PreqNo ĐỂ KHÔNG BỊ LỖI INVALID PROPERTY
+		// 🔑 BƯỚC 2: Chuẩn hóa Vendor & Item đúng SEGW & Purchasing Group = QD1
+		var rawVendor = String(vendorNo || "").trim();
+		var formattedVendor = /^\d+$/.test(rawVendor) ? rawVendor.padStart(10, "0") : rawVendor;
+
+		// Tạo timestamp OData V2 cho ngày hiện tại (/Date(ms)/)
+		const todayMs = Date.now();
+		const sapODataDate = `/Date(${todayMs})/`;
+
 		const sapPayload = {
 			CompanyCode: "QD01",
 			DocType: "ZPO",
-			VendorNo: vendorNo,
+			VendorNo: formattedVendor,
 			PurchOrg: "QDPO",
-			PurchGroup: "QDG",
+			PurchGroup: "QD1",
 			Currency: "VND",
+			DocDate: sapODataDate, // 👈 Bổ sung ngày tạo PO theo đúng chuẩn OData Edm.DateTime
+			TotalValue: totalValue.toFixed(2),
 			POToItems: {
-				results: items.map((item, idx) => ({
-					ItemNo: String(idx + 1).padStart(5, "0"),
-					MaterialNo: item.materialNo || "",
-					Description: item.description || "",
-					Quantity: String(item.quantity || 1),
-					UoM: item.uom || "PC",
-					NetPrice: String(item.netPrice || 0),
-					CostCenter: item.costCenter || "CCADM",
-					AssetNo: item.assetNo || "",
-					Plant: "QDPL"
-				}))
+				results: items.map((item, idx) => {
+					var rawMat = String(item.materialNo || "").trim();
+					var formattedMat = (/^\d+$/.test(rawMat)) ? rawMat.padStart(18, "0") : rawMat;
+
+					var rawAsset = String(item.assetNo || "").trim();
+					var formattedAsset = "000000100000";
+
+					if (rawAsset) {
+						formattedAsset = /^\d+$/.test(rawAsset) ? rawAsset.padStart(12, "0") : rawAsset.substring(0, 12);
+					}
+
+					return {
+						PoNumber: "",
+						ItemNo: String((idx + 1) * 10).padStart(5, "0"),
+						MaterialNo: formattedMat.substring(0, 40),
+						Description: String(item.description || "").substring(0, 40),
+						Quantity: Number(item.quantity || 1).toFixed(3),
+						UoM: String(item.uom || "PC").substring(0, 3),
+						NetPrice: Number(item.netPrice || 0).toFixed(2),
+						CostCenter: String(item.costCenter || "CCADM").substring(0, 10),
+						AssetNo: formattedAsset,
+						Plant: "QDPL"
+					};
+				})
 			}
 		};
-
-		// 🚀 BƯỚC 3: Gửi POST Request tạo PO
+		// 🚀 BƯỚC 3: Gửi POST Request sang SAP
+		// 🚀 BƯỚC 3: Gửi POST Request sang SAP
 		const sapResponse = await axios.post(
 			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseOrderHeaderSet`,
 			sapPayload,
@@ -689,25 +632,54 @@ app.post("/api/po/create", async (req, res) => {
 			}
 		);
 
+		// 🎯 XỬ LÝ KẾT QUẢ VÀ CẬP NHẬT TRẠNG THÁI PR
+		const createdPo = sapResponse.data && sapResponse.data.d;
+
+		const prIdToUpdate = req.body.prNumber || (items && items[0] && items[0].preqNo);
+		if (prIdToUpdate) {
+			// 1. Xóa khỏi store local
+			const prIndex = approvalStore.findIndex(item => item.PRId === prIdToUpdate);
+			if (prIndex !== -1) {
+				approvalStore.splice(prIndex, 1);
+			}
+			// 2. 🎯 BỔ SUNG: Đánh dấu PR này ĐÃ TẠO PO để lọc bỏ khỏi kết quả SAP trả về
+			completedPRs.add(String(prIdToUpdate));
+		}
+
 		return res.status(201).json({
 			success: true,
 			sapIntegration: "created",
-			po: sapResponse.data && sapResponse.data.d
+			poNumber: createdPo ? createdPo.PoNumber : null,
+			po: createdPo
 		});
 	} catch (error) {
 		console.error("❌ [SAP BAPI CREATION ERROR]:");
+		let detailedMsg = "Khong the tao PO qua SAP.";
+
 		if (error.response) {
 			console.error("HTTP Status:", error.response.status);
 			console.error("Chi tiết từ SAP:", JSON.stringify(error.response.data || error.response.statusText, null, 2));
+
+			if (error.response.data && error.response.data.error) {
+				const errObj = error.response.data.error;
+				detailedMsg = errObj.message ? errObj.message.value : detailedMsg;
+
+				if (errObj.innererror && Array.isArray(errObj.innererror.errordetails)) {
+					const messages = errObj.innererror.errordetails
+						.filter(d => d.severity === "error" && d.code !== "/IWBEP/CX_MGW_BUSI_EXCEPTION")
+						.map(d => d.message);
+					if (messages.length > 0) {
+						detailedMsg = messages.join(" | ");
+					}
+				}
+			}
 		} else {
 			console.error("System Error:", error.message);
 		}
 
-		const sapMsg = error.response && error.response.data && error.response.data.error && error.response.data.error.message && error.response.data.error.message.value;
-
 		return res.status(502).json({
 			success: false,
-			message: sapMsg || "Khong the tao PO qua SAP. Kiem tra ket noi/du lieu roi thu lai."
+			message: detailedMsg
 		});
 	}
 });
