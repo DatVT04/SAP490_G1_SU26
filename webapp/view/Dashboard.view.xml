@@ -20,6 +20,20 @@
 						</HBox>
 					</VBox>
 					<HBox alignItems="Center" class="qdHeroActions">
+						<!-- Chuông thông báo -->
+						<Button
+							id="notifBellBtn"
+							icon="sap-icon://bell"
+							tooltip="Thông báo"
+							press=".onNotifPress"
+							class="qdHeroBtn sapUiTinyMarginEnd"
+						/>
+						<ObjectStatus
+							text="{dash>/unreadCount}"
+							state="Error"
+							visible="{= ${dash>/unreadCount} > 0 }"
+							class="sapUiTinyMarginEnd"
+						/>
 						<Button
 							icon="sap-icon://refresh"
 							tooltip="{i18n>dashRefresh}"
@@ -81,7 +95,6 @@
 					<Text text="{i18n>dashSectionSubtitle}" class="qdSectionSub"/>
 				</VBox>
 
-				<!-- Empty state: role chua duoc cap man hinh nao -->
 				<VBox
 					class="qdEmptyState"
 					alignItems="Center"
@@ -176,5 +189,39 @@
 			</VBox>
 
 		</content>
+
+		<dependents>
+			<Popover
+				id="notifPopover"
+				title="Thông báo"
+				placement="Bottom"
+				contentWidth="22rem"
+			>
+				<footer>
+					<OverflowToolbar>
+						<ToolbarSpacer/>
+						<Button
+							text="Đánh dấu tất cả đã đọc"
+							type="Transparent"
+							press=".onMarkAllRead"
+						/>
+					</OverflowToolbar>
+				</footer>
+				<List
+					items="{dash>/notifications}"
+					noDataText="Chưa có thông báo"
+					mode="None"
+				>
+					<StandardListItem
+						title="{dash>prId}"
+						description="{dash>message}"
+						info="{path: 'dash>createdAt', formatter: '.formatNotifTime'}"
+						type="Active"
+						press=".onNotifItemPress"
+						highlight="{= ${dash>read} ? 'None' : 'Information' }"
+					/>
+				</List>
+			</Popover>
+		</dependents>
 	</Page>
 </mvc:View>

@@ -8,7 +8,6 @@
 	<Page showHeader="false" class="qdInnerPage">
 		<content>
 
-			<!-- ============ HERO ============ -->
 			<VBox class="qdPageHero qdPageHeroAmber">
 				<HBox alignItems="Center" justifyContent="SpaceBetween" wrap="Wrap">
 					<HBox alignItems="Center">
@@ -16,7 +15,7 @@
 						<VBox>
 							<Text text="Bước 2 · Phê duyệt" class="qdPageEyebrow"/>
 							<Title text="Phê duyệt đề nghị mua sắm" level="H1" class="qdPageTitle"/>
-							<Text text="Xem xét và quyết định các đề nghị đang chờ — Approve hoặc Reject kèm ghi chú" class="qdPageSub"/>
+							<Text text="Duyệt cuối mới ghi PR lên SAP. Từ chối / leo thang đều thông báo người tạo (và CEO nếu leo thang)." class="qdPageSub"/>
 						</VBox>
 					</HBox>
 					<Button
@@ -36,7 +35,6 @@
 				</HBox>
 			</VBox>
 
-			<!-- ============ THONG KE NHANH ============ -->
 			<HBox class="qdStatRow" wrap="Wrap">
 				<VBox class="qdStatCard">
 					<Text text="{path: '/pending', formatter: '.getPendingCount'}" class="qdStatNumber"/>
@@ -52,14 +50,12 @@
 				</VBox>
 			</HBox>
 
-			<!-- ============ DANH SACH PR CHO DUYET ============ -->
 			<VBox class="qdContentCard qdCardTight">
 				<HBox alignItems="Center" class="sapUiSmallMargin">
 					<core:Icon src="sap-icon://pending" class="qdCardIcon sapUiTinyMarginEnd"/>
 					<Title text="Đề nghị đang chờ quyết định ({path: '/pending', formatter: '.getPendingCount'})" level="H3" class="qdCardTitle"/>
 				</HBox>
 
-				<!-- Empty state -->
 				<VBox
 					class="qdEmptyState"
 					alignItems="Center"
@@ -67,10 +63,9 @@
 				>
 					<core:Icon src="sap-icon://complete" class="qdEmptyIcon"/>
 					<Title text="Không có đề nghị nào đang chờ" level="H3" class="qdEmptyTitle"/>
-					<Text text="Tất cả đề nghị mua sắm đã được xử lý. Bấm Tải lại để cập nhật danh sách." class="qdEmptyText" textAlign="Center"/>
+					<Text text="Tất cả đề nghị đã được xử lý. Bấm Tải lại để cập nhật." class="qdEmptyText" textAlign="Center"/>
 				</VBox>
 
-				<!-- Danh sach PR - moi PR la 1 card rieng biet -->
 				<List
 					id="pendingList"
 					items="{/pending}"
@@ -82,17 +77,19 @@
 					<CustomListItem>
 						<VBox class="qdApprovalCard">
 
-							<!-- ── HEADER ROW: ma PR + trang thai leo thang ── -->
 							<HBox justifyContent="SpaceBetween" alignItems="Center" wrap="Wrap" class="qdApprovalCardHeader">
 								<HBox alignItems="Center">
 									<core:Icon src="sap-icon://request" class="qdPRIcon sapUiTinyMarginEnd"/>
 									<VBox>
 										<ObjectIdentifier title="{PRId}" text="Người đề nghị: {RequesterEmail}"/>
 										<Text text="Gửi lúc: {CreatedAt}" class="qdCellHint sapUiTinyMarginTop"/>
+										<Text
+											text="{= ${SapPRId} ? ('SAP: ' + ${SapPRId}) : 'Chưa ghi SAP (sau khi duyệt cuối)' }"
+											class="qdCellHint"
+										/>
 									</VBox>
 								</HBox>
 
-								<!-- Leo thang badges -->
 								<HBox wrap="Wrap" alignItems="Center">
 									<ObjectStatus
 										text="Cần CEO phê duyệt"
@@ -118,7 +115,6 @@
 								</HBox>
 							</HBox>
 
-							<!-- ── TONG GIA TRI ── -->
 							<HBox class="qdApprovalValueRow sapUiTinyMarginTopBottom" alignItems="Baseline">
 								<Text text="Tổng giá trị: " class="qdInfoLabel"/>
 								<Title
@@ -128,7 +124,6 @@
 								/>
 							</HBox>
 
-							<!-- ── DANH SACH VAT TU (items[]) ── -->
 							<VBox class="qdNestedItems">
 								<Text text="Danh sách vật tư:" class="qdInfoLabel sapUiTinyMarginBottom"/>
 								<List
@@ -140,10 +135,7 @@
 									<items>
 										<CustomListItem>
 											<HBox alignItems="Center" class="qdNestedItemRow" wrap="Wrap">
-												<!-- So thu tu dong -->
 												<Text text="{LineNo}." class="qdLineNo"/>
-
-												<!-- Ma + mo ta vat tu -->
 												<VBox class="qdNestedItemMain">
 													<Text text="{Description}" class="qdNestedItemDesc" wrapping="false"/>
 													<HBox>
@@ -154,16 +146,12 @@
 														/>
 													</HBox>
 												</VBox>
-
-												<!-- So luong + DVT -->
 												<VBox class="qdNestedItemSide" alignItems="End">
 													<Text text="{Quantity} {UoM}" class="qdNestedQty"/>
-													<!-- Hach toan: ZAST -> Asset No, con lai -> Cost Center -->
 													<Text
 														text="{= ${MaterialType} === 'ZAST' ? ('Asset: ' + (${AssetNo} || 'chưa điền')) : ('CC: ' + (${CostCenter} || ${InternalOrder} || 'chưa điền')) }"
 														class="qdCellHint"
 													/>
-													<!-- Gia tri uoc tinh -->
 													<Text
 														text="{parts: ['EstimatedValue','Currency'], formatter: '.formatValue'}"
 														class="qdNestedValue"
@@ -175,17 +163,22 @@
 								</List>
 							</VBox>
 
-							<!-- ── GHI CHU TU LAN DUYET TRUOC (neu co) ── -->
 							<VBox
 								class="qdPrevComment sapUiTinyMarginTop"
-								visible="{= !!${Comments} }"
+								visible="{= !!${Comment} || !!${Comments} }"
 							>
 								<Text text="Ghi chú trước đó:" class="qdInfoLabel"/>
-								<Text text="{Comments}" class="qdCommentText"/>
+								<Text text="{= ${Comment} || ${Comments} }" class="qdCommentText"/>
 							</VBox>
 
-							<!-- ── NUT QUYET DINH ── -->
 							<HBox justifyContent="End" alignItems="Center" class="qdRowActions sapUiSmallMarginTop">
+								<Button
+									text="Chi tiết"
+									type="Transparent"
+									icon="sap-icon://detail-view"
+									press=".onDetailPress"
+									class="sapUiSmallMarginEnd"
+								/>
 								<Button
 									text="Từ chối"
 									type="Reject"

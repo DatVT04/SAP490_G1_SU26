@@ -19,7 +19,6 @@
 					</VBox>
 				</HBox>
 
-				<!-- Flow stepper: cho biet dang o dau trong quy trinh -->
 				<HBox class="qdFlowSteps">
 					<Text text="PR-01 Tạo đề nghị" class="qdFlowStep qdFlowStepActive"/>
 					<core:Icon src="sap-icon://navigation-right-arrow" class="qdFlowArrow"/>
@@ -80,7 +79,6 @@
 					</HBox>
 				</HBox>
 
-				<!-- Empty state khi chua co dong nao -->
 				<VBox
 					class="qdEmptyState"
 					alignItems="Center"
@@ -95,13 +93,6 @@
 					/>
 				</VBox>
 
-				<!-- Danh sach vat tu dang CARD thay vi Table nhieu cot co dinh — Table cu
-				     co tong do rong cot 13+13+6+7+10+12 = 61rem, chua ke noi dung ben
-				     trong con xep chong Select/Input/Text, nen bi tran ngang khi thu
-				     nho cua so hoac dung man hinh laptop. O day moi dong vat tu la 1
-				     card, cac truong ben trong dung HBox wrap="Wrap" nen tu dong xuong
-				     dong thay vi bi ep chat lai — khong con phu thuoc vao be rong man
-				     hinh nua. -->
 				<List
 					id="itemsList"
 					items="{/items}"
@@ -155,29 +146,47 @@
 									<Input value="{estimatedValue}" type="Number" textAlign="End" change=".onItemValueChange" width="100%"/>
 								</VBox>
 
-								<!-- Hach toan: GL Account bat buoc cho MOI dong (SAP that yeu cau qua
-								     test Gateway Client), Cost Center/Internal Order tuy chon,
-								     Asset No chi danh rieng cho ZAST -->
-								<VBox class="qdItemField sapUiTinyMarginBottom" width="10rem">
+								<!-- selectedKey = chỉ lưu mã (key), không lưu cả text "mã - mô tả" -->
+								<VBox class="qdItemField sapUiTinyMarginBottom" width="12rem">
 									<Label text="Hạch toán chi phí" class="qdInfoLabel"/>
-									<Input
-										value="{glAccount}"
+									<ComboBox
+										selectedKey="{glAccount}"
+										items="{path: '/glAccounts', templateShareable: false}"
 										placeholder="GL Account *"
 										class="sapUiTinyMarginBottom"
 										width="100%"
-									/>
-									<Input
-										value="{costCenter}"
+									>
+										<core:Item
+											key="{GLAccount}"
+											text="{= ${Description} &amp;&amp; ${Description} !== ${GLAccount} ? ${GLAccount} + ' - ' + ${Description} : ${GLAccount} }"
+										/>
+									</ComboBox>
+									<ComboBox
+										selectedKey="{costCenter}"
+										items="{path: '/costCenters', templateShareable: false}"
 										placeholder="Cost Center"
+										selectionChange=".onCostCenterSelect"
 										class="sapUiTinyMarginBottom"
 										width="100%"
-									/>
-									<Input
-										value="{internalOrder}"
+									>
+										<core:Item
+											key="{CostCenter}"
+											text="{= ${Description} &amp;&amp; ${Description} !== ${CostCenter} ? ${CostCenter} + ' - ' + ${Description} : ${CostCenter} }"
+										/>
+									</ComboBox>
+									<ComboBox
+										selectedKey="{internalOrder}"
+										items="{path: '/internalOrders', templateShareable: false}"
 										placeholder="Internal Order (nếu có)"
+										selectionChange=".onInternalOrderSelect"
 										class="sapUiTinyMarginBottom"
 										width="100%"
-									/>
+									>
+										<core:Item
+											key="{InternalOrder}"
+											text="{= ${Description} &amp;&amp; ${Description} !== ${InternalOrder} ? ${InternalOrder} + ' - ' + ${Description} : ${InternalOrder} }"
+										/>
+									</ComboBox>
 									<Input
 										value="{assetNo}"
 										visible="{= ${materialType} === 'ZAST' }"
@@ -190,7 +199,6 @@
 					</CustomListItem>
 				</List>
 
-				<!-- Tong gia tri — cap nhat realtime khi go so luong/don gia -->
 				<HBox
 					class="qdTotalBar"
 					justifyContent="SpaceBetween"
@@ -207,7 +215,6 @@
 					</HBox>
 				</HBox>
 
-				<!-- Canh bao leo thang phe duyet theo nguong -->
 				<MessageStrip
 					text="{/escalationText}"
 					type="Warning"

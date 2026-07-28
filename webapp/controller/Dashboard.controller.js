@@ -2,14 +2,14 @@ sap.ui.define([
 	"sap/ui/core/mvc/Controller",
 	"sap/ui/model/json/JSONModel",
 	"sap/ui/core/format/NumberFormat",
+	"sap/m/MessageBox",
+	"sap/m/MessageToast",
 	"com/qdavy/procurement/model/Config"
-], function (Controller, JSONModel, NumberFormat, Config) {
+], function (Controller, JSONModel, NumberFormat, MessageBox, MessageToast, Config) {
 	"use strict";
 
 	var BACKEND = Config.BACKEND;
 
-	// Bao nhieu tile moi role duoc thay — dung de hien empty state khi = 0.
-	// Phai khop voi dieu kien visible trong Dashboard.view.xml.
 	var TILES_BY_ROLE = {
 		REQUESTER:  ["pr01", "report", "profile"],
 		PURCHASING: ["pr02", "po01", "report", "profile"],
@@ -31,11 +31,12 @@ sap.ui.define([
 				pendingCount: "–",
 				approvedCount: "–",
 				pendingValueText: "–",
-				tileCount: 1   // gia dinh co tile, tinh lai o onRouteMatched
+				tileCount: 1,
+				notifications: [],
+				unreadCount: 0,
+				notifBusy: false
 			}), "dash");
 
-			// Route matched: moi lan quay ve dashboard deu load lai so lieu,
-			// vi user co the vua duyet/tao PR o man khac.
 			this.getOwnerComponent().getRouter()
 				.getRoute("dashboard")
 				.attachPatternMatched(this._onRouteMatched, this);
@@ -47,9 +48,9 @@ sap.ui.define([
 			this.getView().getModel("dash").setProperty("/tileCount", aTiles.length);
 			this.getView().getModel("dash").setProperty("/greeting", this._buildGreeting());
 			this._loadStats();
+			this._loadNotifications();
 		},
 
-		// Chao theo buoi trong ngay — nho nhung lam giao dien co "hoi nguoi"
 		_buildGreeting: function () {
 			var iHour = new Date().getHours();
 			if (iHour < 11) { return "Chào buổi sáng"; }
@@ -60,9 +61,16 @@ sap.ui.define([
 
 		_loadStats: function () {
 			var oModel = this.getView().getModel("dash");
+			var sRole = String(this.getOwnerComponent().getModel("user").getProperty("/role") || "").toUpperCase();
+
+			// Pending theo role nếu là CFO/CEO
+			var sPendingUrl = BACKEND + "/api/approval/pending";
+			if (sRole === "CFO" || sRole === "CEO") {
+				sPendingUrl += "?role=" + encodeURIComponent(sRole);
+			}
 
 			Promise.all([
-				fetch(BACKEND + "/api/approval/pending").then(function (r) { return r.json(); }),
+				fetch(sPendingUrl).then(function (r) { return r.json(); }),
 				fetch(BACKEND + "/api/approval/approved").then(function (r) { return r.json(); })
 			])
 				.then(function (aResults) {
@@ -78,14 +86,12 @@ sap.ui.define([
 					oModel.setProperty("/pendingValueText", this._formatCompact(fTotal));
 				}.bind(this))
 				.catch(function () {
-					// Backend chua chay — hien dau gach thay vi de trong hoac bao loi om som
 					oModel.setProperty("/pendingCount", "–");
 					oModel.setProperty("/approvedCount", "–");
 					oModel.setProperty("/pendingValueText", "–");
 				});
 		},
 
-		// 55.000.000 -> "55,0 tr" ; 1.200.000.000 -> "1,20 tỷ"
 		_formatCompact: function (fValue) {
 			if (!fValue) { return "0"; }
 			if (fValue >= 1000000000) {
@@ -97,8 +103,103 @@ sap.ui.define([
 			return oValueFormat.format(fValue);
 		},
 
+		// ── Thông báo (mọi role) ───────────────────────────────────────────
+
+		_loadNotifications: function () {
+			var oUser = this.getOwnerComponent().getModel("user").getData();
+			var oModel = this.getView().getModel("dash");
+			if (!oUser || !oUser.email) {
+				oModel.setProperty("/notifications", []);
+				oModel.setProperty("/unreadCount", 0);
+				return;
+			}
+
+			oModel.setProperty("/notifBusy", true);
+
+			fetch(BACKEND + "/api/notifications?email=" + encodeURIComponent(oUser.email))
+				.then(function (r) { return r.json(); })
+				.then(function (oResult) {
+					oModel.setProperty("/notifBusy", false);
+					var aList = (oResult && oResult.success && oResult.data) ? oResult.data : [];
+					oModel.setProperty("/notifications", aList);
+					var iUnread = aList.filter(function (n) { return !n.read; }).length;
+					oModel.setProperty("/unreadCount", iUnread);
+				})
+				.catch(function () {
+					oModel.setProperty("/notifBusy", false);
+					oModel.setProperty("/notifications", []);
+					oModel.setProperty("/unreadCount", 0);
+				});
+		},
+
+		onNotifPress: function (oEvent) {
+			var oBtn = oEvent.getSource();
+			if (!this._oNotifPopover) {
+				this._oNotifPopover = this.byId("notifPopover");
+			}
+			this._loadNotifications();
+			this._oNotifPopover.openBy(oBtn);
+		},
+
+		onNotifItemPress: function (oEvent) {
+			var oItem = oEvent.getSource().getBindingContext("dash").getObject();
+			if (!oItem) { return; }
+
+			MessageBox.information(oItem.message, {
+				title: "Thông báo — " + (oItem.prId || ""),
+				onClose: function () {
+					this._markRead(oItem.id);
+				}.bind(this)
+			});
+		},
+
+		_markRead: function (nId) {
+			if (!nId) { return; }
+			var that = this;
+			fetch(BACKEND + "/api/notifications/" + nId + "/read", {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: "{}"
+			})
+				.then(function () {
+					that._loadNotifications();
+				})
+				.catch(function () { /* im lang */ });
+		},
+
+		onMarkAllRead: function () {
+			var aList = this.getView().getModel("dash").getProperty("/notifications") || [];
+			var aUnread = aList.filter(function (n) { return !n.read; });
+			if (aUnread.length === 0) {
+				MessageToast.show("Không còn thông báo chưa đọc.");
+				return;
+			}
+			var that = this;
+			Promise.all(aUnread.map(function (n) {
+				return fetch(BACKEND + "/api/notifications/" + n.id + "/read", {
+					method: "PATCH",
+					headers: { "Content-Type": "application/json" },
+					body: "{}"
+				});
+			})).then(function () {
+				MessageToast.show("Đã đánh dấu tất cả đã đọc.");
+				that._loadNotifications();
+			});
+		},
+
+		formatNotifTime: function (sIso) {
+			if (!sIso) { return ""; }
+			try {
+				var d = new Date(sIso);
+				return d.toLocaleString("vi-VN");
+			} catch (e) {
+				return sIso;
+			}
+		},
+
 		onRefreshStats: function () {
 			this._loadStats();
+			this._loadNotifications();
 		},
 
 		onNavToPR01: function () {

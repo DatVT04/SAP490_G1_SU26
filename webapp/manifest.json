@@ -102,6 +102,11 @@
           "target": "pr02"
         },
         {
+          "name": "prdetail",
+          "pattern": "pr-detail/{prId}",
+          "target": "prdetail"
+        },
+        {
           "name": "po01",
           "pattern": "create-po",
           "target": "po01"
@@ -142,6 +147,11 @@
           "viewName": "PR02",
           "viewId": "pr02",
           "viewLevel": 2
+        },
+        "prdetail": {
+          "viewName": "PRDetail",
+          "viewId": "prdetail",
+          "viewLevel": 3
         },
         "po01": {
           "viewName": "PO01",
