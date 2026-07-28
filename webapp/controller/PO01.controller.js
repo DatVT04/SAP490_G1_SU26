@@ -268,9 +268,11 @@ sap.ui.define([
 				}];
 			}
 
-			var aFormattedItems = aRawItems.map(function (item) {
+			// PO01.controller.js[cite: 1]
+			var aFormattedItems = aRawItems.map(function (item, idx) {
 				return {
 					preqNo: item.preqNo || item.PRNumber || item.PRId || sPRId,
+					preqItem: item.preqItem || item.LineNo || item.lineNo || "10", // 👈 Đảm bảo có dòng này
 					materialNo: item.materialNo || item.MaterialNo || "",
 					materialType: item.materialType || item.MaterialType || "ZSRV",
 					description: item.description || item.Description || "",

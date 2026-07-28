@@ -577,8 +577,8 @@ app.post("/api/po/create", async (req, res) => {
 		var formattedVendor = /^\d+$/.test(rawVendor) ? rawVendor.padStart(10, "0") : rawVendor;
 
 		// Tạo timestamp OData V2 cho ngày hiện tại (/Date(ms)/)
-		const todayMs = Date.now();
-		const sapODataDate = `/Date(${todayMs})/`;
+		const now = new Date();
+		const sapODataDate = now.toISOString().split('T')[0];
 
 		const sapPayload = {
 			CompanyCode: "QD01",
@@ -587,8 +587,9 @@ app.post("/api/po/create", async (req, res) => {
 			PurchOrg: "QDPO",
 			PurchGroup: "QD1",
 			Currency: "VND",
-			DocDate: sapODataDate, // 👈 Bổ sung ngày tạo PO theo đúng chuẩn OData Edm.DateTime
+			DocDate: sapODataDate,
 			TotalValue: totalValue.toFixed(2),
+			// server.js (Đoạn build POToItems)
 			POToItems: {
 				results: items.map((item, idx) => {
 					var rawMat = String(item.materialNo || "").trim();
@@ -596,14 +597,26 @@ app.post("/api/po/create", async (req, res) => {
 
 					var rawAsset = String(item.assetNo || "").trim();
 					var formattedAsset = "000000100000";
-
 					if (rawAsset) {
 						formattedAsset = /^\d+$/.test(rawAsset) ? rawAsset.padStart(12, "0") : rawAsset.substring(0, 12);
 					}
 
+					// 🎯 Lấy mã PR và padding thành 10 chữ số (chuẩn BANFN của SAP)
+					var rawPreqNo = String(item.preqNo || req.body.prNumber || "").trim();
+					var formattedPreqNo = /^\d+$/.test(rawPreqNo) ? rawPreqNo.padStart(10, "0") : rawPreqNo;
+
+					// 🎯 Lấy dòng PR (mặc định là 00010 nếu không có)
+					var rawPreqItem = String(item.preqItem || item.lineNo || "10").trim();
+					var formattedPreqItem = String(rawPreqItem).padStart(5, "0");
+
 					return {
 						PoNumber: "",
 						ItemNo: String((idx + 1) * 10).padStart(5, "0"),
+
+						// 👈 TÊN TRƯỜNG CHÍNH XÁC THEO SEGW
+						PreqNo: formattedPreqNo,      // Chuỗi 10 ký tự, ví dụ: "0010003924"
+						PreqItem: formattedPreqItem,  // Chuỗi 5 ký tự, ví dụ: "00010"
+
 						MaterialNo: formattedMat.substring(0, 40),
 						Description: String(item.description || "").substring(0, 40),
 						Quantity: Number(item.quantity || 1).toFixed(3),
@@ -616,7 +629,6 @@ app.post("/api/po/create", async (req, res) => {
 				})
 			}
 		};
-		// 🚀 BƯỚC 3: Gửi POST Request sang SAP
 		// 🚀 BƯỚC 3: Gửi POST Request sang SAP
 		const sapResponse = await axios.post(
 			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseOrderHeaderSet`,
