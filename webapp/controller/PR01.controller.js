@@ -10,12 +10,8 @@ sap.ui.define([
 	var BACKEND = Config.BACKEND;
 	var REQUEST_TIMEOUT_MS = 15000;
 
-	// Nguong leo thang phe duyet — phai khop voi buildApprovalFlags() trong server.js.
-	// 300 trieu la con so chinh thuc trong Business Blueprint (muc "Executive Approval
-	// Required"). Con so 100 trieu la nguong noi bo nhom da thong nhat truoc do — neu
-	// doi, sua o day va o server.js cho khop.
-	var CEO_THRESHOLD = 300000000;   // > 300 trieu -> can CEO duyet them
-	var CFO_THRESHOLD = 100000000;   // > 100 trieu -> can CFO xem ky
+	var CEO_THRESHOLD = 300000000;
+	var CFO_THRESHOLD = 100000000;
 
 	function emptyCatalogItem() {
 		return {
@@ -35,22 +31,147 @@ sap.ui.define([
 		};
 	}
 
+	/** Tổng 1 dòng = số lượng × giá trị ước tính */
+	function lineTotal(item) {
+		return (Number(item.quantity) || 0) * (Number(item.estimatedValue) || 0);
+	}
+
+	/** Tổng PR = cộng tất cả dòng */
+	function sumItems(aItems) {
+		return (aItems || []).reduce(function (sum, item) {
+			return sum + lineTotal(item);
+		}, 0);
+	}
+
 	return Controller.extend("com.qdavy.procurement.controller.PR01", {
 
 		onInit: function () {
 			var oModel = new JSONModel({
 				materials: [],
 				materialsLoading: true,
+				glAccounts: [],
+				costCenters: [],
+				internalOrders: [],
 				header: { currency: "VND" },
-				items: [],         // Danh sach nhieu vat tu
-				totalText: "0",    // Tong gia tri da format, hien o thanh qdTotalBar
-				escalationText: "" // Canh bao leo thang, rong = an MessageStrip
+				items: [],
+				totalText: "0",
+				escalationText: "",
+				notifications: []
 			});
 			this.getView().setModel(oModel);
+
+			this._ioToCostCenter = {};
+			this._costCenterToIOs = {};
+
 			this._loadMaterials();
+			this._loadAccountingLists();
+
+			this.getOwnerComponent().getRouter()
+				.getRoute("pr01")
+				.attachPatternMatched(this._onRouteMatched, this);
 		},
 
-		// Tinh lai tong tien + canh bao moi khi so luong/don gia thay doi
+		_onRouteMatched: function () {
+			this._loadNotifications();
+		},
+
+		_loadNotifications: function () {
+			var oUser = this.getOwnerComponent().getModel("user").getData();
+			if (!oUser || !oUser.email) { return; }
+
+			var oModel = this.getView().getModel();
+			var that = this;
+
+			this._fetchWithTimeout(
+				BACKEND + "/api/notifications?email=" + encodeURIComponent(oUser.email)
+			)
+				.then(function (oResult) {
+					if (!oResult || !oResult.success) { return; }
+					var aList = oResult.data || [];
+					oModel.setProperty("/notifications", aList);
+
+					var aUnread = aList.filter(function (n) { return !n.read; });
+					if (aUnread.length === 0) { return; }
+
+					var oLatest = aUnread[0];
+					MessageBox.information(oLatest.message, {
+						title: "Thông báo đề nghị " + (oLatest.prId || ""),
+						onClose: function () {
+							that._markNotificationRead(oLatest.id);
+						}
+					});
+				})
+				.catch(function () { /* im lang */ });
+		},
+
+		_markNotificationRead: function (nId) {
+			if (!nId) { return; }
+			this._fetchWithTimeout(BACKEND + "/api/notifications/" + nId + "/read", {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: "{}"
+			}).catch(function () { /* im lang */ });
+		},
+
+		_loadAccountingLists: function () {
+			var oModel = this.getView().getModel();
+			var that = this;
+
+			this._fetchWithTimeout(BACKEND + "/api/gl-accounts")
+				.then(function (oResult) {
+					if (oResult.success) { oModel.setProperty("/glAccounts", oResult.data || []); }
+				})
+				.catch(function () { /* im lang */ });
+
+			this._fetchWithTimeout(BACKEND + "/api/cost-centers")
+				.then(function (oResult) {
+					if (oResult.success) { oModel.setProperty("/costCenters", oResult.data || []); }
+				})
+				.catch(function () { /* im lang */ });
+
+			this._fetchWithTimeout(BACKEND + "/api/internal-orders")
+				.then(function (oResult) {
+					if (oResult.success) {
+						oModel.setProperty("/internalOrders", oResult.data || []);
+						that._ioToCostCenter = oResult.ioToCostCenter || {};
+						that._costCenterToIOs = oResult.costCenterToIOs || {};
+					}
+				})
+				.catch(function () { /* im lang */ });
+		},
+
+		onInternalOrderSelect: function (oEvent) {
+			var oItem = oEvent.getParameter("selectedItem");
+			if (!oItem) { return; }
+
+			var sIO = oItem.getKey();
+			var sPath = oEvent.getSource().getBindingContext().getPath();
+			var oModel = this.getView().getModel();
+			var sMappedCC = this._ioToCostCenter[sIO];
+
+			if (sMappedCC && !oModel.getProperty(sPath + "/costCenter")) {
+				oModel.setProperty(sPath + "/costCenter", sMappedCC);
+				MessageToast.show("Đã tự điền Cost Center " + sMappedCC + " (theo SAP Internal Order).");
+			}
+		},
+
+		onCostCenterSelect: function (oEvent) {
+			var oItem = oEvent.getParameter("selectedItem");
+			if (!oItem) { return; }
+
+			var sCC = oItem.getKey();
+			var sPath = oEvent.getSource().getBindingContext().getPath();
+			var oModel = this.getView().getModel();
+			var aMappedIOs = this._costCenterToIOs[sCC] || [];
+
+			if (aMappedIOs.length === 1 && !oModel.getProperty(sPath + "/internalOrder")) {
+				oModel.setProperty(sPath + "/internalOrder", aMappedIOs[0]);
+				MessageToast.show("Đã tự điền Internal Order " + aMappedIOs[0] + " (theo SAP).");
+			} else if (aMappedIOs.length > 1) {
+				MessageToast.show("Cost Center này gắn nhiều Internal Order — vui lòng chọn đúng IO.");
+			}
+		},
+
 		onItemValueChange: function () {
 			this._recalcTotal();
 		},
@@ -59,18 +180,16 @@ sap.ui.define([
 			var oModel = this.getView().getModel();
 			var aItems = oModel.getProperty("/items") || [];
 
-			var fTotal = aItems.reduce(function (sum, item) {
-				return sum + (Number(item.estimatedValue) || 0);
-			}, 0);
+			// Tổng = Σ (số lượng × giá trị ước tính) từng dòng
+			var fTotal = sumItems(aItems);
 
 			oModel.setProperty("/totalText", fTotal.toLocaleString("vi-VN"));
 
-			// Bao truoc cho nguoi de nghi biet PR se phai qua nhung cap nao
 			var sWarn = "";
 			if (fTotal > CEO_THRESHOLD) {
-				sWarn = "Giá trị vượt 300 triệu VND — đề nghị này sẽ cần CFO duyệt và leo thang lên CEO phê duyệt.";
+				sWarn = "Giá trị vượt 300 triệu VND — sau khi CFO duyệt sẽ leo thang lên CEO. Số PR SAP chỉ có sau khi duyệt cuối.";
 			} else if (fTotal > CFO_THRESHOLD) {
-				sWarn = "Giá trị vượt 100 triệu VND — đề nghị này sẽ được CFO xem xét kỹ trước khi duyệt.";
+				sWarn = "Giá trị vượt 100 triệu VND — CFO sẽ xem xét kỹ. Số PR SAP chỉ có sau khi phê duyệt.";
 			}
 			oModel.setProperty("/escalationText", sWarn);
 		},
@@ -94,41 +213,31 @@ sap.ui.define([
 				});
 		},
 
-		// Thêm dòng vật tư từ Danh mục
 		onAddItem: function () {
 			var oModel = this.getView().getModel();
-			// Copy mang truoc khi push - JSONModel dua vao so sanh reference/deepEqual
-			// trong checkUpdate(), mutate thang mang goc se khien binding khong thay doi va khong re-render UI
 			var aItems = oModel.getProperty("/items").slice();
 			aItems.push(emptyCatalogItem());
 			oModel.setProperty("/items", aItems);
 		},
 
-		// Thêm dòng vật tư TỰ DO (Không có trong danh mục)
 		onAddFreeTextItem: function () {
 			var oModel = this.getView().getModel();
-			// Copy mang truoc khi push - xem giai thich trong onAddItem
 			var aItems = oModel.getProperty("/items").slice();
 			aItems.push(emptyFreeTextItem());
 			oModel.setProperty("/items", aItems);
 		},
 
-		// Xóa 1 dòng vật tư khỏi danh sách — nut Delete nam ngay trong card (CustomListItem),
-		// khong con dung Table mode="Delete" nua nen lay bindingContext truc tiep tu nguon
-		// phat sinh event (nut bam), khong phai qua oEvent.getParameter("listItem").
 		onDeleteItem: function (oEvent) {
 			var sPath = oEvent.getSource().getBindingContext().getPath();
 			var iIndex = parseInt(sPath.split("/").pop(), 10);
 
 			var oModel = this.getView().getModel();
-			// Copy mang truoc khi splice - xem giai thich trong onAddItem
 			var aItems = oModel.getProperty("/items").slice();
 			aItems.splice(iIndex, 1);
 			oModel.setProperty("/items", aItems);
 			this._recalcTotal();
 		},
 
-		// Tự động map dữ liệu khi chọn vật tư từ dropdown
 		onMaterialChange: function (oEvent) {
 			var oSelect = oEvent.getSource();
 			var sKey = oSelect.getSelectedKey();
@@ -144,9 +253,6 @@ sap.ui.define([
 				oModel.setProperty(sPath + "/description", oMaterial.Description);
 				oModel.setProperty(sPath + "/uom", oMaterial.BaseUoM);
 
-				// Cost Center / Internal Order ap dung cho MOI loai vat tu (ke ca ZAST)
-				// nen khong can xoa khi doi vat tu nua. Rieng Asset No van chi danh cho
-				// ZAST — xoa khi doi sang loai vat tu khac de tranh dinh gia tri cu sai.
 				if (oMaterial.MaterialType !== "ZAST") {
 					oModel.setProperty(sPath + "/assetNo", "");
 				}
@@ -182,15 +288,10 @@ sap.ui.define([
 				return;
 			}
 
-			// Validate từng dòng vật tư
 			for (var i = 0; i < aItems.length; i++) {
 				var item = aItems[i];
 				var idx = i + 1;
 
-				// QUAN TRONG: SAP THAT bat buoc phai co Kurztext (= Mo ta) khi tao PR —
-				// da xac nhan qua loi that "ME/083: Bitte Kurztext eingeben" khi de trong.
-				// Truoc do co bo validate nay theo yeu cau, nhung bang chung SAP that cho
-				// thay phai bat buoc lai, neu khong PR se luon bi SAP tu choi.
 				if (!item.description) {
 					MessageBox.warning("Dòng " + idx + ": Vui lòng nhập Mô tả (SAP bắt buộc phải có Kurztext).");
 					return;
@@ -204,24 +305,17 @@ sap.ui.define([
 					return;
 				}
 				if (!item.glAccount) {
-					MessageBox.warning("Dòng " + idx + ": Vui lòng nhập GL Account (bắt buộc để SAP hạch toán).");
+					MessageBox.warning("Dòng " + idx + ": Vui lòng chọn GL Account.");
 					return;
 				}
-				// GHI CHU: truoc day bat buoc Asset No khi ZAST, nhung test that qua SAP
-				// Gateway Client cho thay entity PurchaseRequisitionHisSet KHONG can Asset
-				// No cho vat tu tai san — chi can GLAccount + InternalOrder la du. Nen bo
-				// bat buoc Asset No, chi con GL Account la bat buoc chung cho moi dong
-				// (da validate o tren).
 				if (!item.costCenter && !item.internalOrder) {
-					MessageBox.warning("Dòng " + idx + ": Vui lòng nhập Cost Center hoặc Internal Order.");
+					MessageBox.warning("Dòng " + idx + ": Vui lòng chọn Cost Center hoặc Internal Order.");
 					return;
 				}
 			}
 
-			// Tính tổng tiền PR để gửi sang BE làm căn cứ duyệt leo thang
-			var nTotalPRValue = aItems.reduce(function (sum, item) {
-				return sum + Number(item.estimatedValue);
-			}, 0);
+			// Tổng PR = Σ (số lượng × giá trị ước tính)
+			var nTotalPRValue = sumItems(aItems);
 
 			oView.setBusy(true);
 
@@ -247,28 +341,25 @@ sap.ui.define([
 					var sPrNumber = oApproval.PRId || "";
 					var iItemCount = (oApproval.items && oApproval.items.length) || 0;
 					var aWarnings = [];
-					// TODO xac nhan lai voi BE: ten field co dung "needsLegalReview"/
-					// "needsProcurementHeadReview" khong, hay day la nham lan voi
-					// CFO/CEO — Blueprint chi mo ta luong Requester -> Truong BP mua
-					// sam -> CFO -> CEO, khong co vai tro "Phap che/Legal" nao ca.
 					if (oApproval.needsLegalReview) {
-						aWarnings.push("• Cần Phòng Phụ trách xem trước (giá trị > 100 triệu VND)");
+						aWarnings.push("Giá trị > 100 triệu VND — CFO sẽ xem xét kỹ.");
 					}
 					if (oApproval.needsProcurementHeadReview) {
-						aWarnings.push("• Cần Trưởng Bộ phận Mua sắm xem trước (giá trị > 300 triệu VND)");
+						aWarnings.push("Giá trị > 300 triệu VND — sau CFO có thể leo thang CEO.");
 					}
 
-					// Thong bao dang SAP GUI: dan dau bang so PR that, nhu man ME51N bao
-					// "Purchase requisition number 10000042 created".
-					var sMsg = "✓ Đã tạo Purchase Requisition số " + sPrNumber + "\n\n"
-						+ "Gồm " + iItemCount + " dòng vật tư, đang chờ phê duyệt.\n"
-						+ "Có thể tra cứu bằng ME53N với mã PR: " + sPrNumber + ".";
+					var sMsg = "✓ Đã gửi đề nghị " + sPrNumber + "\n\n"
+						+ "Gồm " + iItemCount + " dòng vật tư, tổng "
+						+ nTotalPRValue.toLocaleString("vi-VN") + " " + sCurrency + ".\n"
+						+ "Đang chờ CFO xem xét.\n"
+						+ "Số PR trên SAP sẽ được cấp sau khi phê duyệt xong.\n"
+						+ "Bạn sẽ nhận thông báo khi được duyệt hoặc bị từ chối.";
 					if (aWarnings.length) {
-						sMsg += "\n\nLưu ý leo thang phê duyệt:\n" + aWarnings.join("\n");
+						sMsg += "\n\nLưu ý: " + aWarnings.join(" ");
 					}
 
 					MessageBox.success(sMsg, {
-						title: "Tạo PR thành công — " + sPrNumber,
+						title: "Đã gửi đề nghị — " + sPrNumber,
 						onClose: function () {
 							oModel.setProperty("/items", []);
 							this._recalcTotal();
@@ -286,8 +377,6 @@ sap.ui.define([
 			this.getOwnerComponent().getRouter().navTo("dashboard");
 		},
 
-		// ── Fetch co timeout + phan biet loi theo status code (giong Login) ──────
-
 		_fetchWithTimeout: function (sUrl, oOptions) {
 			var oAbort = (typeof AbortController !== "undefined") ? new AbortController() : null;
 			var iTimer = oAbort ? setTimeout(function () { oAbort.abort(); }, REQUEST_TIMEOUT_MS) : null;
@@ -301,7 +390,7 @@ sap.ui.define([
 					if (iTimer) { clearTimeout(iTimer); }
 
 					return oResponse.json()
-						.catch(function () { return {}; }) // response khong phai JSON hop le
+						.catch(function () { return {}; })
 						.then(function (oBody) {
 							if (oResponse.status === 401 || oResponse.status === 403) {
 								throw new Error("Bạn không có quyền thực hiện thao tác này. Vui lòng đăng nhập lại.");

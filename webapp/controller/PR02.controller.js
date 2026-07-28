@@ -25,8 +25,6 @@ sap.ui.define([
 
 	return Controller.extend("com.qdavy.procurement.controller.PR02", {
 
-		// ── Lifecycle ────────────────────────────────────────────────────────
-
 		onInit: function () {
 			this.getView().setModel(new JSONModel({
 				pending: [],
@@ -39,35 +37,38 @@ sap.ui.define([
 		},
 
 		_onRouteMatched: function () {
-			var sRole = this.getOwnerComponent().getModel("user").getProperty("/role");
-			if (sRole === "REQUESTER") {
-				MessageBox.error("Bạn không có quyền truy cập màn phê duyệt. Chỉ Trưởng bộ phận mua sắm hoặc CEO mới có thể phê duyệt.");
+			var sRole = String(this.getOwnerComponent().getModel("user").getProperty("/role") || "").toUpperCase();
+			if (sRole !== "CFO" && sRole !== "CEO") {
+				MessageBox.error("Bạn không có quyền truy cập màn phê duyệt. Chỉ CFO hoặc CEO mới có thể phê duyệt.");
 				this.getOwnerComponent().getRouter().navTo("dashboard");
 				return;
 			}
 			this._loadPending();
 		},
 
-		// ── Data loading ─────────────────────────────────────────────────────
-
 		_loadPending: function () {
-			var oView  = this.getView();
+			var oView = this.getView();
 			var oModel = oView.getModel();
+			var sRole = String(this.getOwnerComponent().getModel("user").getProperty("/role") || "").toUpperCase();
+
+			if (sRole !== "CFO" && sRole !== "CEO") {
+				return;
+			}
 
 			oModel.setProperty("/loading", true);
 			oView.setBusy(true);
 
-			this._fetchWithTimeout(BACKEND + "/api/approval/pending")
+			// CFO chỉ PENDING_CFO, CEO chỉ PENDING_CEO
+			this._fetchWithTimeout(BACKEND + "/api/approval/pending?role=" + encodeURIComponent(sRole))
 				.then(function (oResult) {
 					oView.setBusy(false);
 					oModel.setProperty("/loading", false);
 
 					if (!oResult || !oResult.success) {
-						MessageBox.error((oResult && oResult.message) || "Không tải được danh sách đề nghị mua sắm đang chờ duyệt.");
+						MessageBox.error((oResult && oResult.message) || "Không tải được danh sách đề nghị đang chờ duyệt.");
 						return;
 					}
 
-					// Sắp xếp: PR leo thang lên trước
 					var aData = (oResult.data || []).sort(function (a, b) {
 						var aScore = (a.needsProcurementHeadReview ? 2 : 0) + (a.needsLegalReview ? 1 : 0);
 						var bScore = (b.needsProcurementHeadReview ? 2 : 0) + (b.needsLegalReview ? 1 : 0);
@@ -87,22 +88,20 @@ sap.ui.define([
 			this._loadPending();
 		},
 
-		// ── Formatters ────────────────────────────────────────────────────────
-
-		getPendingCount: function(aPending) {
+		getPendingCount: function (aPending) {
 			return aPending ? aPending.length : 0;
 		},
 
-		getProcurementHeadReviewCount: function(aPending) {
-			if (!aPending) return 0;
-			return aPending.filter(function(p) {
+		getProcurementHeadReviewCount: function (aPending) {
+			if (!aPending) { return 0; }
+			return aPending.filter(function (p) {
 				return !!p.needsProcurementHeadReview;
 			}).length;
 		},
 
-		getLegalReviewCount: function(aPending) {
-			if (!aPending) return 0;
-			return aPending.filter(function(p) {
+		getLegalReviewCount: function (aPending) {
+			if (!aPending) { return 0; }
+			return aPending.filter(function (p) {
 				return !!p.needsLegalReview;
 			}).length;
 		},
@@ -112,7 +111,16 @@ sap.ui.define([
 			return Number(fValue).toLocaleString("vi-VN") + " " + (sCurrency || "VND");
 		},
 
-		// ── Decision dialog ───────────────────────────────────────────────────
+		onDetailPress: function (oEvent) {
+			var oPR = oEvent.getSource().getBindingContext().getObject();
+			if (!oPR || !oPR.PRId) {
+				MessageBox.error("Không xác định được mã đề nghị.");
+				return;
+			}
+			this.getOwnerComponent().getRouter().navTo("prdetail", {
+				prId: oPR.PRId
+			});
+		},
 
 		onApprovePress: function (oEvent) {
 			var oPR = oEvent.getSource().getBindingContext().getObject();
@@ -130,10 +138,12 @@ sap.ui.define([
 
 			var sSummary = "PR: " + sPRId
 				+ "\nGiá trị: " + Number(nTotalValue).toLocaleString("vi-VN") + " " + (sCurrency || "VND")
-				+ "\nHành động: " + (bIsApprove ? "PHÊ DUYỆT" : "TỪ CHỐI");
+				+ "\nHành động: " + (bIsApprove ? "PHÊ DUYỆT" : "TỪ CHỐI")
+				+ (bIsApprove
+					? "\n\nLưu ý: Chỉ khi duyệt cuối (không leo thang) hệ thống mới ghi PR lên SAP và cấp số PR thật."
+					: "");
 
 			var oTextArea = new TextArea({
-				id: "decisionComment",
 				width: "100%",
 				rows: 3,
 				maxLength: 255,
@@ -143,13 +153,16 @@ sap.ui.define([
 			});
 
 			var oDialog = new Dialog({
-				type: bIsApprove ? DialogType.Message : DialogType.Message,
+				type: DialogType.Message,
 				title: bIsApprove ? "Xác nhận phê duyệt" : "Xác nhận từ chối",
 				content: [
 					new VBox({
 						items: [
 							new Text({ text: sSummary, wrapping: true }).addStyleClass("sapUiSmallMarginBottom"),
-							new Label({ text: bIsApprove ? "Ghi chú (tùy chọn):" : "Lý do từ chối (bắt buộc):", required: !bIsApprove }),
+							new Label({
+								text: bIsApprove ? "Ghi chú (tùy chọn):" : "Lý do từ chối (bắt buộc):",
+								required: !bIsApprove
+							}),
 							oTextArea
 						]
 					})
@@ -159,7 +172,6 @@ sap.ui.define([
 					type: bIsApprove ? ButtonType.Accept : ButtonType.Reject,
 					press: function () {
 						var sComment = oTextArea.getValue().trim();
-
 						if (!bIsApprove && !sComment) {
 							oTextArea.setValueState("Error");
 							oTextArea.setValueStateText("Vui lòng nhập lý do từ chối.");
@@ -180,14 +192,12 @@ sap.ui.define([
 			oDialog.open();
 		},
 
-		// ── Submit decision ───────────────────────────────────────────────────
-
 		_submitDecision: function (sPRId, sStatus, sComment) {
-			var oView  = this.getView();
-			var oUser  = this.getOwnerComponent().getModel("user").getData();
+			var oView = this.getView();
+			var oUser = this.getOwnerComponent().getModel("user").getData();
+			var sRole = String(oUser.role || "").toUpperCase();
 
-			var sRole = oUser.role;
-			if (!sRole || sRole === "REQUESTER") {
+			if (sRole !== "CFO" && sRole !== "CEO") {
 				MessageBox.error("Bạn không có quyền phê duyệt đề nghị mua sắm.");
 				return;
 			}
@@ -198,10 +208,10 @@ sap.ui.define([
 				method: "PATCH",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
-					status:          sStatus,
-					comment:         sComment,
-					decidedByEmail:  oUser.email,
-					decidedByRole:   oUser.role
+					status: sStatus,
+					comment: sComment,
+					decidedByEmail: oUser.email,
+					decidedByRole: sRole
 				})
 			})
 				.then(function (oResult) {
@@ -212,22 +222,41 @@ sap.ui.define([
 						return;
 					}
 
-					var sMsg = sStatus === "APPROVED"
-						? "Đã phê duyệt " + sPRId + ". Bộ phận mua sắm sẽ tiến hành tạo PO."
-						: "Đã từ chối " + sPRId + ". Người đề nghị sẽ nhận được thông báo.";
-
-					if (oResult.sapStatus === "released") {
-						sMsg += "\nPR đã được Release trong SAP (ME53N: " + sPRId + ").";
+					var sMsg;
+					if (oResult.escalated) {
+						// CFO duyệt nhưng >300tr → PENDING_CEO, chưa ghi SAP
+						sMsg = sPRId + " đã chuyển lên CEO.\n"
+							+ (oResult.reason || "Vượt ngưỡng — cần CEO phê duyệt.")
+							+ "\nNgười tạo và CEO đã được thông báo. PR chưa ghi SAP.";
+						MessageBox.information(sMsg, { title: "Leo thang CEO" });
+					} else if (sStatus === "APPROVED") {
+						// Duyệt cuối → server ghi SAP
+						if (oResult.sapIntegration === "created" && oResult.sapPrNumber) {
+							sMsg = "Đã phê duyệt " + sPRId + ".\n"
+								+ "Đã ghi SAP — số PR: " + oResult.sapPrNumber + " (ME53N).\n"
+								+ "Người tạo đã được thông báo.";
+							MessageBox.success(sMsg, { title: "Phê duyệt thành công" });
+						} else if (oResult.sapPrNumber) {
+							sMsg = "Đã phê duyệt. Số PR SAP: " + oResult.sapPrNumber + " (ME53N).";
+							MessageBox.success(sMsg, { title: "Phê duyệt thành công" });
+						} else {
+							sMsg = "Đã phê duyệt " + sPRId + ". Người tạo đã được thông báo.";
+							MessageToast.show(sMsg, { duration: 4000 });
+						}
+					} else {
+						sMsg = "Đã từ chối " + sPRId + ".\nNgười tạo đã được thông báo.";
+						MessageBox.warning(sMsg, { title: "Đã từ chối" });
 					}
 
-					MessageToast.show(sMsg, { duration: 3000 });
-
-					// Optimistic UI update
-					var oModel  = oView.getModel();
+					// Bỏ PR khỏi list (dùng id cũ; sau duyệt PRId có thể đổi sang số SAP)
+					var oModel = oView.getModel();
 					var aFiltered = (oModel.getProperty("/pending") || [])
-						.filter(function (pr) { return pr.PRId !== sPRId; });
+						.filter(function (pr) {
+							return pr.PRId !== sPRId
+								&& pr.InternalId !== sPRId
+								&& !(oResult.approval && pr.PRId === oResult.approval.PRId);
+						});
 					oModel.setProperty("/pending", aFiltered);
-
 				}.bind(this))
 				.catch(function (oError) {
 					oView.setBusy(false);
@@ -235,13 +264,9 @@ sap.ui.define([
 				});
 		},
 
-		// ── Navigation ────────────────────────────────────────────────────────
-
 		onNavBack: function () {
 			this.getOwnerComponent().getRouter().navTo("dashboard");
 		},
-
-		// ── Fetch với timeout ─────────────────────────────────────────────────
 
 		_fetchWithTimeout: function (sUrl, oOptions) {
 			var oAbort = (typeof AbortController !== "undefined") ? new AbortController() : null;
@@ -264,7 +289,7 @@ sap.ui.define([
 								throw new Error("Bạn không có quyền thực hiện thao tác này. Vui lòng đăng nhập lại.");
 							}
 							if (oResponse.status >= 500) {
-								throw new Error("Máy chủ đang gặp sự cố. Vui lòng thử lại sau.");
+								throw new Error((oBody && oBody.message) || "Máy chủ đang gặp sự cố. Vui lòng thử lại sau.");
 							}
 							return oBody;
 						});
