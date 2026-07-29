@@ -1,0 +1,125 @@
+<mvc:View
+	controllerName="com.qdavy.procurement.controller.PRDetail"
+	xmlns="sap.m"
+	xmlns:mvc="sap.ui.core.mvc"
+	xmlns:core="sap.ui.core"
+	displayBlock="true"
+>
+	<Page showHeader="false" class="qdInnerPage">
+		<content>
+
+			<!-- ============ HERO ============ -->
+			<VBox class="qdPageHero qdPageHeroBlue">
+				<HBox alignItems="Center" justifyContent="SpaceBetween" wrap="Wrap">
+					<HBox alignItems="Center">
+						<Button icon="sap-icon://nav-back" press=".onNavBack" class="qdHeroBackBtn"/>
+						<VBox>
+							<Text text="Chi tiết đề nghị mua sắm" class="qdPageEyebrow"/>
+							<Title text="{/PRId}" level="H1" class="qdPageTitle"/>
+							<Text text="Người đề nghị: {/RequesterEmail}" class="qdPageSub"/>
+						</VBox>
+					</HBox>
+					<Button icon="sap-icon://refresh" text="Tải lại" press=".onRefreshPress" class="qdHeroBtn"/>
+				</HBox>
+			</VBox>
+
+			<!-- ============ TRANG THAI ============ -->
+			<VBox class="qdContentCard">
+				<HBox wrap="Wrap" class="qdInfoRow">
+					<VBox class="qdInfoCell">
+						<Label text="Trạng thái" class="qdInfoLabel"/>
+						<ObjectStatus
+							text="{path: '/Status', formatter: '.formatStatusText'}"
+							state="{path: '/Status', formatter: '.formatStatusState'}"
+							icon="sap-icon://status-in-process"
+						/>
+					</VBox>
+					<VBox class="qdInfoCell">
+						<Label text="Tổng giá trị" class="qdInfoLabel"/>
+						<Text text="{parts: ['/TotalValue','/Currency'], formatter: '.formatValue'}" class="qdInfoValue"/>
+					</VBox>
+					<VBox class="qdInfoCell">
+						<Label text="Ngày tạo" class="qdInfoLabel"/>
+						<Text text="{/CreatedAt}" class="qdInfoValue"/>
+					</VBox>
+					<VBox class="qdInfoCell" visible="{= !!${/SapPRId} }">
+						<Label text="Số PR thật trên SAP" class="qdInfoLabel"/>
+						<Text text="{/SapPRId}" class="qdInfoValue"/>
+						<Text text="Tra cứu bằng ME53N" class="qdInfoHint"/>
+					</VBox>
+				</HBox>
+
+				<!-- Canh bao leo thang -->
+				<MessageStrip
+					text="{/EscalationReason}"
+					type="Warning"
+					showIcon="true"
+					class="sapUiSmallMarginTop"
+					visible="{= !!${/EscalationReason} }"
+				/>
+
+				<!-- Ghi chu quyet dinh (neu da duyet/tu choi) -->
+				<VBox class="sapUiSmallMarginTop" visible="{= !!${/Comment} }">
+					<Label text="Ghi chú của {/DecidedByRole}" class="qdInfoLabel"/>
+					<Text text="{/Comment}" class="qdCommentText"/>
+					<Text text="Quyết định bởi: {/DecidedByEmail} lúc {/UpdatedAt}" class="qdCellHint sapUiTinyMarginTop"/>
+				</VBox>
+			</VBox>
+
+			<!-- ============ DANH SACH VAT TU ============ -->
+			<VBox class="qdContentCard qdCardTight">
+				<HBox alignItems="Center" class="sapUiSmallMargin">
+					<core:Icon src="sap-icon://product" class="qdCardIcon sapUiTinyMarginEnd"/>
+					<Title text="Danh sách vật tư" level="H3" class="qdCardTitle"/>
+				</HBox>
+
+				<List
+					id="detailItemsList"
+					items="{/items}"
+					mode="None"
+					showSeparators="Inner"
+					class="qdItemsList"
+				>
+					<CustomListItem>
+						<VBox class="qdItemCard">
+							<HBox justifyContent="SpaceBetween" alignItems="Center" wrap="Wrap">
+								<ObjectIdentifier title="{Description}" text="{MaterialNo}"/>
+								<ObjectStatus
+									text="{= ${MaterialType} === 'ZAST' ? 'Tài sản (Cat.A)' : 'Vật tư/DV (Cat.K)' }"
+									state="{= ${MaterialType} === 'ZAST' ? 'Warning' : 'Success' }"
+								/>
+							</HBox>
+							<HBox wrap="Wrap" class="qdItemFieldsRow sapUiTinyMarginTop">
+								<VBox class="qdInfoCell">
+									<Label text="Số lượng" class="qdInfoLabel"/>
+									<Text text="{Quantity} {UoM}" class="qdInfoValue"/>
+								</VBox>
+								<VBox class="qdInfoCell">
+									<Label text="Giá trị ước tính" class="qdInfoLabel"/>
+									<Text text="{parts: ['EstimatedValue','../Currency'], formatter: '.formatValue'}" class="qdInfoValue"/>
+								</VBox>
+								<VBox class="qdInfoCell">
+									<Label text="GL Account" class="qdInfoLabel"/>
+									<Text text="{= ${GLAccount} || '(chưa có)' }" class="qdInfoValue"/>
+								</VBox>
+								<VBox class="qdInfoCell">
+									<Label text="Cost Center" class="qdInfoLabel"/>
+									<Text text="{= ${CostCenter} || '(chưa có)' }" class="qdInfoValue"/>
+								</VBox>
+								<VBox class="qdInfoCell">
+									<Label text="Internal Order" class="qdInfoLabel"/>
+									<Text text="{= ${InternalOrder} || '(chưa có)' }" class="qdInfoValue"/>
+								</VBox>
+								<VBox class="qdInfoCell" visible="{= ${MaterialType} === 'ZAST' }">
+									<Label text="Asset No" class="qdInfoLabel"/>
+									<Text text="{= ${AssetNo} || '(chưa có)' }" class="qdInfoValue"/>
+								</VBox>
+							</HBox>
+						</VBox>
+					</CustomListItem>
+				</List>
+			</VBox>
+
+		</content>
+	</Page>
+</mvc:View>

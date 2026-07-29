@@ -5,33 +5,57 @@
 	xmlns:core="sap.ui.core"
 	displayBlock="true"
 >
-	<Page title="{i18n>loginTitle}" showHeader="false" class="qdLoginPage">
+	<Page title="{i18n>loginTitle}" showHeader="false" class="qdLoginPage" backgroundDesign="Transparent">
 		<content>
-			<HBox class="qdLoginSplit" alignItems="Stretch">
+			<HBox class="qdLoginSplit" alignItems="Stretch" fitContainer="true">
+
+				<!-- LEFT: ảnh nền + branding -->
 				<VBox class="qdLoginLeft" justifyContent="Center">
-					<core:Icon src="sap-icon://shipping-status" size="3rem" class="qdBrandIcon sapUiMediumMarginBottom"/>
-					<Title text="{i18n>appTitle}" level="H1" class="qdLoginTitle sapUiTinyMarginBottom"/>
-					<Text text="{i18n>loginTagline}" class="qdLoginTagline sapUiLargeMarginBottom"/>
-					<VBox class="qdFeatureRow">
-						<HBox alignItems="Center" class="sapUiTinyMarginBottom">
-							<core:Icon src="sap-icon://add-document" size="1.2rem" class="qdFeatureIcon sapUiTinyMarginEnd"/>
-							<Text text="{i18n>loginFeature1}"/>
+					<VBox class="qdLoginLeftInner">
+						<HBox alignItems="Center" class="qdLoginBrandRow sapUiMediumMarginBottom">
+							<core:Icon src="sap-icon://shipping-status" size="2.5rem" class="qdBrandIcon"/>
+							<VBox class="sapUiSmallMarginBegin">
+								<Text text="QDAVY" class="qdLoginBrandMark"/>
+								<Text text="Procurement" class="qdLoginBrandSub"/>
+							</VBox>
 						</HBox>
-						<HBox alignItems="Center" class="sapUiTinyMarginBottom">
-							<core:Icon src="sap-icon://approvals" size="1.2rem" class="qdFeatureIcon sapUiTinyMarginEnd"/>
-							<Text text="{i18n>loginFeature2}"/>
-						</HBox>
-						<HBox alignItems="Center">
-							<core:Icon src="sap-icon://supplier" size="1.2rem" class="qdFeatureIcon sapUiTinyMarginEnd"/>
-							<Text text="{i18n>loginFeature3}"/>
-						</HBox>
+
+						<Title text="{i18n>appTitle}" level="H1" class="qdLoginTitle sapUiTinyMarginBottom"/>
+						<Text text="{i18n>loginTagline}" class="qdLoginTagline sapUiLargeMarginBottom"/>
+
+						<VBox class="qdFeatureList">
+							<HBox alignItems="Center" class="qdFeatureItem">
+								<VBox class="qdFeatureIconWrap">
+									<core:Icon src="sap-icon://add-document" size="1.1rem" class="qdFeatureIcon"/>
+								</VBox>
+								<Text text="{i18n>loginFeature1}" class="qdFeatureText"/>
+							</HBox>
+							<HBox alignItems="Center" class="qdFeatureItem">
+								<VBox class="qdFeatureIconWrap">
+									<core:Icon src="sap-icon://approvals" size="1.1rem" class="qdFeatureIcon"/>
+								</VBox>
+								<Text text="{i18n>loginFeature2}" class="qdFeatureText"/>
+							</HBox>
+							<HBox alignItems="Center" class="qdFeatureItem">
+								<VBox class="qdFeatureIconWrap">
+									<core:Icon src="sap-icon://supplier" size="1.1rem" class="qdFeatureIcon"/>
+								</VBox>
+								<Text text="{i18n>loginFeature3}" class="qdFeatureText"/>
+							</HBox>
+						</VBox>
+
+						<Text text="Powered by SAP · OData Gateway" class="qdLoginFooterHint sapUiLargeMarginTop"/>
 					</VBox>
 				</VBox>
+
+				<!-- RIGHT: form kính mờ -->
 				<VBox class="qdLoginRight" justifyContent="Center" alignItems="Center">
 					<VBox class="qdLoginCard">
-						<Title text="{i18n>loginWelcome}" level="H3" class="sapUiTinyMarginBottom"/>
-						<Text text="{i18n>loginSubtext}" class="qdMutedText sapUiMediumMarginBottom"/>
-						<Label text="{i18n>loginEmailLabel}" labelFor="emailInput" class="sapUiTinyMarginBottom"/>
+						<Text text="Đăng nhập" class="qdLoginCardEyebrow"/>
+						<Title text="{i18n>loginWelcome}" level="H2" class="qdLoginCardTitle sapUiTinyMarginBottom"/>
+						<Text text="{i18n>loginSubtext}" class="qdLoginCardSub sapUiMediumMarginBottom"/>
+
+						<Label text="{i18n>loginEmailLabel}" labelFor="emailInput" class="qdLoginLabel"/>
 						<Input
 							id="emailInput"
 							width="100%"
@@ -39,17 +63,28 @@
 							placeholder="{i18n>loginEmailPlaceholder}"
 							value="{/email}"
 							submit=".onLoginPress"
-							class="sapUiMediumMarginBottom"
+							class="qdLoginInput sapUiSmallMarginBottom"
 						/>
+
 						<Button
 							id="loginButton"
 							text="{i18n>loginButton}"
 							type="Emphasized"
 							width="100%"
 							press=".onLoginPress"
+							class="qdLoginSubmit"
 						/>
+
+						<HBox justifyContent="Center" class="sapUiMediumMarginTop">
+							<Text
+								text="Xác thực qua email công ty · Không cần mật khẩu"
+								class="qdLoginHint"
+								textAlign="Center"
+							/>
+						</HBox>
 					</VBox>
 				</VBox>
+
 			</HBox>
 		</content>
 	</Page>

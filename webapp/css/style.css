@@ -24,101 +24,224 @@ html, body {
 	background: var(--qd-bg);
 }
 
-/* ==========================================================================
-   Login screen
-   ========================================================================== */
-.qdLoginPage .sapMPage {
-	background: var(--qd-bg);
+/* ========== LOGIN — full bleed + glass ========== */
+
+.qdLoginPage,
+.qdLoginPage > section,
+.qdLoginPage .sapMPageContent,
+.qdLoginPage .sapMPageContent > div {
+	padding: 0 !important;
+	margin: 0 !important;
+	height: 100%;
+	background: transparent !important;
 }
 
 .qdLoginSplit {
+	width: 100%;
 	min-height: 100vh;
+	height: 100%;
 }
 
+/* Trái: ảnh sap.jpg + gradient overlay */
 .qdLoginLeft {
-	flex: 1.1 1.1 0%;
-	background: linear-gradient(135deg, var(--qd-primary) 0%, var(--qd-primary-dark) 100%);
-	padding: 4rem 3.5rem;
+	flex: 1.15;
+	min-width: 0;
+	padding: 3rem 3.5rem;
 	position: relative;
 	overflow: hidden;
+	background-color: #0a4a8a;
+	background-image:
+		linear-gradient(
+			135deg,
+			rgba(6, 40, 90, 0.88) 0%,
+			rgba(12, 90, 160, 0.55) 45%,
+			rgba(20, 140, 200, 0.35) 100%
+		),
+		url("../images/sap.jpg");
+	background-size: cover;
+	background-position: center;
+	background-repeat: no-repeat;
+	color: #fff;
+	box-sizing: border-box;
 }
 
 .qdLoginLeft::before {
 	content: "";
 	position: absolute;
-	width: 26rem;
-	height: 26rem;
-	border-radius: 50%;
-	background: rgba(255, 255, 255, 0.05);
-	top: -9rem;
-	right: -9rem;
+	inset: 0;
+	background:
+		radial-gradient(ellipse at 20% 80%, rgba(80, 200, 255, 0.25), transparent 50%),
+		radial-gradient(ellipse at 90% 10%, rgba(255, 255, 255, 0.12), transparent 40%);
+	pointer-events: none;
 }
 
-.qdLoginLeft::after {
-	content: "";
-	position: absolute;
-	width: 18rem;
-	height: 18rem;
-	border-radius: 50%;
-	background: rgba(255, 255, 255, 0.04);
-	bottom: -6rem;
-	left: -5rem;
+.qdLoginLeftInner {
+	position: relative;
+	z-index: 1;
+	max-width: 28rem;
 }
 
-.qdBrandIcon,
-.qdLoginTitle,
-.qdLoginTitle .sapMTitle,
-.qdFeatureIcon {
-	color: #FFFFFF !important;
+.qdLoginBrandMark {
+	font-size: 1.25rem !important;
+	font-weight: 700 !important;
+	letter-spacing: 0.12em;
+	color: #fff !important;
+}
+
+.qdLoginBrandSub {
+	font-size: 0.75rem !important;
+	opacity: 0.75;
+	letter-spacing: 0.2em;
+	text-transform: uppercase;
+	color: #cfefff !important;
+}
+
+.qdBrandIcon {
+	color: #7dd3fc !important;
+	filter: drop-shadow(0 0 12px rgba(125, 211, 252, 0.5));
+}
+
+.qdLoginTitle {
+	color: #fff !important;
+	font-size: 2rem !important;
+	font-weight: 700 !important;
+	line-height: 1.25 !important;
+	text-shadow: 0 2px 20px rgba(0, 0, 0, 0.25);
 }
 
 .qdLoginTagline {
-	color: rgba(255, 255, 255, 0.75) !important;
-	max-width: 22rem;
-	display: block;
+	color: rgba(255, 255, 255, 0.85) !important;
+	font-size: 1.05rem !important;
+	line-height: 1.5 !important;
 }
 
-.qdFeatureRow .sapMText {
-	color: rgba(255, 255, 255, 0.92) !important;
+.qdFeatureList {
+	gap: 0.75rem;
 }
 
+.qdFeatureItem {
+	padding: 0.65rem 0.9rem;
+	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.08);
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	backdrop-filter: blur(8px);
+	-webkit-backdrop-filter: blur(8px);
+}
+
+.qdFeatureIconWrap {
+	width: 2.25rem;
+	height: 2.25rem;
+	border-radius: 10px;
+	background: rgba(125, 211, 252, 0.2);
+	align-items: center;
+	justify-content: center;
+	display: flex;
+	margin-right: 0.75rem;
+	flex-shrink: 0;
+}
+
+.qdFeatureIcon {
+	color: #7dd3fc !important;
+}
+
+.qdFeatureText {
+	color: rgba(255, 255, 255, 0.95) !important;
+	font-size: 0.95rem !important;
+}
+
+.qdLoginFooterHint {
+	color: rgba(255, 255, 255, 0.45) !important;
+	font-size: 0.75rem !important;
+	letter-spacing: 0.04em;
+}
+
+/* Phải: form */
 .qdLoginRight {
-	flex: 1 1 0%;
-	background: var(--qd-bg);
-	padding: 2rem;
+	flex: 0.85;
+	min-width: 320px;
+	padding: 2.5rem 2rem;
+	background:
+		radial-gradient(ellipse at 70% 20%, rgba(14, 165, 233, 0.08), transparent 50%),
+		linear-gradient(180deg, #f0f7fc 0%, #e8f1f8 100%);
+	box-sizing: border-box;
 }
 
 .qdLoginCard {
-	background: var(--qd-card-bg);
-	border-radius: var(--qd-radius-lg);
-	box-shadow: var(--qd-shadow);
-	padding: 2.5rem;
-	max-width: 24rem;
 	width: 100%;
+	max-width: 24rem;
+	padding: 2.25rem 2rem;
+	border-radius: 20px;
+	background: rgba(255, 255, 255, 0.82);
+	border: 1px solid rgba(255, 255, 255, 0.9);
+	box-shadow:
+		0 4px 6px rgba(15, 50, 80, 0.04),
+		0 24px 48px rgba(15, 50, 80, 0.12);
+	backdrop-filter: blur(16px);
+	-webkit-backdrop-filter: blur(16px);
+	box-sizing: border-box;
 }
 
-.qdLoginCard .sapMTitle {
-	color: var(--qd-primary);
+.qdLoginCardEyebrow {
+	font-size: 0.7rem !important;
+	font-weight: 600 !important;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: #0284c7 !important;
+	margin-bottom: 0.35rem !important;
 }
 
-.qdMutedText {
-	color: var(--qd-text-muted) !important;
+.qdLoginCardTitle {
+	color: #0f172a !important;
+	font-weight: 700 !important;
 }
 
-.qdLoginCard .sapMInputBaseContentWrapper {
-	border-radius: 8px;
+.qdLoginCardSub {
+	color: #64748b !important;
+	font-size: 0.9rem !important;
+	line-height: 1.45 !important;
 }
 
-.qdLoginCard .sapMBtn {
-	border-radius: 8px;
+.qdLoginLabel {
+	font-weight: 600 !important;
+	color: #334155 !important;
+	margin-bottom: 0.35rem !important;
 }
 
-@media (max-width: 60rem) {
+.qdLoginInput .sapMInputBaseContentWrapper {
+	border-radius: 10px !important;
+	min-height: 2.75rem;
+}
+
+.qdLoginSubmit {
+	margin-top: 0.5rem;
+	height: 2.85rem !important;
+	border-radius: 10px !important;
+	font-weight: 600 !important;
+}
+
+.qdLoginHint {
+	color: #94a3b8 !important;
+	font-size: 0.8rem !important;
+}
+
+/* Mobile: xếp dọc, ảnh phía trên */
+@media (max-width: 768px) {
+	.qdLoginSplit {
+		flex-direction: column !important;
+	}
 	.qdLoginLeft {
-		display: none;
+		flex: none;
+		min-height: 42vh;
+		padding: 2rem 1.5rem;
+	}
+	.qdLoginRight {
+		flex: none;
+		padding: 1.5rem 1rem 2.5rem;
+	}
+	.qdLoginCard {
+		max-width: 100%;
 	}
 }
-
 /* ==========================================================================
    Global button accent
    ========================================================================== */
