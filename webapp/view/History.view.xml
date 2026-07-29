@@ -1,0 +1,126 @@
+<mvc:View
+	controllerName="com.qdavy.procurement.controller.History"
+	xmlns="sap.m"
+	xmlns:mvc="sap.ui.core.mvc"
+	xmlns:core="sap.ui.core"
+	displayBlock="true"
+>
+	<Page
+		title="{hist>/pageTitle}"
+		showNavButton="true"
+		navButtonPress=".onNavBack"
+		class="qdDashboardPage"
+		busy="{hist>/busy}"
+		busyIndicatorDelay="0"
+	>
+		<subHeader>
+			<OverflowToolbar>
+				<SearchField
+					width="100%"
+					placeholder="Tìm theo số PR / email..."
+					liveChange=".onSearch"
+				/>
+				<ToolbarSpacer/>
+				<Button icon="sap-icon://refresh" press=".onRefresh" tooltip="Làm mới"/>
+			</OverflowToolbar>
+		</subHeader>
+
+		<content>
+			<VBox class="sapUiSmallMargin">
+
+				<!-- ===== PENDING (Purchasing / CFO / CEO) ===== -->
+				<VBox visible="{hist>/showPending}" class="sapUiSmallMarginBottom">
+					<Title text="{hist>/pendingTitle}" level="H3" class="sapUiTinyMarginBottom"/>
+					<Table
+						id="pendingTable"
+						items="{hist>/pending}"
+						growing="true"
+						growingThreshold="20"
+						mode="None"
+						noDataText="Không có đề nghị đang chờ"
+					>
+						<headerToolbar>
+							<OverflowToolbar>
+								<ObjectStatus text="{hist>/pendingCountText}" state="Warning"/>
+							</OverflowToolbar>
+						</headerToolbar>
+						<columns>
+							<Column width="9rem"><Text text="Số PR"/></Column>
+							<Column width="9rem"><Text text="Trạng thái"/></Column>
+							<Column minScreenWidth="Tablet" demandPopin="true"><Text text="Người đề nghị"/></Column>
+							<Column hAlign="End" width="9rem"><Text text="Giá trị"/></Column>
+							<Column minScreenWidth="Desktop" demandPopin="true" width="10rem"><Text text="Ngày tạo"/></Column>
+							<Column width="5rem"><Text text=""/></Column>
+						</columns>
+						<items>
+							<ColumnListItem type="Active" press=".onItemPress">
+								<cells>
+									<ObjectIdentifier title="{hist>PRId}" text="{hist>SapPRId}"/>
+									<ObjectStatus
+										text="{path: 'hist>Status', formatter: '.formatStatus'}"
+										state="{path: 'hist>Status', formatter: '.formatStatusState'}"
+									/>
+									<Text text="{hist>RequesterEmail}"/>
+									<ObjectNumber
+										number="{path: 'hist>TotalValue', formatter: '.formatMoney'}"
+										unit="{hist>Currency}"
+									/>
+									<Text text="{path: 'hist>CreatedAt', formatter: '.formatDate'}"/>
+									<Button icon="sap-icon://display" type="Transparent" press=".onItemPress"/>
+								</cells>
+							</ColumnListItem>
+						</items>
+					</Table>
+				</VBox>
+
+				<!-- ===== HISTORY ===== -->
+				<VBox>
+					<Title text="{hist>/historyTitle}" level="H3" class="sapUiTinyMarginBottom"/>
+					<Table
+						id="historyTable"
+						items="{hist>/history}"
+						growing="true"
+						growingThreshold="20"
+						mode="None"
+						noDataText="Chưa có lịch sử"
+					>
+						<headerToolbar>
+							<OverflowToolbar>
+								<ObjectStatus text="{hist>/historyCountText}" state="Information"/>
+							</OverflowToolbar>
+						</headerToolbar>
+						<columns>
+							<Column width="9rem"><Text text="Số PR"/></Column>
+							<Column width="9rem"><Text text="Trạng thái"/></Column>
+							<Column minScreenWidth="Tablet" demandPopin="true"><Text text="Người đề nghị"/></Column>
+							<Column hAlign="End" width="9rem"><Text text="Giá trị"/></Column>
+							<Column minScreenWidth="Desktop" demandPopin="true" width="10rem"><Text text="Ngày tạo"/></Column>
+							<Column minScreenWidth="Desktop" demandPopin="true" width="10rem"><Text text="Cập nhật"/></Column>
+							<Column width="5rem"><Text text=""/></Column>
+						</columns>
+						<items>
+							<ColumnListItem type="Active" press=".onItemPress">
+								<cells>
+									<ObjectIdentifier title="{hist>PRId}" text="{hist>SapPRId}"/>
+									<ObjectStatus
+										text="{path: 'hist>Status', formatter: '.formatStatus'}"
+										state="{path: 'hist>Status', formatter: '.formatStatusState'}"
+									/>
+									<Text text="{hist>RequesterEmail}"/>
+									<ObjectNumber
+										number="{path: 'hist>TotalValue', formatter: '.formatMoney'}"
+										unit="{hist>Currency}"
+									/>
+									<Text text="{path: 'hist>CreatedAt', formatter: '.formatDate'}"/>
+									<Text text="{path: 'hist>UpdatedAt', formatter: '.formatDate'}"/>
+									<Button icon="sap-icon://display" type="Transparent" press=".onItemPress"/>
+								</cells>
+							</ColumnListItem>
+						</items>
+					</Table>
+				</VBox>
+
+			</VBox>
+		</content>
+	</Page>
+</mvc:View>
