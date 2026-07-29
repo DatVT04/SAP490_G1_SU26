@@ -11,11 +11,11 @@ sap.ui.define([
 	var BACKEND = Config.BACKEND;
 
 	var TILES_BY_ROLE = {
-		REQUESTER:  ["pr01", "report", "profile"],
-		PURCHASING: ["pr02", "po01", "report", "profile"],
-		CFO:        ["pr02", "report", "profile"],
-		CEO:        ["pr02", "report", "config", "profile"],
-		ACC:        ["report", "profile"]
+		REQUESTER:  ["pr01", "report", "history", "profile"],
+		PURCHASING: ["pr02", "po01", "report", "history", "profile"],
+		CFO:        ["pr02", "report", "history", "profile"],
+		CEO:        ["pr02", "report", "config", "history", "profile"],
+		ACC:        ["report", "history", "profile"]
 	};
 
 	var oValueFormat = NumberFormat.getIntegerInstance({
@@ -63,9 +63,8 @@ sap.ui.define([
 			var oModel = this.getView().getModel("dash");
 			var sRole = String(this.getOwnerComponent().getModel("user").getProperty("/role") || "").toUpperCase();
 
-			// Pending theo role nếu là CFO/CEO
 			var sPendingUrl = BACKEND + "/api/approval/pending";
-			if (sRole === "CFO" || sRole === "CEO") {
+			if (sRole === "CFO" || sRole === "CEO" || sRole === "PURCHASING") {
 				sPendingUrl += "?role=" + encodeURIComponent(sRole);
 			}
 
@@ -102,8 +101,6 @@ sap.ui.define([
 			}
 			return oValueFormat.format(fValue);
 		},
-
-		// ── Thông báo (mọi role) ───────────────────────────────────────────
 
 		_loadNotifications: function () {
 			var oUser = this.getOwnerComponent().getModel("user").getData();
@@ -212,6 +209,10 @@ sap.ui.define([
 
 		onNavToPO01: function () {
 			this.getOwnerComponent().getRouter().navTo("po01");
+		},
+
+		onNavToHistory: function () {
+			this.getOwnerComponent().getRouter().navTo("history");
 		},
 
 		onNavToThresholdConfig: function () {
