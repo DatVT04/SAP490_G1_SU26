@@ -20,7 +20,6 @@
 						</HBox>
 					</VBox>
 					<HBox alignItems="Center" class="qdHeroActions">
-						<!-- Chuông thông báo -->
 						<Button
 							id="notifBellBtn"
 							icon="sap-icon://bell"
@@ -107,82 +106,158 @@
 
 				<HBox wrap="Wrap" class="qdActionGrid">
 
+					<!-- PR-01 -->
 					<VBox
 						class="qdActionCard qdAccentBlue"
 						visible="{= ${user>/role} === 'REQUESTER' }"
 					>
 						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
-							<VBox class="qdActionIconBox"><core:Icon src="sap-icon://add-document" class="qdActionIcon"/></VBox>
+							<VBox class="qdActionIconBox">
+								<core:Icon src="sap-icon://add-document" class="qdActionIcon"/>
+							</VBox>
 							<Text text="PR-01" class="qdActionCode"/>
 						</HBox>
 						<Title text="{i18n>tilePr01Title}" level="H3" class="qdActionTitle"/>
 						<Text text="{i18n>tilePr01Subtitle}" class="qdActionDesc"/>
-						<Button text="{i18n>dashTileOpen}" icon="sap-icon://arrow-right" iconFirst="false" press=".onNavToPR01" class="qdActionBtn"/>
+						<Button
+							text="{i18n>dashTileOpen}"
+							icon="sap-icon://arrow-right"
+							iconFirst="false"
+							press=".onNavToPR01"
+							class="qdActionBtn"
+						/>
 					</VBox>
 
+					<!-- PR-02 -->
 					<VBox
 						class="qdActionCard qdAccentAmber"
 						visible="{= ['CEO','CFO','PURCHASING'].indexOf(${user>/role}) !== -1 }"
 					>
 						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
-							<VBox class="qdActionIconBox"><core:Icon src="sap-icon://approvals" class="qdActionIcon"/></VBox>
+							<VBox class="qdActionIconBox">
+								<core:Icon src="sap-icon://approvals" class="qdActionIcon"/>
+							</VBox>
 							<Text text="PR-02" class="qdActionCode"/>
 						</HBox>
 						<Title text="{i18n>tilePr02Title}" level="H3" class="qdActionTitle"/>
 						<Text text="{i18n>tilePr02Subtitle}" class="qdActionDesc"/>
-						<Button text="{i18n>dashTileOpen}" icon="sap-icon://arrow-right" iconFirst="false" press=".onNavToPR02" class="qdActionBtn"/>
+						<Button
+							text="{i18n>dashTileOpen}"
+							icon="sap-icon://arrow-right"
+							iconFirst="false"
+							press=".onNavToPR02"
+							class="qdActionBtn"
+						/>
 					</VBox>
 
+					<!-- PO-01 -->
 					<VBox
 						class="qdActionCard qdAccentPurple"
 						visible="{= ${user>/role} === 'PURCHASING' }"
 					>
 						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
-							<VBox class="qdActionIconBox"><core:Icon src="sap-icon://supplier" class="qdActionIcon"/></VBox>
+							<VBox class="qdActionIconBox">
+								<core:Icon src="sap-icon://supplier" class="qdActionIcon"/>
+							</VBox>
 							<Text text="PO-01" class="qdActionCode"/>
 						</HBox>
 						<Title text="{i18n>tilePo01Title}" level="H3" class="qdActionTitle"/>
 						<Text text="{i18n>tilePo01Subtitle}" class="qdActionDesc"/>
-						<Button text="{i18n>dashTileOpen}" icon="sap-icon://arrow-right" iconFirst="false" press=".onNavToPO01" class="qdActionBtn"/>
+						<Button
+							text="{i18n>dashTileOpen}"
+							icon="sap-icon://arrow-right"
+							iconFirst="false"
+							press=".onNavToPO01"
+							class="qdActionBtn"
+						/>
 					</VBox>
 
+					<!-- HISTORY -->
+					<VBox
+						class="qdActionCard qdAccentSlate"
+						visible="{= ['REQUESTER','PURCHASING','CEO','CFO','ACC'].indexOf(${user>/role}) !== -1 }"
+					>
+						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
+							<VBox class="qdActionIconBox">
+								<core:Icon src="sap-icon://history" class="qdActionIcon"/>
+							</VBox>
+							<Text text="HISTORY" class="qdActionCode"/>
+						</HBox>
+						<Title text="Lịch sử đề nghị" level="H3" class="qdActionTitle"/>
+						<Text text="Xem các yêu cầu đã tạo / đã duyệt / từ chối" class="qdActionDesc"/>
+						<Button
+							text="{i18n>dashTileOpen}"
+							icon="sap-icon://arrow-right"
+							iconFirst="false"
+							press=".onNavToHistory"
+							class="qdActionBtn"
+						/>
+					</VBox>
+
+					<!-- REPORT -->
 					<VBox
 						class="qdActionCard qdAccentGreen"
 						visible="{= ['REQUESTER','PURCHASING','CEO','CFO','ACC'].indexOf(${user>/role}) !== -1 }"
 					>
 						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
-							<VBox class="qdActionIconBox"><core:Icon src="sap-icon://business-by-design" class="qdActionIcon"/></VBox>
+							<VBox class="qdActionIconBox">
+								<core:Icon src="sap-icon://business-by-design" class="qdActionIcon"/>
+							</VBox>
 							<Text text="REPORT" class="qdActionCode"/>
 						</HBox>
 						<Title text="{i18n>tileReportTitle}" level="H3" class="qdActionTitle"/>
 						<Text text="{i18n>tileReportSubtitle}" class="qdActionDesc"/>
-						<Button text="{i18n>dashTileOpen}" icon="sap-icon://arrow-right" iconFirst="false" press=".onNavToPOReport" class="qdActionBtn"/>
+						<Button
+							text="{i18n>dashTileOpen}"
+							icon="sap-icon://arrow-right"
+							iconFirst="false"
+							press=".onNavToPOReport"
+							class="qdActionBtn"
+						/>
 					</VBox>
 
+					<!-- CONFIG -->
 					<VBox
 						class="qdActionCard qdAccentSlate"
 						visible="{= ${user>/role} === 'CEO' }"
 					>
 						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
-							<VBox class="qdActionIconBox"><core:Icon src="sap-icon://action-settings" class="qdActionIcon"/></VBox>
+							<VBox class="qdActionIconBox">
+								<core:Icon src="sap-icon://action-settings" class="qdActionIcon"/>
+							</VBox>
 							<Text text="CONFIG" class="qdActionCode"/>
 						</HBox>
 						<Title text="{i18n>tileSysConfigTitle}" level="H3" class="qdActionTitle"/>
 						<Text text="{i18n>tileSysConfigSubtitle}" class="qdActionDesc"/>
-						<Button text="{i18n>dashTileOpen}" icon="sap-icon://arrow-right" iconFirst="false" press=".onNavToThresholdConfig" class="qdActionBtn"/>
+						<Button
+							text="{i18n>dashTileOpen}"
+							icon="sap-icon://arrow-right"
+							iconFirst="false"
+							press=".onNavToThresholdConfig"
+							class="qdActionBtn"
+						/>
 					</VBox>
 
+					<!-- PROFILE -->
 					<VBox
 						class="qdActionCard qdAccentSlate"
 						visible="{= ['REQUESTER','PURCHASING','CEO','CFO','ACC'].indexOf(${user>/role}) !== -1 }"
 					>
 						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
-							<VBox class="qdActionIconBox"><core:Icon src="sap-icon://person-placeholder" class="qdActionIcon"/></VBox>
+							<VBox class="qdActionIconBox">
+								<core:Icon src="sap-icon://person-placeholder" class="qdActionIcon"/>
+							</VBox>
 							<Text text="PROFILE" class="qdActionCode"/>
 						</HBox>
 						<Title text="{i18n>tileProfileTitle}" level="H3" class="qdActionTitle"/>
 						<Text text="{i18n>tileProfileSubtitle}" class="qdActionDesc"/>
-						<Button text="{i18n>dashTileOpen}" icon="sap-icon://arrow-right" iconFirst="false" press=".onNavToProfile" class="qdActionBtn"/>
+						<Button
+							text="{i18n>dashTileOpen}"
+							icon="sap-icon://arrow-right"
+							iconFirst="false"
+							press=".onNavToProfile"
+							class="qdActionBtn"
+						/>
 					</VBox>
 
 				</HBox>
