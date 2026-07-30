@@ -16,27 +16,39 @@ sap.ui.define([
 	function emptyCatalogItem() {
 		return {
 			isFreeText: false,
-			materialNo: "", materialType: "", description: "", uom: "",
-			quantity: null, estimatedValue: null,
-			costCenter: "", internalOrder: "", assetNo: "", glAccount: ""
+			materialNo: "",
+			materialType: "",
+			description: "",
+			uom: "",
+			quantity: null,
+			estimatedValue: null,
+			costCenter: "",
+			internalOrder: "",
+			assetNo: "",
+			glAccount: ""
 		};
 	}
 
 	function emptyFreeTextItem() {
 		return {
 			isFreeText: true,
-			materialNo: "FREE_TEXT", materialType: "ZROH", description: "", uom: "PC",
-			quantity: 1, estimatedValue: null,
-			costCenter: "", internalOrder: "", assetNo: "", glAccount: ""
+			materialNo: "FREE_TEXT",
+			materialType: "ZROH",
+			description: "",
+			uom: "PC",
+			quantity: 1,
+			estimatedValue: null,
+			costCenter: "",
+			internalOrder: "",
+			assetNo: "",
+			glAccount: ""
 		};
 	}
 
-	/** Tổng 1 dòng = số lượng × giá trị ước tính */
 	function lineTotal(item) {
 		return (Number(item.quantity) || 0) * (Number(item.estimatedValue) || 0);
 	}
 
-	/** Tổng PR = cộng tất cả dòng */
 	function sumItems(aItems) {
 		return (aItems || []).reduce(function (sum, item) {
 			return sum + lineTotal(item);
@@ -179,8 +191,6 @@ sap.ui.define([
 		_recalcTotal: function () {
 			var oModel = this.getView().getModel();
 			var aItems = oModel.getProperty("/items") || [];
-
-			// Tổng = Σ (số lượng × giá trị ước tính) từng dòng
 			var fTotal = sumItems(aItems);
 
 			oModel.setProperty("/totalText", fTotal.toLocaleString("vi-VN"));
@@ -206,6 +216,20 @@ sap.ui.define([
 						return;
 					}
 					oModel.setProperty("/materials", oResult.data || []);
+
+					// Giữ dòng chưa chọn là trống — không bị gán mã đầu tiên
+					var aItems = oModel.getProperty("/items") || [];
+					var bChanged = false;
+					aItems.forEach(function (item) {
+						if (!item.isFreeText && !item.description && item.materialNo) {
+							item.materialNo = "";
+							item.materialType = "";
+							bChanged = true;
+						}
+					});
+					if (bChanged) {
+						oModel.setProperty("/items", aItems.slice());
+					}
 				})
 				.catch(function (oError) {
 					oModel.setProperty("/materialsLoading", false);
@@ -218,6 +242,7 @@ sap.ui.define([
 			var aItems = oModel.getProperty("/items").slice();
 			aItems.push(emptyCatalogItem());
 			oModel.setProperty("/items", aItems);
+			this._recalcTotal();
 		},
 
 		onAddFreeTextItem: function () {
@@ -225,6 +250,7 @@ sap.ui.define([
 			var aItems = oModel.getProperty("/items").slice();
 			aItems.push(emptyFreeTextItem());
 			oModel.setProperty("/items", aItems);
+			this._recalcTotal();
 		},
 
 		onDeleteItem: function (oEvent) {
@@ -239,20 +265,33 @@ sap.ui.define([
 		},
 
 		onMaterialChange: function (oEvent) {
-			var oSelect = oEvent.getSource();
-			var sKey = oSelect.getSelectedKey();
-			var sPath = oSelect.getBindingContext().getPath();
+			var oSource = oEvent.getSource();
+			var sKey = oSource.getSelectedKey();
+			var oCtx = oSource.getBindingContext();
+			if (!oCtx) { return; }
+
+			var sPath = oCtx.getPath();
 			var oModel = this.getView().getModel();
 
-			var aMaterials = oModel.getProperty("/materials");
-			var oMaterial = aMaterials.filter(function (m) { return m.MaterialNo === sKey; })[0];
+			if (!sKey) {
+				oModel.setProperty(sPath + "/materialNo", "");
+				oModel.setProperty(sPath + "/materialType", "");
+				oModel.setProperty(sPath + "/description", "");
+				oModel.setProperty(sPath + "/uom", "");
+				this._recalcTotal();
+				return;
+			}
+
+			var aMaterials = oModel.getProperty("/materials") || [];
+			var oMaterial = aMaterials.filter(function (m) {
+				return m.MaterialNo === sKey;
+			})[0];
 
 			if (oMaterial) {
 				oModel.setProperty(sPath + "/materialNo", oMaterial.MaterialNo);
-				oModel.setProperty(sPath + "/materialType", oMaterial.MaterialType);
-				oModel.setProperty(sPath + "/description", oMaterial.Description);
-				oModel.setProperty(sPath + "/uom", oMaterial.BaseUoM);
-
+				oModel.setProperty(sPath + "/materialType", oMaterial.MaterialType || "");
+				oModel.setProperty(sPath + "/description", oMaterial.Description || "");
+				oModel.setProperty(sPath + "/uom", oMaterial.BaseUoM || "PC");
 				if (oMaterial.MaterialType !== "ZAST") {
 					oModel.setProperty(sPath + "/assetNo", "");
 				}
@@ -292,6 +331,10 @@ sap.ui.define([
 				var item = aItems[i];
 				var idx = i + 1;
 
+				if (!item.isFreeText && !item.materialNo) {
+					MessageBox.warning("Dòng " + idx + ": Vui lòng chọn vật tư.");
+					return;
+				}
 				if (!item.description) {
 					MessageBox.warning("Dòng " + idx + ": Vui lòng nhập Mô tả (SAP bắt buộc phải có Kurztext).");
 					return;
@@ -314,7 +357,6 @@ sap.ui.define([
 				}
 			}
 
-			// Tổng PR = Σ (số lượng × giá trị ước tính)
 			var nTotalPRValue = sumItems(aItems);
 
 			oView.setBusy(true);
@@ -351,7 +393,7 @@ sap.ui.define([
 					var sMsg = "✓ Đã gửi đề nghị " + sPrNumber + "\n\n"
 						+ "Gồm " + iItemCount + " dòng vật tư, tổng "
 						+ nTotalPRValue.toLocaleString("vi-VN") + " " + sCurrency + ".\n"
-						+ "Đang chờ CFO xem xét.\n"
+						+ "Đang chờ Purchasing xem xét.\n"
 						+ "Số PR trên SAP sẽ được cấp sau khi phê duyệt xong.\n"
 						+ "Bạn sẽ nhận thông báo khi được duyệt hoặc bị từ chối.";
 					if (aWarnings.length) {

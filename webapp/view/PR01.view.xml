@@ -114,15 +114,16 @@
 							<HBox wrap="Wrap" class="qdItemFieldsRow">
 								<VBox class="qdItemField sapUiTinyMarginEnd sapUiTinyMarginBottom" width="16rem">
 									<Label text="Vật tư" class="qdInfoLabel"/>
-									<Select
+									<ComboBox
 										visible="{= !${isFreeText} }"
 										selectedKey="{materialNo}"
 										items="{path: '/materials', templateShareable: false}"
-										change=".onMaterialChange"
+										selectionChange=".onMaterialChange"
+										placeholder="— Chọn vật tư —"
 										width="100%"
 									>
 										<core:Item key="{MaterialNo}" text="{MaterialNo} - {Description}"/>
-									</Select>
+									</ComboBox>
 									<Input value="{materialType}" visible="{isFreeText}" placeholder="Loại VT (VD: ZROH)" width="100%"/>
 								</VBox>
 
@@ -146,7 +147,6 @@
 									<Input value="{estimatedValue}" type="Number" textAlign="End" change=".onItemValueChange" width="100%"/>
 								</VBox>
 
-								<!-- selectedKey = chỉ lưu mã (key), không lưu cả text "mã - mô tả" -->
 								<VBox class="qdItemField sapUiTinyMarginBottom" width="12rem">
 									<Label text="Hạch toán chi phí" class="qdInfoLabel"/>
 									<ComboBox
