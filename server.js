@@ -3,6 +3,8 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
+const fs = require("fs");
+const path = require("path");
 
 const { employees, materials, vendors, pendingPRs } = require("./webapp/model/MockData");
 
@@ -14,7 +16,6 @@ app.use(express.json());
 
 app.get("/api/health", (req, res) => res.json({ ok: true }));
 
-const path = require("path");
 app.use(express.static(path.join(__dirname, "webapp")));
 
 const ODATA_SERVICE_PATH = "/sap/opu/odata/sap/ZG1_PROC_SRV_SRV";
@@ -22,11 +23,81 @@ const ODATA_SERVICE_PATH = "/sap/opu/odata/sap/ZG1_PROC_SRV_SRV";
 const PAMS_ESCALATION_THRESHOLD = 300000000;
 const LEGAL_ESCALATION_THRESHOLD = 100000000;
 
-const approvalStore = [...pendingPRs].map((pr) => ({ ...pr }));
-let nextApprovalSeq = approvalStore.length + 1;
+// ============================================================================
+// PERSIST — lưu file JSON, không mất khi restart server
+// ============================================================================
+const DATA_DIR = path.join(__dirname, "data");
+const APPROVAL_FILE = path.join(DATA_DIR, "approvals.json");
+const NOTIF_FILE = path.join(DATA_DIR, "notifications.json");
 
-const notificationStore = [];
-let nextNotificationId = 1;
+function ensureDataDir() {
+	if (!fs.existsSync(DATA_DIR)) {
+		fs.mkdirSync(DATA_DIR, { recursive: true });
+	}
+}
+
+function loadApprovals() {
+	ensureDataDir();
+	if (!fs.existsSync(APPROVAL_FILE)) {
+		const seed = [...pendingPRs].map(function (pr) { return { ...pr }; });
+		return { items: seed, nextSeq: seed.length + 1 };
+	}
+	try {
+		const raw = JSON.parse(fs.readFileSync(APPROVAL_FILE, "utf8"));
+		const items = Array.isArray(raw.items) ? raw.items : [];
+		const nextSeq = Number(raw.nextSeq) || (items.length + 1);
+		return { items: items, nextSeq: nextSeq };
+	} catch (e) {
+		console.error("⚠️ Load approvals THAT BAI:", e.message);
+		return { items: [], nextSeq: 1 };
+	}
+}
+
+function saveApprovals() {
+	ensureDataDir();
+	fs.writeFileSync(
+		APPROVAL_FILE,
+		JSON.stringify({ items: approvalStore, nextSeq: nextApprovalSeq }, null, 2),
+		"utf8"
+	);
+}
+
+function loadNotifications() {
+	ensureDataDir();
+	if (!fs.existsSync(NOTIF_FILE)) {
+		return { items: [], nextId: 1 };
+	}
+	try {
+		const raw = JSON.parse(fs.readFileSync(NOTIF_FILE, "utf8"));
+		return {
+			items: Array.isArray(raw.items) ? raw.items : [],
+			nextId: Number(raw.nextId) || 1
+		};
+	} catch (e) {
+		console.error("⚠️ Load notifications THAT BAI:", e.message);
+		return { items: [], nextId: 1 };
+	}
+}
+
+function saveNotifications() {
+	ensureDataDir();
+	fs.writeFileSync(
+		NOTIF_FILE,
+		JSON.stringify({ items: notificationStore, nextId: nextNotificationId }, null, 2),
+		"utf8"
+	);
+}
+
+const _loadedApprovals = loadApprovals();
+const approvalStore = _loadedApprovals.items;
+let nextApprovalSeq = _loadedApprovals.nextSeq;
+
+const _loadedNotifs = loadNotifications();
+const notificationStore = _loadedNotifs.items;
+let nextNotificationId = _loadedNotifs.nextId;
+
+console.log("[DATA] Loaded PR:", approvalStore.length, "| nextSeq:", nextApprovalSeq);
+console.log("[DATA] Loaded notif:", notificationStore.length);
 
 function pushNotification(toEmail, prId, message) {
 	if (!toEmail) { return; }
@@ -38,6 +109,7 @@ function pushNotification(toEmail, prId, message) {
 		createdAt: new Date().toISOString(),
 		read: false
 	});
+	saveNotifications();
 }
 
 function buildApprovalFlags(totalValue) {
@@ -504,6 +576,7 @@ app.post("/api/approval/submit", async (req, res) => {
 	};
 
 	approvalStore.push(record);
+	saveApprovals();
 
 	notifyRequester(
 		record,
@@ -564,7 +637,6 @@ app.get("/api/approval/history", (req, res) => {
 	let history = [];
 
 	if (role === "REQUESTER") {
-		// Toàn bộ PR mình tạo (mọi status)
 		history = approvalStore
 			.filter(function (item) {
 				return String(item.RequesterEmail || "").toLowerCase() === email;
@@ -666,6 +738,7 @@ app.patch("/api/notifications/:id/read", (req, res) => {
 		return res.status(404).json({ success: false, message: "Khong tim thay thong bao." });
 	}
 	n.read = true;
+	saveNotifications();
 	return res.json({ success: true });
 });
 
@@ -714,6 +787,8 @@ app.patch("/api/approval/:id", async (req, res) => {
 			record.CeoAction = "REJECTED";
 		}
 
+		saveApprovals();
+
 		notifyRequester(
 			record,
 			"Đề nghị " + record.PRId + " đã bị TỪ CHỐI bởi " + sRole + "."
@@ -732,6 +807,8 @@ app.patch("/api/approval/:id", async (req, res) => {
 			record.PurchasingApprovedBy = decidedByEmail;
 			record.PurchasingAction = "APPROVED";
 			record.UpdatedAt = new Date().toISOString();
+
+			saveApprovals();
 
 			notifyRequester(
 				record,
@@ -759,6 +836,8 @@ app.patch("/api/approval/:id", async (req, res) => {
 			record.CfoProcessedBy = decidedByEmail;
 			record.CfoAction = "ESCALATED";
 			record.UpdatedAt = new Date().toISOString();
+
+			saveApprovals();
 
 			notifyRequester(
 				record,
@@ -807,6 +886,8 @@ app.patch("/api/approval/:id", async (req, res) => {
 			record.CeoProcessedBy = decidedByEmail;
 			record.CeoAction = "APPROVED";
 		}
+
+		saveApprovals();
 
 		notifyRequester(
 			record,
@@ -949,6 +1030,7 @@ if (require.main === module) {
 		console.log(process.env.SAP_HOST
 			? `OData: ${process.env.SAP_HOST}${ODATA_SERVICE_PATH}`
 			: "Che do: mock (SAP_HOST chua cau hinh)");
+		console.log("[DATA] Folder:", DATA_DIR);
 	});
 }
 
