@@ -35,25 +35,12 @@
 				</HBox>
 			</VBox>
 
-			<HBox class="qdStatRow" wrap="Wrap">
-				<VBox class="qdStatCard">
-					<Text text="{path: '/pending', formatter: '.getPendingCount'}" class="qdStatNumber"/>
-					<Text text="Đang chờ duyệt" class="qdStatLabel"/>
-				</VBox>
-				<VBox class="qdStatCard qdStatCardWarn">
-					<Text text="{path: '/pending', formatter: '.getProcurementHeadReviewCount'}" class="qdStatNumber"/>
-					<Text text="Leo thang CEO" class="qdStatLabel"/>
-				</VBox>
-				<VBox class="qdStatCard qdStatCardInfo">
-					<Text text="{path: '/pending', formatter: '.getLegalReviewCount'}" class="qdStatNumber"/>
-					<Text text="Cần xem xét kỹ" class="qdStatLabel"/>
-				</VBox>
-			</HBox>
+			<!-- Đã xóa qdStatRow (3 ô Đang chờ / Leo thang CEO / Cần xem xét kỹ) -->
 
 			<VBox class="qdContentCard qdCardTight">
 				<HBox alignItems="Center" class="sapUiSmallMargin">
 					<core:Icon src="sap-icon://pending" class="qdCardIcon sapUiTinyMarginEnd"/>
-					<Title text="Đề nghị đang chờ quyết định ({path: '/pending', formatter: '.getPendingCount'})" level="H3" class="qdCardTitle"/>
+					<Title text="Đề nghị đang chờ quyết định ({= ${/pending}.length })" level="H3" class="qdCardTitle"/>
 				</HBox>
 
 				<VBox
