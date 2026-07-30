@@ -193,87 +193,83 @@
 									/>
 
 									<Label text="Đơn giá mua thương lượng (Net Price)" required="true"/>
-									<HBox alignItems="Center">
-										<Input 
-											id="inNetPrice" 
-											width="70%" 
-											placeholder="Nhập đơn giá mới..."
-											liveChange=".onRecalculateTotal"
-										/>
-										<Input 
-											id="inCurrency" 
-											width="30%" 
-											value="VND" 
-											placeholder="Loại tiền"
-											class="sapUiTinyMarginBegin"
-										/>
-									</HBox>
+<Input
+    id="inNetPrice"
+    placeholder="Nhập đơn giá mới..."
+    liveChange=".onRecalculateTotal"
+/>
 
-									<Label text="Tổng giá trị PO (Total Value)"/>
-									<ObjectNumber 
-										id="numTotalValue" 
-										number="0" 
-										unit="VND" 
-										state="Success"
-										class="sapMTextBold"
-									/>
+<Label text="Loại tiền"/>
+<Input
+    id="inCurrency"
+    value="VND"
+    editable="false"
+/>
+
+<Label text="Tổng giá trị PO (Total Value)"/>
+<ObjectNumber
+    id="numTotalValue"
+    number="0"
+    unit="VND"
+    state="Success"
+/>
 								</f:content>
 							</f:SimpleForm>
 						</VBox>
 
 						<!-- CARD 3: BẢNG PO ITEMS (DANH SÁCH DÒNG HÀNG SẼ TẠO - PURCHASE ORDER ITEMS) -->
-						<VBox class="qdContentCard">
-							<HBox alignItems="Center" class="sapUiSmallMarginBottom">
-								<Text text="4" class="qdStepBadge"/>
-								<Title text="Chi tiết dòng hàng (PO Items Table)" level="H3" class="qdCardTitle"/>
-							</HBox>
+						<!-- CARD 3: BẢNG PO ITEMS (DANH SÁCH DÒNG HÀNG SẼ TẠO) -->
+<VBox class="qdContentCard">
+	<HBox alignItems="Center" class="sapUiSmallMarginBottom">
+		<Text text="4" class="qdStepBadge"/>
+		<Title text="Chi tiết dòng hàng (PO Items Table)" level="H3" class="qdCardTitle"/>
+	</HBox>
 
-							<Table id="poItemsTable" noDataText="Chưa có dữ liệu dòng hàng">
-								<columns>
-									<Column width="4rem"><Text text="Item"/></Column>
-									<Column width="8rem"><Text text="Mã PR Nguồn"/></Column>
-									<Column><Text text="Mã &amp; Tên Vật tư"/></Column>
-									<Column hAlign="End" width="7rem"><Text text="Số lượng"/></Column>
-									<Column hAlign="End" width="8rem"><Text text="Đơn giá mua"/></Column>
-									<Column width="6rem"><Text text="Nhà máy (Plant)"/></Column>
-									<Column width="7rem"><Text text="Cost Center"/></Column>
-								</columns>
-								<items>
-									<!-- Dữ liệu Item sẽ được Controller bind trực tiếp khi chọn PR -->
-									<ColumnListItem>
-										<cells>
-											<Text id="itemNo" text="10"/>
-											<Text id="itemPreqNo" text=""/>
-											<VBox>
-												<Text id="itemMaterialNo" text="" class="sapMTextBold"/>
-												<Text id="itemDescription" text=""/>
-											</VBox>
-											<Text id="itemQuantity" text=""/>
-											<Text id="itemNetPrice" text=""/>
-											<Input id="itemPlant" value="1000"/>
-											<Input id="itemCostCenter" value=""/>
-										</cells>
-									</ColumnListItem>
-								</items>
-							</Table>
+	<Table id="poItemsTable" items="{/poItems}" noDataText="Chưa có dữ liệu dòng hàng">
+		<columns>
+			<Column width="4rem"><Text text="Item"/></Column>
+			<Column width="8rem"><Text text="Mã PR Nguồn"/></Column>
+			<Column><Text text="Mã &amp; Tên Vật tư"/></Column>
+			<Column hAlign="End" width="7rem"><Text text="Số lượng"/></Column>
+			<Column hAlign="End" width="8rem"><Text text="Đơn giá mua"/></Column>
+			<Column width="6rem"><Text text="Nhà máy (Plant)"/></Column>
+			<Column width="7rem"><Text text="Cost Center"/></Column>
+		</columns>
+		<items>
+			<ColumnListItem>
+				<cells>
+					<Text text="{LineNo}"/>
+					<Text text="{PreqNo}"/>
+					<VBox>
+						<Text text="{MaterialNo}" class="sapMTextBold"/>
+						<Text text="{Description}"/>
+					</VBox>
+					<Text text="{Quantity} {UoM}"/>
+					<Text text="{path: 'NetPrice', formatter: '.formatCurrency'} {Currency}"/>
+					<Input value="{Plant}"/>
+					<Input value="{CostCenter}"/>
+				</cells>
+			</ColumnListItem>
+		</items>
+	</Table>
 
-							<MessageStrip
-								text="Sau khi bấm xác nhận, hệ thống sẽ gọi SAP Gateway OData Service ZG1_PROC_SRV để ghi đè PO vào bảng EKKO/EKPO, đồng thời kích hoạt gửi mail trực tiếp tới Nhà cung cấp."
-								type="Information"
-								showIcon="true"
-								class="sapUiSmallMarginTop qdAiMessageStrip"
-							/>
+	<MessageStrip
+		text="Sau khi bấm xác nhận, hệ thống sẽ gọi SAP Gateway OData Service ZG1_PROC_SRV để ghi đè PO vào bảng EKKO/EKPO, đồng thời kích hoạt gửi mail trực tiếp tới Nhà cung cấp."
+		type="Information"
+		showIcon="true"
+		class="sapUiSmallMarginTop qdAiMessageStrip"
+	/>
 
-							<HBox justifyContent="End" alignItems="Center" class="sapUiMediumMarginTop">
-								<Button
-									text="Tạo PO Chuẩn SAP &amp; Gửi Mail Vendor"
-									type="Emphasized"
-									icon="sap-icon://email"
-									press=".onConfirmCreatePO"
-									class="qdPrimarySubmitBtn"
-								/>
-							</HBox>
-						</VBox>
+	<HBox justifyContent="End" alignItems="Center" class="sapUiMediumMarginTop">
+		<Button
+			text="Tạo PO Chuẩn SAP &amp; Gửi Mail Vendor"
+			type="Emphasized"
+			icon="sap-icon://email"
+			press=".onConfirmCreatePO"
+			class="qdPrimarySubmitBtn"
+		/>
+	</HBox>
+</VBox>
 					</VBox>
 
 				</l:contentAreas>

@@ -9,33 +9,11 @@ sap.ui.define([
 
 	var BACKEND = Config.BACKEND;
 
-	function emptyItem() {
-		return {
-			materialNo: "", materialType: "", description: "", uom: "",
-			quantity: null, netPrice: null, costCenter: "", assetNo: "", preqNo: ""
-		};
-	}
-
 	return Controller.extend("com.qdavy.procurement.controller.PO01", {
+
 		onInit: function () {
-			this.getView().setModel(new JSONModel({
-				pendingPRs: [],
-				aiSuggestedVendors: []
-			}), "mockData");
-
-			this.getView().setModel(new JSONModel({
-				vendors: [],
-				materials: [],
-				approvedPRs: [],
-				selectedPRId: "",
-				vendorNo: "",
-				items: [emptyItem()],
-				totalValue: 0,
-				aiRecommendation: ""
-			}));
-
-			this._loadLookups();
 			this._loadApprovedPRs();
+			this._loadVendors();
 
 			this.getOwnerComponent().getRouter()
 				.getRoute("po01")
@@ -44,71 +22,77 @@ sap.ui.define([
 
 		_onRouteMatched: function () {
 			this.getView().byId("poCreationArea").setVisible(false);
-			this.getView().getModel("mockData").setProperty("/aiSuggestedVendors", []);
 			this._loadApprovedPRs();
 		},
 
+		// ── 1. ĐỌC DỮ LIỆU PR ĐÃ DUYỆT TỪ API ──
 		_loadApprovedPRs: function () {
 			var oView = this.getView();
+			oView.setBusy(true);
+
 			fetch(BACKEND + "/api/approval/approved")
 				.then(function (r) { return r.json(); })
 				.then(function (res) {
+					oView.setBusy(false);
 					if (res && res.success) {
-						var aData = res.data || [];
-						oView.getModel().setProperty("/approvedPRs", aData);
+						var aRawData = res.data || [];
 
-						var aMapped = aData.map(function (pr) {
+						var aMappedPRs = aRawData.map(function (pr) {
 							var aItems = pr.items || [];
 							var firstItem = aItems[0] || {};
-							var sDesc = aItems.length > 1
-								? (firstItem.Description || "") + " (+thêm " + (aItems.length - 1) + " vật tư)"
-								: (firstItem.Description || pr.Description || "");
 
-							var fValue = pr.EstimatedValue !== undefined && pr.EstimatedValue !== null && pr.EstimatedValue !== ""
-								? Number(pr.EstimatedValue)
-								: (pr.TotalValue || 0);
+							var sDesc = aItems.length > 1
+								? (firstItem.Description || "") + " (+ " + (aItems.length - 1) + " vật tư khác)"
+								: (firstItem.Description || "");
 
 							return {
-								PrNumber: pr.PRId || pr.PRNumber,
-								MaterialNo: firstItem.MaterialNo || pr.MaterialNo || "",
+								PrNumber: pr.SapPRId || pr.PRId || pr.InternalId || "",
+								CompanyCode: pr.CompanyCode || firstItem.CompanyCode || "",
+								PurchOrg: pr.PurchOrg || firstItem.PurchOrg || "",
+								PurchGroup: pr.PurchGroup || firstItem.PurchGroup || "",
+								MaterialNo: firstItem.MaterialNo || "",
 								Description: sDesc,
-								Quantity: firstItem.Quantity || pr.Quantity || 0,
-								UoM: firstItem.UoM || pr.UoM || "EA",
-								MaterialType: firstItem.MaterialType || pr.MaterialType || "ZSRV",
-								CostCenter: firstItem.CostCenter || pr.CostCenter || "",
-								AssetNo: firstItem.AssetNo || pr.AssetNo || "",
-								EstimatedValue: fValue,
-								Currency: pr.Currency || "VND",
-								Status: pr.Status,
+								Quantity: firstItem.Quantity || 0,
+								UoM: firstItem.UoM || "",
+								EstimatedValue: pr.TotalValue || firstItem.EstimatedValue || 0,
+								Currency: pr.Currency || "",
+								RequesterEmail: pr.RequesterEmail || "",
+								CostCenter: firstItem.CostCenter || "",
+								Plant: firstItem.Plant || "",
+								AssetNo: firstItem.AssetNo || "",
 								_items: aItems
 							};
 						});
-						oView.getModel("mockData").setProperty("/pendingPRs", aMapped);
+
+						oView.setModel(new JSONModel({ 
+							PurchaseRequisitions: aMappedPRs,
+							poItems: [] 
+						}));
 					}
 				})
-				.catch(function () { });
+				.catch(function () {
+					oView.setBusy(false);
+					MessageToast.show("Không thể lấy danh sách PR từ máy chủ.");
+				});
 		},
 
-		_loadLookups: function () {
-			var oModel = this.getView().getModel();
-
+		// ── 2. ĐỌC DANH SÁCH VENDOR TỪ ODATA ──
+		_loadVendors: function () {
+			var oView = this.getView();
 			fetch(BACKEND + "/api/vendors")
 				.then(function (r) { return r.json(); })
 				.then(function (res) {
 					if (res && res.success) {
-						oModel.setProperty("/vendors", res.data || []);
+						var aVendors = res.data || [];
+						var oModel = oView.getModel();
+						if (oModel) {
+							oModel.setProperty("/Vendors", aVendors);
+						}
 					}
 				})
-				.catch(function () { MessageBox.error("Khong tai duoc danh sach nha cung cap."); });
-
-			fetch(BACKEND + "/api/materials")
-				.then(function (r) { return r.json(); })
-				.then(function (res) {
-					if (res && res.success) {
-						oModel.setProperty("/materials", res.data || []);
-					}
-				})
-				.catch(function () { MessageBox.error("Khong tai duoc danh sach vat tu."); });
+				.catch(function () {
+					console.error("Lỗi tải danh sách Vendor từ OData.");
+				});
 		},
 
 		formatCurrency: function (fValue) {
@@ -116,253 +100,227 @@ sap.ui.define([
 			return Number(fValue).toLocaleString("vi-VN");
 		},
 
-		formatRating: function (fRating) {
-			return (fRating !== undefined && fRating !== null) ? Number(fRating).toFixed(1) + "*" : "";
-		},
-
 		onNavBack: function () {
 			this.getOwnerComponent().getRouter().navTo("dashboard");
 		},
 
+		// ── 3. SỰ KIỆN KHI CHỌN DÒNG PR (FIX KHÔNG CRASH) ──
 		onPRSelect: function (oEvent) {
-			var oSelectedItem = oEvent.getParameter("listItem");
-			var oContext = oSelectedItem.getBindingContext("mockData");
-			var oPRData = oContext.getObject();
+			console.log("CLICK");
+			try {
+				var oSelectedItem = oEvent.getParameter("listItem");
+				if (!oSelectedItem) { return; }
 
-			this._currentPR = oPRData;
-			this.getView().byId("poCreationArea").setVisible(true);
+				var oContext = oSelectedItem.getBindingContext();
+				var oPRData = oContext ? oContext.getObject() : null;
 
-			var sMaterialInfo = oPRData.Description || "";
-			if (oPRData.MaterialNo) { sMaterialInfo += " (" + oPRData.MaterialNo + ")"; }
+				if (!oPRData) { return; }
 
-			var aItems = oPRData._items || [];
-			var sQty = aItems.length > 1
-				? aItems.length + " dòng vật tư"
-				: (oPRData.Quantity || "") + " " + (oPRData.UoM || "EA");
+				this._currentPR = oPRData;
+				var oView = this.getView();
+				var oModel = oView.getModel();
 
-			this.getView().byId("txtSelectedPR").setText(oPRData.PrNumber);
-			this.getView().byId("txtMaterialInfo").setText(sMaterialInfo);
-			this.getView().byId("txtQuantity").setText(sQty);
-			this.getView().byId("numEstimatedValue").setNumber(oPRData.EstimatedValue);
-			this.getView().byId("numEstimatedValue").setUnit(oPRData.Currency || "VND");
+				// 1. Mở hiển thị vùng tạo PO bên phải
+				oView.byId("poCreationArea").setVisible(true);
 
-			this.getView().byId("inSelectedVendor").setSelectedKey("");
-			this.getView().byId("inSelectedVendor").setValue("");
-			this.getView().byId("inFinalPrice").setValue(this.formatCurrency(oPRData.EstimatedValue));
+				var aItems = oPRData._items || [];
+		console.log("=== RAW ITEMS ===");
+console.table(aItems);		
+				var firstItem = aItems[0] || {};
 
-			this._getAIVendorRecommendations(oPRData.MaterialNo, oPRData.EstimatedValue);
-		},
+				// 2. Điền dữ liệu thông tin PR tham chiếu (Card 1)
+				oView.byId("txtSelectedPR").setText(oPRData.PrNumber ? (oPRData.PrNumber + " / " + (firstItem.LineNo || "00010")) : "");
+				oView.byId("txtRequester").setText(oPRData.RequesterEmail || "");
+				oView.byId("txtMaterialInfo").setText((firstItem.Description || oPRData.Description || "") + (firstItem.MaterialNo ? " (" + firstItem.MaterialNo + ")" : ""));
+				oView.byId("txtQuantity").setText((firstItem.Quantity || oPRData.Quantity || 0) + " " + (firstItem.UoM || oPRData.UoM || ""));
+				oView.byId("numEstimatedValue").setNumber(this.formatCurrency(oPRData.EstimatedValue));
+				oView.byId("numEstimatedValue").setUnit(oPRData.Currency || "");
 
-		// ── Gợi ý AI hoàn chỉnh không hardcode (Dùng Vendor thật từ OData) ──
-		_getAIVendorRecommendations: function (sMaterialNo, fEstimatedValue) {
-			var oView = this.getView();
-			var oModel = oView.getModel();
-			var aVendors = oModel.getProperty("/vendors") || [];
-			var sMaterialDesc = oView.byId("txtMaterialInfo").getText() || sMaterialNo;
+				// 3. Đổ dữ liệu tổ chức (Card 2)
+				oView.byId("inCompanyCode").setValue(oPRData.CompanyCode || "");
+				oView.byId("inPurchOrg").setValue(oPRData.PurchOrg || "");
+				oView.byId("inPurchGroup").setValue(oPRData.PurchGroup || "");
+				oView.byId("inCurrency").setValue(oPRData.Currency || "");
 
-			if (!aVendors || aVendors.length === 0) {
-				MessageToast.show("Đang tải danh sách Nhà cung cấp từ SAP...");
-				return;
-			}
+				// 4. Tính đơn giá khởi tạo
+				var fQty = Number(firstItem.Quantity || oPRData.Quantity || 1);
+				var fUnitPrice = fQty > 0 ? (oPRData.EstimatedValue / fQty) : oPRData.EstimatedValue;
+				oView.byId("inNetPrice").setValue(fUnitPrice);
 
-			oView.setBusy(true);
-
-			fetch(BACKEND + "/api/ai/recommend-vendor", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					materialName: sMaterialDesc,
-					materialGroup: sMaterialNo,
-					quantity: oView.byId("txtQuantity").getText(),
-					budget: fEstimatedValue,
-					vendors: aVendors
-				})
-			})
-				.then(function (r) { return r.json(); })
-				.then(function (res) {
-					oView.setBusy(false);
-					if (res && res.success) {
-						var aRealSuggestedVendors = aVendors.slice(0, 3).map(function (v, idx) {
-							var fPriceFactor = 1 - (idx * 0.03);
-							return {
-								VendorNo: v.VendorNo,
-								VendorName: v.VendorName,
-								Rating: v.Rating || (4.5 - (idx * 0.3)),
-								PriceProposal: Math.round(fEstimatedValue * fPriceFactor),
-								AiReason: res.recommendation || "Nhà cung cấp đáp ứng đầy đủ tiêu chí vật tư và ngân sách."
-							};
-						});
-
-						oView.getModel("mockData").setProperty("/aiSuggestedVendors", aRealSuggestedVendors);
-						MessageToast.show("Đã cập nhật phương án gợi ý từ AI!");
-					} else {
-						MessageBox.error((res && res.message) || "Không thể lấy gợi ý từ AI.");
-					}
-				})
-				.catch(function () {
-					oView.setBusy(false);
-					MessageBox.error("Lỗi kết nối tới dịch vụ AI.");
+				// 5. Cập nhật mảng /poItems cho Bảng Card 3
+				var aTableItems = aItems.map(function(it, idx) {
+					return {
+						LineNo: it.LineNo || String((idx + 1) * 10).padStart(5, "0"),
+						PreqNo: oPRData.PrNumber || "",
+						MaterialNo: it.MaterialNo || "",
+						Description: it.Description || "",
+						Quantity: it.Quantity || 0,
+						UoM: it.UoM || "",
+						NetPrice: fUnitPrice,
+						Currency: oPRData.Currency || "",
+						Plant: it.Plant || "",
+						CostCenter: it.CostCenter || ""
+					};
 				});
+console.log("=== TABLE ITEMS ===");
+console.table(aTableItems);
+				if (aTableItems.length === 0) {
+					aTableItems.push({
+						LineNo: "00010",
+						PreqNo: oPRData.PrNumber || "",
+						MaterialNo: oPRData.MaterialNo || "",
+						Description: oPRData.Description || "",
+						Quantity: oPRData.Quantity || 0,
+						UoM: oPRData.UoM || "",
+						NetPrice: fUnitPrice,
+						Currency: oPRData.Currency || "",
+						Plant: oPRData.Plant || "",
+						CostCenter: oPRData.CostCenter || ""
+					});
+				}
+
+				oModel.setProperty("/poItems", aTableItems);
+				this.onRecalculateTotal();
+
+			} catch (err) {
+				console.error("Lỗi khi chọn dòng PR:", err);
+			}
 		},
 
-		onCallAIVendors: function () {
-			var sText = this.getView().byId("txtMaterialInfo").getText();
-			var sMaterialNo = sText.indexOf("(") >= 0
-				? sText.substring(sText.lastIndexOf("(") + 1, sText.lastIndexOf(")"))
-				: sText;
-			var fValue = this.getView().byId("numEstimatedValue").getNumber();
-			this._getAIVendorRecommendations(sMaterialNo, fValue);
+		// ── 4. CHỌN VENDOR -> LẤY EMAIL TỪ ODATA ──
+		onVendorChange: function (oEvent) {
+			var oSelectedItem = oEvent.getParameter("selectedItem");
+			var oView = this.getView();
+
+			if (oSelectedItem) {
+				var oContext = oSelectedItem.getBindingContext();
+				var oVendor = oContext ? oContext.getObject() : null;
+
+				if (oVendor) {
+					oView.byId("inVendorEmail").setValue(oVendor.Email || "");
+				}
+			}
 		},
 
-		onVendorSelect: function (oEvent) {
-			var oSelectedItem = oEvent.getParameter("listItem");
-			var oContext = oSelectedItem.getBindingContext("mockData");
-			var oVendorData = oContext.getObject();
+		// ── 5. TÍNH TOÁN TIỀN TỰ ĐỘNG ──
+		onRecalculateTotal: function () {
+			var oView = this.getView();
+			var sNetPriceRaw = oView.byId("inNetPrice").getValue() || "0";
+			var fNetPrice = Number(sNetPriceRaw.toString().replace(/\D/g, "")) || 0;
 
-			this.getView().byId("inSelectedVendor").setSelectedKey(oVendorData.VendorNo);
-			this.getView().byId("inFinalPrice").setValue(this.formatCurrency(oVendorData.PriceProposal));
+			var oPR = this._currentPR || {};
+			var aItems = oPR._items || [];
+			var firstItem = aItems[0] || {};
+			var fQty = Number(firstItem.Quantity || oPR.Quantity || 1);
+
+			var fTotal = fNetPrice * fQty;
+			var sCurrency = oView.byId("inCurrency").getValue() || oPR.Currency || "";
+
+			oView.byId("numTotalValue").setNumber(this.formatCurrency(fTotal));
+			oView.byId("numTotalValue").setUnit(sCurrency);
+
+			// Cập nhật giá lại trong mảng bảng
+			var oModel = oView.getModel();
+			var aPoItems = oModel.getProperty("/poItems") || [];
+			aPoItems.forEach(function(item) {
+				item.NetPrice = fNetPrice;
+				item.Currency = sCurrency;
+			});
+			oModel.setProperty("/poItems", aPoItems);
 		},
 
+		// ── 6. PHÁT HÀNH PO VÀ GỬI MAIL ──
 		onConfirmCreatePO: function () {
 			var oView = this.getView();
-			var sPRId = oView.byId("txtSelectedPR").getText();
+			var oPR = this._currentPR;
 
-			var oVendorCombo = oView.byId("inSelectedVendor");
-			var sVendorNo = oVendorCombo.getSelectedKey() || oVendorCombo.getValue();
-
-			var sRawPriceStr = oView.byId("inFinalPrice").getValue() || "";
-			var fFinalPrice = Number(sRawPriceStr.replace(/\./g, ""));
-
-			if (!sPRId) {
-				MessageBox.error("Vui lòng chọn 1 Yêu cầu mua hàng (PR) ở danh sách bên trái.");
-				return;
-			}
-			if (!sVendorNo) {
-				MessageBox.error("Vui lòng chọn một Nhà cung cấp.");
-				return;
-			}
-			if (!fFinalPrice || fFinalPrice <= 0) {
-				MessageBox.error("Giá thương lượng cuối cùng của PO phải lớn hơn 0 VND.");
+			if (!oPR) {
+				MessageBox.error("Vui lòng chọn một PR từ danh sách bên trái.");
 				return;
 			}
 
-			var oSelectedPR = this._currentPR;
-			if (!oSelectedPR) {
-				var aPRs = oView.getModel("mockData").getProperty("/pendingPRs") || [];
-				oSelectedPR = aPRs.filter(function (pr) { return pr.PrNumber === sPRId; })[0] || {};
-			}
+			var sVendorNo = oView.byId("inSelectedVendor").getSelectedKey();
+			var sVendorEmail = oView.byId("inVendorEmail").getValue();
+			var sCompanyCode = oView.byId("inCompanyCode").getValue();
+			var sPurchOrg = oView.byId("inPurchOrg").getValue();
+			var sPurchGroup = oView.byId("inPurchGroup").getValue();
+			var sDocType = oView.byId("inDocType").getValue();
+			var sDocDate = oView.byId("inDocDate").getValue();
+			var sCurrency = oView.byId("inCurrency").getValue();
 
-			var aRawItems = oSelectedPR._items || [];
+			var sNetPriceRaw = oView.byId("inNetPrice").getValue() || "0";
+			var fNetPrice = Number(sNetPriceRaw.toString().replace(/\D/g, "")) || 0;
 
-			if (!aRawItems || aRawItems.length === 0) {
-				aRawItems = [{
-					preqNo: sPRId,
-					materialNo: oSelectedPR.MaterialNo || "",
-					description: oSelectedPR.Description || oView.byId("txtMaterialInfo").getText(),
-					quantity: Number(oSelectedPR.Quantity) || 1,
-					uom: oSelectedPR.UoM || "EA",
-					materialType: oSelectedPR.MaterialType || "ZSRV",
-					netPrice: fFinalPrice,
-					costCenter: oSelectedPR.CostCenter || "CCADM",
-					assetNo: oSelectedPR.AssetNo || ""
-				}];
-			}
+			if (!sCompanyCode) { MessageBox.error("Vui lòng nhập Mã công ty (Company Code)."); return; }
+			if (!sPurchOrg) { MessageBox.error("Vui lòng nhập Tổ chức mua hàng (Purchasing Org)."); return; }
+			if (!sPurchGroup) { MessageBox.error("Vui lòng nhập Nhóm mua hàng (Purchasing Group)."); return; }
+			if (!sDocDate) { MessageBox.error("Vui lòng chọn Ngày lập chứng từ (Doc Date)."); return; }
+			if (!sVendorNo) { MessageBox.error("Vui lòng chọn Nhà cung cấp (Vendor)."); return; }
+			if (!sVendorEmail || !sVendorEmail.trim()) { MessageBox.error("Vui lòng nhập Email Nhà cung cấp."); return; }
+			if (fNetPrice <= 0) { MessageBox.error("Đơn giá thương lượng phải lớn hơn 0."); return; }
 
-			// PO01.controller.js[cite: 1]
-			var aFormattedItems = aRawItems.map(function (item, idx) {
+			var oModel = oView.getModel();
+			var aTableItems = oModel.getProperty("/poItems") || [];
+console.log("=== PO ITEMS ===");
+console.table(aTableItems);
+			var aItemsPayload = aTableItems.map(function (it, idx) {
 				return {
-					preqNo: item.preqNo || item.PRNumber || item.PRId || sPRId,
-					preqItem: item.preqItem || item.LineNo || item.lineNo || "10", // 👈 Đảm bảo có dòng này
-					materialNo: item.materialNo || item.MaterialNo || "",
-					materialType: item.materialType || item.MaterialType || "ZSRV",
-					description: item.description || item.Description || "",
-					quantity: Number(item.quantity || item.Quantity || 1),
-					uom: item.uom || item.UoM || "EA",
-					netPrice: Number(item.netPrice || item.NetPrice || item.Price || fFinalPrice),
-					costCenter: item.costCenter || item.CostCenter || "CCADM",
-					assetNo: item.assetNo || item.AssetNo || ""
+					preqNo: oPR.PrNumber,
+					preqItem: it.LineNo || String((idx + 1) * 10).padStart(5, "0"),
+					materialNo: it.MaterialNo || "",
+					description: it.Description || "",
+					quantity: Number(it.Quantity || 1),
+					uom: it.UoM || "",
+					netPrice: fNetPrice,
+					costCenter: it.CostCenter || "",
+					plant: it.Plant || "",
+					assetNo: it.AssetNo || ""
 				};
 			});
 
+			var oPayload = {
+				vendorNo: sVendorNo,
+				vendorEmail: sVendorEmail.trim(),
+				prNumber: oPR.PrNumber,
+				companyCode: sCompanyCode,
+				purchOrg: sPurchOrg,
+				purchGroup: sPurchGroup,
+				docType: sDocType,
+				docDate: sDocDate,
+				currency: sCurrency,
+				items: aItemsPayload
+			};
+console.log("=== PAYLOAD ===");
+console.log(JSON.stringify(oPayload, null, 2));
 			oView.setBusy(true);
 
 			fetch(BACKEND + "/api/po/create", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					vendorNo: sVendorNo,
-					prNumber: sPRId,
-					finalPrice: fFinalPrice,
-					deliveryTerms: oView.byId("inDeliveryTerms").getValue(),
-					poRemark: oView.byId("inPoRemark").getValue(),
-					items: aFormattedItems
-				})
+				body: JSON.stringify(oPayload)
 			})
 				.then(function (r) { return r.json(); })
 				.then(function (res) {
 					oView.setBusy(false);
 					if (res && res.success) {
-						// 🎯 FIX 1: Lấy đúng mã PO từ res.po.PoNumber hoặc res.poNumber
-						var sCreatedPoNumber = (res.po && res.po.PoNumber) || res.poNumber || res.poId || "Thành công (Đã ghi SAP)";
+						var sPoNum = res.poNumber || (res.po && res.po.PoNumber) || "PO_SUCCESS";
+						var sMailInfo = res.emailSent ? "\nĐã gửi mail xác nhận đến: " + sVendorEmail.trim() : "";
 
-						MessageBox.success("Tạo PO thành công! Mã PO: " + sCreatedPoNumber, {
+						MessageBox.success("Tạo Purchase Order thành công!\nMã PO: " + sPoNum + sMailInfo, {
 							onClose: function () {
-								// 🎯 FIX 2: Loại bỏ PR vừa tạo khỏi danh sách UI ngay lập tức
-								var oMockModel = oView.getModel("mockData");
-								var aPendingPRs = oMockModel.getProperty("/pendingPRs") || [];
-								var aFilteredPRs = aPendingPRs.filter(function (pr) {
-									return pr.PrNumber !== sPRId;
-								});
-								oMockModel.setProperty("/pendingPRs", aFilteredPRs);
-
-								// Ẩn vùng tạo PO và reset form
 								this._currentPR = null;
 								oView.byId("poCreationArea").setVisible(false);
-								oView.byId("approvedPRTable").removeSelections(true);
+								this._loadApprovedPRs();
 							}.bind(this)
 						});
 					} else {
-						MessageBox.error((res && res.message) || "Không thể tạo PO sang SAP.");
+						MessageBox.error((res && res.message) || "Không thể khởi tạo PO trên SAP.");
 					}
 				}.bind(this))
 				.catch(function () {
 					oView.setBusy(false);
-					MessageBox.error("Lỗi kết nối máy chủ backend.");
+					MessageBox.error("Không thể kết nối đến máy chủ backend.");
 				});
-		},
-
-		onFinalPriceLiveChange: function (oEvent) {
-			var oInput = oEvent.getSource();
-			var sValue = oEvent.getParameter("newValue");
-			var oDomRef = oInput.getFocusDomRef();
-			var iCursorPos = oDomRef ? oDomRef.selectionStart : 0;
-			var iDigitsBeforeCursor = sValue.slice(0, iCursorPos).replace(/\D/g, "").length;
-
-			var sCleanValue = sValue.replace(/\D/g, "");
-
-			if (sCleanValue) {
-				var sFormattedValue = new Intl.NumberFormat("vi-VN").format(sCleanValue);
-				oInput.setValue(sFormattedValue);
-
-				if (oDomRef) {
-					var iSeenDigits = 0;
-					var iTargetPos = sFormattedValue.length;
-					for (var i = 0; i < sFormattedValue.length; i++) {
-						if (/\d/.test(sFormattedValue[i])) {
-							iSeenDigits++;
-							if (iSeenDigits === iDigitsBeforeCursor) {
-								iTargetPos = i + 1;
-								break;
-							}
-						}
-					}
-					setTimeout(function () {
-						oDomRef.setSelectionRange(iTargetPos, iTargetPos);
-					}, 0);
-				}
-			} else {
-				oInput.setValue("");
-			}
 		}
 	});
 });
