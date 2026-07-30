@@ -8,7 +8,7 @@ const { employees, materials, vendors, pendingPRs } = require("./webapp/model/Mo
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-
+const completedPRs = new Set();
 app.use(cors());
 app.use(express.json());
 
@@ -824,7 +824,40 @@ app.patch("/api/approval/:id", async (req, res) => {
 
 	return res.status(400).json({ success: false, message: "Status không hợp lệ (chỉ nhận APPROVED/REJECTED)." });
 });
+// 🎯 Lấy SỐ DÒNG (ItemNo) THẬT của PR trực tiếp từ SAP OData — không đoán, không hardcode.
 
+async function fetchPRItemsFromSAP(prNumber) {
+	if (!process.env.SAP_HOST || !prNumber) { return []; }
+
+	const candidateFilterFields = ["PRNumber", "PrNumber", "PRId", "ReqNo"];
+
+	for (const field of candidateFilterFields) {
+		try {
+			const response = await axios.get(
+				`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseRequisitionHisSet`,
+				{
+					params: { "$filter": `${field} eq '${prNumber}'`, "$format": "json" },
+					auth: sapAuth(),
+					timeout: 20000
+				}
+			);
+			const results = (response.data && response.data.d && response.data.d.results) || [];
+			if (results.length > 0) {
+				console.log(`[fetchPRItemsFromSAP] Khop filter field "${field}" cho PR ${prNumber}, tra ve ${results.length} dong.`);
+				return results;
+			}
+		} catch (error) {
+			// Field không tồn tại trên entity hoặc không khớp -> thử field tiếp theo
+			continue;
+		}
+	}
+	console.error(`[fetchPRItemsFromSAP] Khong lay duoc dong vat tu that cho PR ${prNumber} tu SAP.`);
+	return [];
+}
+
+function pickRealItemNo(row) {
+	return row.ItemNo || row.PRItem || row.ReqItem || row.PrItem || row.Item || row.LineNo || null;
+}
 // --- PO ---
 app.post("/api/po/create", async (req, res) => {
 	const { vendorNo, items } = req.body || {};
@@ -877,7 +910,42 @@ app.post("/api/po/create", async (req, res) => {
 		// Tạo timestamp OData V2 cho ngày hiện tại (/Date(ms)/)
 		const now = new Date();
 		const sapODataDate = now.toISOString().split('T')[0];
+		// 🎯 TRA CỨU SỐ DÒNG PR THẬT TỪ SAP (thay cho việc đoán "10"/"00001")
+		const uniquePrNumbers = [...new Set(
+			items.map((it) => String(it.preqNo || req.body.prNumber || "").trim()).filter(Boolean)
+		)];
 
+		const prItemsCache = {};
+		for (const prNo of uniquePrNumbers) {
+			prItemsCache[prNo] = await fetchPRItemsFromSAP(prNo);
+		}
+
+		for (const item of items) {
+			const prKey = String(item.preqNo || req.body.prNumber || "").trim();
+			const candidates = prItemsCache[prKey] || [];
+
+			let matched = null;
+			if (candidates.length === 1) {
+				matched = candidates[0];
+			} else if (candidates.length > 1) {
+				const normalizedMat = String(item.materialNo || "").trim().replace(/^0+/, "");
+				matched = candidates.find((c) =>
+					String(c.MaterialNo || "").trim().replace(/^0+/, "") === normalizedMat
+				) || null;
+			}
+
+			const realItemNo = matched ? pickRealItemNo(matched) : null;
+
+			if (!realItemNo) {
+				return res.status(400).json({
+					success: false,
+					message: `Không tìm thấy dòng vật tư thật của PR ${prKey} trên SAP (kiểm tra ME53N). `
+						+ `Vui lòng tải lại danh sách PR đã duyệt (F5) rồi thử tạo PO lại.`
+				});
+			}
+
+			item._realPreqItem = realItemNo;
+		}
 		const sapPayload = {
 			CompanyCode: "QD01",
 			DocType: "ZPO",
@@ -903,9 +971,8 @@ app.post("/api/po/create", async (req, res) => {
 					var rawPreqNo = String(item.preqNo || req.body.prNumber || "").trim();
 					var formattedPreqNo = /^\d+$/.test(rawPreqNo) ? rawPreqNo.padStart(10, "0") : rawPreqNo;
 
-					// 🎯 Lấy dòng PR (mặc định là 00010 nếu không có)
-					var rawPreqItem = String(item.preqItem || item.lineNo || "10").trim();
-					var formattedPreqItem = String(rawPreqItem).padStart(5, "0");
+					// 🎯 Số dòng PR THẬT lấy từ SAP ở bước tra cứu phía trên (KHÔNG hardcode nữa)
+					var formattedPreqItem = String(item._realPreqItem).padStart(5, "0");
 
 					return {
 						PoNumber: "",
@@ -992,25 +1059,64 @@ app.post("/api/po/create", async (req, res) => {
 			&& error.response.data.error.message && error.response.data.error.message.value;
 		return res.status(502).json({
 			success: false,
-			message: detailedMsg,
-			message: sapMsg || "Khong the tao PO qua SAP."
+			message: sapMsg || detailedMsg
 		});
 	}
 });
-
+// ============================================================================
+// API BÁO CÁO TIẾN ĐỘ PO (REPORT) — MERGE TIMELINE & PHÂN QUYỀN VAI TRÒ (ROLE)
+// ============================================================================
 app.get("/api/po/report", async (req, res) => {
+	const userEmail = String(req.query.email || "").trim().toLowerCase();
+
+	// Chế độ Mock Data khi chưa cấu hình kết nối SAP
 	if (!process.env.SAP_HOST) {
 		return res.json({ success: true, sapIntegration: "mock", data: [] });
 	}
+
 	try {
+		// 1. Gọi OData lấy danh sách lịch sử Purchase Order từ SAP S/4HANA
 		const response = await axios.get(
 			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseOrderHistorySet`,
 			{ params: { "$format": "json" }, auth: sapAuth() }
 		);
-		const results = (response.data && response.data.d && response.data.d.results) || [];
+		let results = (response.data && response.data.d && response.data.d.results) || [];
+
+		// 2. Merge (trộn) dữ liệu mốc thời gian duyệt PR từ approvalStore ở Node.js vào PO từ SAP
+		results = results.map((po) => {
+			// Tra cứu PR tương ứng trong approvalStore dựa trên SapPRId hoặc PreqNo
+			const matchedPR = approvalStore.find(
+				(pr) => pr.SapPRId === po.PoNumber || pr.PRId === po.PreqNo || pr.InternalId === po.PreqNo
+			);
+
+			return {
+				...po,
+				// Gán thông tin người tạo PR
+				RequesterEmail: matchedPR ? matchedPR.RequesterEmail : (po.RequesterEmail || "requester@qdavy.com"),
+				
+				// Gán các mốc thời gian (Dates) cho Timeline 6 bước
+				PrDate: matchedPR ? matchedPR.CreatedAt?.split("T")[0] : po.DocDate,
+				LeadDate: matchedPR?.PurchasingApprovedAt ? matchedPR.PurchasingApprovedAt.split("T")[0] : null,
+				CfoDate: matchedPR?.CfoProcessedAt ? matchedPR.CfoProcessedAt.split("T")[0] : null,
+				CeoDate: matchedPR?.CeoProcessedAt ? matchedPR.CeoProcessedAt.split("T")[0] : null,
+				DocDate: po.DocDate || new Date().toISOString().split("T")[0],
+				DeliveryDate: po.Status === "DELIVERED" ? po.DeliveryDate : null
+			};
+		});
+
+		// 3. Phân quyền xem dữ liệu báo cáo theo Email người dùng
+		if (userEmail === "requester@qdavy.com") {
+			// Requester chỉ lọc và thấy danh sách PO do chính mình đề nghị
+			results = results.filter((po) =>
+				String(po.RequesterEmail || "").toLowerCase() === "requester@qdavy.com"
+			);
+		}
+		// Các email cấp quản lý: purchasing@qdavy.com, cfo@qdavy.com, ceo@qdavy.com
+		// sẽ nhận được toàn bộ danh sách PO trên hệ thống.
+
 		return res.json({ success: true, sapIntegration: "fetched", data: results });
 	} catch (error) {
-		console.error("❌ PO report:", error.message);
+		console.error("❌ Lỗi lấy báo cáo PO:", error.message);
 		return res.status(502).json({
 			success: false,
 			sapError: true,
@@ -1018,7 +1124,87 @@ app.get("/api/po/report", async (req, res) => {
 		});
 	}
 });
+// app.get("/api/po/report", async (req, res) => {
+// 	if (!process.env.SAP_HOST) {
+// 		return res.json({ success: true, sapIntegration: "mock", data: [] });
+// 	}
+// 	try {
+// 		const response = await axios.get(
+// 			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseOrderHistorySet`,
+// 			{ params: { "$format": "json" }, auth: sapAuth() }
+// 		);
+// 		const results = (response.data && response.data.d && response.data.d.results) || [];
+// 		return res.json({ success: true, sapIntegration: "fetched", data: results });
+// 	} catch (error) {
+// 		console.error("❌ PO report:", error.message);
+// 		return res.status(502).json({
+// 			success: false,
+// 			sapError: true,
+// 			message: "Node.js không thể kết nối tới SAP Gateway!"
+// 		});
+// 	}
+// });
+// ============================================================================
+// API BÁO CÁO TIẾN ĐỘ PO (REPORT) — MERGE TIMELINE & PHÂN QUYỀN VAI TRÒ (ROLE)
+// ============================================================================
+app.get("/api/po/report", async (req, res) => {
+	const userEmail = String(req.query.email || "").trim().toLowerCase();
 
+	// Chế độ Mock Data khi chưa cấu hình kết nối SAP
+	if (!process.env.SAP_HOST) {
+		return res.json({ success: true, sapIntegration: "mock", data: [] });
+	}
+
+	try {
+		// 1. Gọi OData lấy danh sách lịch sử Purchase Order từ SAP S/4HANA
+		const response = await axios.get(
+			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseOrderHistorySet`,
+			{ params: { "$format": "json" }, auth: sapAuth() }
+		);
+		let results = (response.data && response.data.d && response.data.d.results) || [];
+
+		// 2. Merge (trộn) dữ liệu mốc thời gian duyệt PR từ approvalStore ở Node.js vào PO từ SAP
+		results = results.map((po) => {
+			// Tra cứu PR tương ứng trong approvalStore dựa trên SapPRId hoặc PreqNo
+			const matchedPR = approvalStore.find(
+				(pr) => pr.SapPRId === po.PoNumber || pr.PRId === po.PreqNo || pr.InternalId === po.PreqNo
+			);
+
+			return {
+				...po,
+				// Gán thông tin người tạo PR
+				RequesterEmail: matchedPR ? matchedPR.RequesterEmail : (po.RequesterEmail || "requester@qdavy.com"),
+				
+				// Gán các mốc thời gian (Dates) cho Timeline 6 bước
+				PrDate: matchedPR ? matchedPR.CreatedAt?.split("T")[0] : po.DocDate,
+				LeadDate: matchedPR?.PurchasingApprovedAt ? matchedPR.PurchasingApprovedAt.split("T")[0] : null,
+				CfoDate: matchedPR?.CfoProcessedAt ? matchedPR.CfoProcessedAt.split("T")[0] : null,
+				CeoDate: matchedPR?.CeoProcessedAt ? matchedPR.CeoProcessedAt.split("T")[0] : null,
+				DocDate: po.DocDate || new Date().toISOString().split("T")[0],
+				DeliveryDate: po.Status === "DELIVERED" ? po.DeliveryDate : null
+			};
+		});
+
+		// 3. Phân quyền xem dữ liệu báo cáo theo Email người dùng
+		if (userEmail === "requester@qdavy.com") {
+			// Requester chỉ lọc và thấy danh sách PO do chính mình đề nghị
+			results = results.filter((po) =>
+				String(po.RequesterEmail || "").toLowerCase() === "requester@qdavy.com"
+			);
+		}
+		// Các email cấp quản lý: purchasing@qdavy.com, cfo@qdavy.com, ceo@qdavy.com
+		// sẽ nhận được toàn bộ danh sách PO trên hệ thống.
+
+		return res.json({ success: true, sapIntegration: "fetched", data: results });
+	} catch (error) {
+		console.error("❌ Lỗi lấy báo cáo PO:", error.message);
+		return res.status(502).json({
+			success: false,
+			sapError: true,
+			message: "Node.js không thể kết nối tới SAP Gateway!"
+		});
+	}
+});
 if (require.main === module) {
 	app.listen(PORT, () => {
 		console.log(`QDAVY Procurement API: http://localhost:${PORT}`);
