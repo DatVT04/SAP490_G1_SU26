@@ -5,6 +5,7 @@ const cors = require("cors");
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
+const os = require("os");
 
 const { employees, materials, vendors, pendingPRs } = require("./webapp/model/MockData");
 
@@ -24,21 +25,32 @@ const LEGAL_ESCALATION_THRESHOLD = 100000000;
 
 // ============================================================================
 // PERSIST — lưu file JSON, không mất khi restart server
+// Trên Vercel, /var/task chỉ đọc (read-only) — chỉ /tmp mới ghi được (nhưng /tmp
+// không bền, có thể mất khi cold start / đổi instance). Local dev vẫn dùng ./data
+// như cũ để dữ liệu bền thật sự giữa các lần chạy.
 // ============================================================================
-const DATA_DIR = path.join(__dirname, "data");
+const IS_SERVERLESS = !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const DATA_DIR = IS_SERVERLESS
+	? path.join(os.tmpdir(), "qdavy-data")
+	: path.join(__dirname, "data");
 const APPROVAL_FILE = path.join(DATA_DIR, "approvals.json");
 const NOTIF_FILE = path.join(DATA_DIR, "notifications.json");
 
 function ensureDataDir() {
-	if (!fs.existsSync(DATA_DIR)) {
-		fs.mkdirSync(DATA_DIR, { recursive: true });
+	try {
+		if (!fs.existsSync(DATA_DIR)) {
+			fs.mkdirSync(DATA_DIR, { recursive: true });
+		}
+		return true;
+	} catch (e) {
+		console.error("⚠️ Khong tao duoc thu muc data (" + DATA_DIR + "):", e.message);
+		return false;
 	}
 }
 
 function loadApprovals() {
-	ensureDataDir();
-	if (!fs.existsSync(APPROVAL_FILE)) {
-		const seed = [...pendingPRs].map(function (pr) { return { ...pr }; });
+	const seed = [...pendingPRs].map(function (pr) { return { ...pr }; });
+	if (!ensureDataDir() || !fs.existsSync(APPROVAL_FILE)) {
 		return { items: seed, nextSeq: seed.length + 1 };
 	}
 	try {
@@ -48,22 +60,25 @@ function loadApprovals() {
 		return { items: items, nextSeq: nextSeq };
 	} catch (e) {
 		console.error("⚠️ Load approvals THAT BAI:", e.message);
-		return { items: [], nextSeq: 1 };
+		return { items: seed, nextSeq: seed.length + 1 };
 	}
 }
 
 function saveApprovals() {
-	ensureDataDir();
-	fs.writeFileSync(
-		APPROVAL_FILE,
-		JSON.stringify({ items: approvalStore, nextSeq: nextApprovalSeq }, null, 2),
-		"utf8"
-	);
+	if (!ensureDataDir()) { return; }
+	try {
+		fs.writeFileSync(
+			APPROVAL_FILE,
+			JSON.stringify({ items: approvalStore, nextSeq: nextApprovalSeq }, null, 2),
+			"utf8"
+		);
+	} catch (e) {
+		console.error("⚠️ Save approvals THAT BAI:", e.message);
+	}
 }
 
 function loadNotifications() {
-	ensureDataDir();
-	if (!fs.existsSync(NOTIF_FILE)) {
+	if (!ensureDataDir() || !fs.existsSync(NOTIF_FILE)) {
 		return { items: [], nextId: 1 };
 	}
 	try {
@@ -79,12 +94,16 @@ function loadNotifications() {
 }
 
 function saveNotifications() {
-	ensureDataDir();
-	fs.writeFileSync(
-		NOTIF_FILE,
-		JSON.stringify({ items: notificationStore, nextId: nextNotificationId }, null, 2),
-		"utf8"
-	);
+	if (!ensureDataDir()) { return; }
+	try {
+		fs.writeFileSync(
+			NOTIF_FILE,
+			JSON.stringify({ items: notificationStore, nextId: nextNotificationId }, null, 2),
+			"utf8"
+		);
+	} catch (e) {
+		console.error("⚠️ Save notifications THAT BAI:", e.message);
+	}
 }
 
 const _loadedApprovals = loadApprovals();
