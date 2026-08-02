@@ -4,35 +4,71 @@
     xmlns:mvc="sap.ui.core.mvc"
     xmlns:core="sap.ui.core"
     xmlns:f="sap.ui.layout.form"
+    xmlns:l="sap.ui.layout"
 >
     <Page showHeader="false" class="qdInnerPage">
         <content>
 
-            <!-- ============ HERO ============ -->
+            <!-- ============ HERO BANNER ============ -->
             <VBox class="qdPageHero qdPageHeroGreen">
                 <HBox alignItems="Center" justifyContent="SpaceBetween" wrap="Wrap">
                     <HBox alignItems="Center">
                         <Button icon="sap-icon://nav-back" press=".onNavBack" class="qdHeroBackBtn"/>
-                        <VBox>
-                            <Text text="Theo dõi &amp; đối chiếu" class="qdPageEyebrow"/>
-                            <Title text="Báo cáo tiến độ đơn hàng" level="H1" class="qdPageTitle"/>
-                            <Text text="Dữ liệu Purchase Order đọc trực tiếp từ SAP S/4HANA" class="qdPageSub"/>
+                        <VBox class="sapUiSmallMarginBegin">
+                            <HBox alignItems="Center">
+                                <Text text="Theo dõi &amp; Đối chiếu" class="qdPageEyebrow"/>
+                                <ObjectStatus 
+                                    text="{reportModel>/userRoleLabel}" 
+                                    state="Warning" 
+                                    class="sapUiTinyMarginBegin" />
+                            </HBox>
+                            <Title text="Báo cáo tiến độ đơn hàng (PO)" level="H1" class="qdPageTitle"/>
+                            <Text text="Dữ liệu Purchase Order đọc trực tiếp thời gian thực từ SAP S/4HANA" class="qdPageSub"/>
                         </VBox>
                     </HBox>
-                    <Button icon="sap-icon://refresh" text="Tải lại" press=".onRefreshReport" class="qdHeroBtn"/>
+                    <HBox>
+                        <Button icon="sap-icon://excel-attachment" text="Xuất Excel" press=".onExportExcel" class="qdHeroBtn sapUiTinyMarginEnd"/>
+                        <Button icon="sap-icon://refresh" text="Tải lại" press=".onRefreshReport" class="qdHeroBtn"/>
+                    </HBox>
                 </HBox>
             </VBox>
 
-            <VBox>
+            <VBox class="sapUiSmallMargin">
 
-                <!-- PHẦN 1: BẢNG DỮ LIỆU BÁO CÁO CHÍNH -->
+                <!-- ============ 1. THẺ THỐNG KÊ KPI SUMMARY CARDS ============ -->
+                <l:Grid defaultSpan="XL3 L3 M6 S12" class="sapUiTinyMarginBottom">
+                    <GenericTile header="Tổng số PO" subheader="Trong kỳ" class="sapUiTinyMargin">
+                        <TileContent footer="Đơn hàng">
+                            <NumericContent value="{reportModel>/kpi/totalCount}" icon="sap-icon://sales-order" valueColor="Neutral" />
+                        </TileContent>
+                    </GenericTile>
+
+                    <GenericTile header="Tổng giá trị PO" subheader="VND" class="sapUiTinyMargin">
+                        <TileContent footer="Ngân sách phát hành">
+                            <NumericContent value="{reportModel>/kpi/totalValueFormatted}" icon="sap-icon://money-bills" valueColor="Good" />
+                        </TileContent>
+                    </GenericTile>
+
+                    <GenericTile header="Đang xử lý PO" subheader="Đã đẩy sang SAP" class="sapUiTinyMargin">
+                        <TileContent footer="Chờ nhập kho">
+                            <NumericContent value="{reportModel>/kpi/createdCount}" icon="sap-icon://shipping-status" valueColor="Critical" />
+                        </TileContent>
+                    </GenericTile>
+
+                    <GenericTile header="Hoàn tất nhập kho" subheader="Đã giao hàng" class="sapUiTinyMargin">
+                        <TileContent footer="Thành công">
+                            <NumericContent value="{reportModel>/kpi/deliveredCount}" icon="sap-icon://accept" valueColor="Good" />
+                        </TileContent>
+                    </GenericTile>
+                </l:Grid>
+
+                <!-- ============ 2. BẢNG DỮ LIỆU & BỘ LỌC ============ -->
                 <VBox class="qdContentCard qdCardTight">
-                    <Table id="reportTable" items="{reportModel>/poRecords}">
+                    <Table id="reportTable" items="{reportModel>/poRecords}" noDataText="Không tìm thấy đơn hàng nào phù hợp với vai trò của bạn.">
                         <headerToolbar>
                             <OverflowToolbar style="Clear">
                                 <core:Icon src="sap-icon://sales-order" class="qdCardIcon"/>
-                                <Title text="Đơn mua hàng" level="H3" class="qdCardTitle"/>
-                                <Text text="Chọn một dòng để xem tiến độ chi tiết" class="qdCellHint sapUiSmallMarginBegin"/>
+                                <Title text="Danh sách đơn mua hàng" level="H3" class="qdCardTitle"/>
                                 <ToolbarSpacer />
                             </OverflowToolbar>
                         </headerToolbar>
@@ -41,18 +77,23 @@
                             <OverflowToolbar class="qdFilterBar">
                                 <VBox class="qdFilterField">
                                     <Label text="Trạng thái" class="qdFilterLabel"/>
-                                    <Select id="filterStatus" change=".onFilterChange" width="12rem">
+                                    <Select id="filterStatus" change=".onFilterChange" width="11rem">
                                         <core:Item key="ALL" text="Tất cả trạng thái" />
                                         <core:Item key="CREATED" text="Đã tạo PO sang SAP" />
                                         <core:Item key="DELIVERED" text="Đã nhập kho" />
                                     </Select>
                                 </VBox>
 
+                                <VBox class="qdFilterField">
+                                    <Label text="Thởi gian tạo" class="qdFilterLabel"/>
+                                    <DateRangeSelection id="filterDateRange" change=".onFilterChange" width="14rem" placeholder="Chọn khoảng ngày..."/>
+                                </VBox>
+
                                 <VBox class="qdFilterField qdFilterFieldGrow">
                                     <Label text="Tìm kiếm" class="qdFilterLabel"/>
                                     <SearchField
                                         width="100%"
-                                        placeholder="Tìm theo số PO hoặc tên nhà cung cấp..."
+                                        placeholder="Tìm theo số PO, Người tạo hoặc Nhà cung cấp..."
                                         liveChange=".onFilterChange"
                                         id="filterSearch"
                                     />
@@ -63,33 +104,26 @@
                         </infoToolbar>
 
                         <columns>
-                            <Column width="15%"><Text text="Mã PO (SAP)" /></Column>
-                            <Column width="25%"><Text text="Nhà cung cấp" /></Column>
-                            <Column width="15%"><Text text="Mã Công Ty" /></Column>
-                            <Column width="15%"><Text text="Ngày Chứng Từ" /></Column>
-                            <Column hAlign="End" width="15%"><Text text="Tổng giá trị" /></Column>
-                            <Column hAlign="Center" width="15%"><Text text="Trạng thái" /></Column>
+                            <Column width="14%"><Text text="Mã PO (SAP)" /></Column>
+                            <Column width="18%"><Text text="Nhà cung cấp" /></Column>
+                            <Column width="16%"><Text text="Người đề nghị" /></Column>
+                            <Column width="12%"><Text text="Mã Công Ty" /></Column>
+                            <Column width="12%"><Text text="Ngày Chứng Từ" /></Column>
+                            <Column hAlign="End" width="14%"><Text text="Tổng giá trị" /></Column>
+                            <Column hAlign="Center" width="14%"><Text text="Trạng thái" /></Column>
                         </columns>
             
                         <items>
                             <ColumnListItem type="Active" press=".onPOSelect">
                                 <cells>
-                                    <!-- 1. Mã PO (Khớp trường PoNumber) -->
-                                    <ObjectIdentifier title="{reportModel>PoNumber}"/>
-                                    
-                                    <!-- 2. Nhà cung cấp (Khớp trường VendorName) -->
+                                    <ObjectIdentifier 
+                                        title="{reportModel>PoNumber}" 
+                                        text="{= 'PR: ' + (${reportModel>PreqNo} || 'N/A') }" />
                                     <Text text="{reportModel>VendorName}" />
-                                    
-                                    <!-- 3. Mã Công Ty (Khớp trường CompanyCode) -->
+                                    <Text text="{reportModel>RequesterEmail}" />
                                     <Text text="{reportModel>CompanyCode}" />
-                                    
-                                    <!-- 4. Ngày tạo đơn (Khớp trường DocDate) -->
                                     <Text text="{reportModel>DocDate}" />
-                                    
-                                    <!-- 5. Tổng giá trị + Loại tiền (Khớp trường TotalValue và Currency) -->
                                     <ObjectNumber number="{reportModel>TotalValue}" unit="{reportModel>Currency}" state="None" />
-                                        
-                                    <!-- 6. Trạng thái (Khớp trường Status) -->
                                     <ObjectStatus
                                         text="{= ${reportModel>Status} === 'DELIVERED' ? 'Đã nhập kho' : ( ${reportModel>Status} === 'CREATED' ? 'Đã tạo PO sang SAP' : ${reportModel>Status} ) }"
                                         state="{= ${reportModel>Status} === 'DELIVERED' ? 'Success' : ( ${reportModel>Status} === 'CREATED' ? 'Information' : 'None' ) }" />
@@ -99,56 +133,48 @@
                     </Table>
                 </VBox>
 
-                <!-- PHẦN 2: KHU VỰC TIẾN ĐỘ NGANG (TỰ ĐỘNG BẬT KHI CHỌN DÒNG) -->
-                <VBox class="qdContentCard"
-                      visible="{= ${reportModel>/selectedPO} !== null }">
+                <!-- ============ 3. KHU VỰC TIẾN ĐỘ NGANG (TIMELINE) ============ -->
+                <VBox class="qdContentCard" visible="{= ${reportModel>/selectedPO} !== null }">
 
                     <OverflowToolbar style="Clear">
                         <core:Icon src="sap-icon://process" class="qdCardIcon" />
-                        <Title text="{= 'Tiến độ đơn hàng ' + ${reportModel>/selectedPO/PoNumber} }" level="H3" class="qdCardTitle"/>
+                        <Title text="{= 'Tiến độ &amp; Chi tiết đơn hàng ' + ${reportModel>/selectedPO/PoNumber} }" level="H3" class="qdCardTitle"/>
                     </OverflowToolbar>
 
-                    <VBox class="sapUiLargeMarginTop sapUiLargeMarginBottom">
-                        <!-- Khung chứa thanh tiến độ ngang -->
+                    <VBox class="sapUiMediumMarginTop sapUiSmallMarginBottom">
                         <VBox class="qdProgressTimelineContainer">
                             <HBox justifyContent="SpaceBetween" class="qdTimelineTrack">
                                 
-                                <!-- Bước 1: Đang lập yêu cầu (Kích hoạt khi StepActive >= 1) -->
                                 <VBox alignItems="Center" class="qdStepNode {= ${reportModel>/selectedPO/StepActive} >= 1 ? 'active' : '' }">
                                     <Button icon="sap-icon://create" class="qdCircleBtn" type="{= ${reportModel>/selectedPO/StepActive} >= 1 ? 'Emphasized' : 'Default' }"/>
                                     <Text text="Đang lập yêu cầu" class="qdStepLabel sapUiTinyMarginTop"/>
                                     <Text text="{reportModel>/selectedPO/PrDate}" class="qdStepDate"/>
                                 </VBox>
                                 
-                                <!-- Bước 2: Chờ Trưởng BP duyệt (Kích hoạt khi StepActive >= 2) -->
                                 <VBox alignItems="Center" class="qdStepNode {= ${reportModel>/selectedPO/StepActive} >= 2 ? 'active' : '' }">
                                     <Button icon="sap-icon://manager" class="qdCircleBtn" type="{= ${reportModel>/selectedPO/StepActive} >= 2 ? 'Emphasized' : 'Default' }"/>
-                                    <Text text="Chờ Trưởng bộ phận duyệt" class="qdStepLabel sapUiTinyMarginTop"/>
+                                    <Text text="Mua sắm duyệt" class="qdStepLabel sapUiTinyMarginTop"/>
                                     <Text text="{reportModel>/selectedPO/LeadDate}" class="qdStepDate"/>
                                 </VBox>
                                 
-                                <!-- Bước 3: Chờ CFO xét duyệt (Kích hoạt khi StepActive >= 3) -->
                                 <VBox alignItems="Center" class="qdStepNode {= ${reportModel>/selectedPO/StepActive} >= 3 ? 'active' : '' }">
                                     <Button icon="sap-icon://hr-approval" class="qdCircleBtn" type="{= ${reportModel>/selectedPO/StepActive} >= 3 ? 'Emphasized' : 'Default' }"/>
-                                    <Text text="Chờ CFO xét duyệt" class="qdStepLabel sapUiTinyMarginTop"/>
+                                    <Text text="CFO xét duyệt" class="qdStepLabel sapUiTinyMarginTop"/>
                                     <Text text="{reportModel>/selectedPO/CfoDate}" class="qdStepDate"/>
                                 </VBox>
                                 
-                                <!-- Bước 4: Chờ CEO xét duyệt (Kích hoạt khi StepActive >= 4) -->
                                 <VBox alignItems="Center" class="qdStepNode {= ${reportModel>/selectedPO/StepActive} >= 4 ? 'active' : '' }">
                                     <Button icon="sap-icon://money-bills" class="qdCircleBtn" type="{= ${reportModel>/selectedPO/StepActive} >= 4 ? 'Emphasized' : 'Default' }"/>
-                                    <Text text="Chờ CEO xét duyệt" class="qdStepLabel sapUiTinyMarginTop"/>
+                                    <Text text="CEO xét duyệt" class="qdStepLabel sapUiTinyMarginTop"/>
                                     <Text text="{reportModel>/selectedPO/CeoDate}" class="qdStepDate"/>
                                 </VBox>
                                 
-                                <!-- Bước 5: Đã tạo PO sang SAP (Kích hoạt khi StepActive >= 5) -->
                                 <VBox alignItems="Center" class="qdStepNode {= ${reportModel>/selectedPO/StepActive} >= 5 ? 'active' : '' }">
                                     <Button icon="sap-icon://supplier" class="qdCircleBtn" type="{= ${reportModel>/selectedPO/StepActive} >= 5 ? 'Emphasized' : 'Default' }"/>
                                     <Text text="Đã tạo PO sang SAP" class="qdStepLabel sapUiTinyMarginTop"/>
                                     <Text text="{reportModel>/selectedPO/DocDate}" class="qdStepDate"/>
                                 </VBox>
                                 
-                                <!-- Bước 6: Nhập kho hoàn tất (Kích hoạt khi StepActive >= 6) -->
                                 <VBox alignItems="Center" class="qdStepNode {= ${reportModel>/selectedPO/StepActive} >= 6 ? 'active' : '' }">
                                     <Button icon="sap-icon://accept" class="qdCircleBtn" type="{= ${reportModel>/selectedPO/StepActive} >= 6 ? 'Emphasized' : 'Default' }"/>
                                     <Text text="Nhập kho hoàn tất" class="qdStepLabel sapUiTinyMarginTop"/>

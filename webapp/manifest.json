@@ -119,23 +119,17 @@
         {
           "name": "thresholdConfig",
           "pattern": "threshold-config",
-          "target": [
-            "targetThresholdConfig"
-          ]
+          "target": ["targetThresholdConfig"]
         },
         {
           "name": "poReport",
           "pattern": "po-report",
-          "target": [
-            "targetPOReport"
-          ]
+          "target": ["targetPOReport"]
         },
         {
           "name": "profile",
           "pattern": "profile",
-          "target": [
-            "targetProfile"
-          ]
+          "target": ["targetProfile"]
         }
       ],
       "targets": {

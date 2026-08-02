@@ -12,17 +12,21 @@ sap.ui.define([
 
 	return Controller.extend("com.qdavy.procurement.controller.POReport", {
 		onInit: function () {
-			// 1. Khởi tạo JSONModel rỗng cho báo cáo
 			var oModel = new JSONModel({
 				poRecords: [],
-				selectedPO: null
+				selectedPO: null,
+				userRoleLabel: "Người đề nghị",
+				kpi: {
+					totalCount: 0,
+					totalValueFormatted: "0",
+					createdCount: 0,
+					deliveredCount: 0
+				}
 			});
 			this.getView().setModel(oModel, "reportModel");
 
-			// 2. Tải dữ liệu lần đầu
 			this._loadPODataFromSAP();
 
-			// 3. Đăng ký tự động tải lại khi điều hướng lại màn hình này
 			this.getOwnerComponent().getRouter()
 				.getRoute("poReport")
 				.attachPatternMatched(this._onRouteMatched, this);
@@ -32,16 +36,23 @@ sap.ui.define([
 			this._loadPODataFromSAP();
 		},
 
-		/**
-		 * 🚀 HÀM ĐỌC DỮ LIỆU: Dùng fetch() đồng bộ chuẩn với Config.BACKEND
-		 */
 		_loadPODataFromSAP: function () {
 			var oView = this.getView();
 			var oReportModel = oView.getModel("reportModel");
+			var self = this;
+
+			// Lấy email đăng nhập từ Session
+			var sUserEmail = sessionStorage.getItem("userEmail") || "requester@qdavy.com";
+			var sRoleLabel = "Người đề nghị";
+			if (sUserEmail.indexOf("purchasing") !== -1) { sRoleLabel = "Bộ phận Mua Sắm"; }
+			else if (sUserEmail.indexOf("cfo") !== -1) { sRoleLabel = "Giám Đốc Tài Chính (CFO)"; }
+			else if (sUserEmail.indexOf("ceo") !== -1) { sRoleLabel = "Tổng Giám Đốc (CEO)"; }
+
+			oReportModel.setProperty("/userRoleLabel", sRoleLabel);
 
 			oView.setBusy(true);
 
-			fetch(BACKEND + "/api/po/report")
+			fetch(BACKEND + "/api/po/report?email=" + encodeURIComponent(sUserEmail))
 				.then(function (r) { return r.json(); })
 				.then(function (response) {
 					oView.setBusy(false);
@@ -49,13 +60,11 @@ sap.ui.define([
 					if (response && response.success) {
 						var aRawPoRecords = response.data || [];
 
-						aRawPoRecords = aRawPoRecords.map(function (record) {
-							record.DeliveryRate = record.Status === "CREATED" ? 100 : 0;
-							return record;
-						});
-
 						oReportModel.setProperty("/poRecords", aRawPoRecords);
 						oReportModel.setProperty("/selectedPO", null);
+
+						// Tính toán số liệu KPI Summary
+						self._calculateKPIs(aRawPoRecords, oReportModel);
 					} else {
 						MessageToast.show("Không lấy được dữ liệu từ hệ thống SAP!");
 					}
@@ -67,9 +76,29 @@ sap.ui.define([
 				});
 		},
 
-		/**
-		 * 🎯 HÀM CLICK CHỌN DÒNG
-		 */
+		_calculateKPIs: function (aRecords, oModel) {
+			var iTotal = aRecords.length;
+			var iCreated = 0;
+			var iDelivered = 0;
+			var fTotalValue = 0;
+
+			aRecords.forEach(function (rec) {
+				var val = Number(rec.TotalValue) || 0;
+				fTotalValue += val;
+
+				if (rec.Status === "DELIVERED") {
+					iDelivered++;
+				} else {
+					iCreated++;
+				}
+			});
+
+			oModel.setProperty("/kpi/totalCount", iTotal);
+			oModel.setProperty("/kpi/createdCount", iCreated);
+			oModel.setProperty("/kpi/deliveredCount", iDelivered);
+			oModel.setProperty("/kpi/totalValueFormatted", fTotalValue.toLocaleString("vi-VN"));
+		},
+
 		onPOSelect: function (oEvent) {
 			var oContext = oEvent.getSource().getBindingContext("reportModel");
 			if (!oContext) { return; }
@@ -78,10 +107,10 @@ sap.ui.define([
 			if (oSelectedData && oSelectedData.Status) {
 				switch (oSelectedData.Status) {
 					case "CREATED":
-						oSelectedData.StepActive = 5; // Bước 5: Đã tạo PO sang SAP
+						oSelectedData.StepActive = 5;
 						break;
 					case "DELIVERED":
-						oSelectedData.StepActive = 6; // Bước 6: Nhập kho hoàn tất
+						oSelectedData.StepActive = 6;
 						break;
 					default:
 						oSelectedData.StepActive = 1;
@@ -98,9 +127,6 @@ sap.ui.define([
 			this.getOwnerComponent().getRouter().navTo("dashboard");
 		},
 
-		/**
-		 * 🔍 Tìm kiếm & Lọc nhanh trên giao diện bảng
-		 */
 		onFilterChange: function () {
 			var sSearchQuery = this.getView().byId("filterSearch").getValue();
 			var sStatusKey = this.getView().byId("filterStatus").getSelectedKey();
@@ -109,7 +135,8 @@ sap.ui.define([
 			if (sSearchQuery && sSearchQuery.length > 0) {
 				var oFilterPo = new Filter("PoNumber", FilterOperator.Contains, sSearchQuery);
 				var oFilterVendor = new Filter("VendorName", FilterOperator.Contains, sSearchQuery);
-				aFinalFilters.push(new Filter({ filters: [oFilterPo, oFilterVendor], and: false }));
+				var oFilterReq = new Filter("RequesterEmail", FilterOperator.Contains, sSearchQuery);
+				aFinalFilters.push(new Filter({ filters: [oFilterPo, oFilterVendor, oFilterReq], and: false }));
 			}
 
 			if (sStatusKey && sStatusKey !== "ALL") {
@@ -128,7 +155,11 @@ sap.ui.define([
 			this.getView().byId("filterSearch").setValue("");
 			this.getView().byId("filterStatus").setSelectedKey("ALL");
 			this._loadPODataFromSAP();
-			MessageToast.show("Đã cập nhật dữ liệu báo cáo thời gian thực từ SAP!");
+			MessageToast.show("Đã cập nhật dữ liệu báo cáo thời gian thực!");
+		},
+
+		onExportExcel: function () {
+			MessageToast.show("Tính năng trích xuất Excel đang xử lý...");
 		}
 	});
 });
