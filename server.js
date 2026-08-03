@@ -7,8 +7,6 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 
-const { employees, materials, vendors, pendingPRs } = require("./webapp/model/MockData");
-
 const app = express();
 const PORT = process.env.PORT || 3001;
 app.use(cors());
@@ -49,9 +47,8 @@ function ensureDataDir() {
 }
 
 function loadApprovals() {
-	const seed = [...pendingPRs].map(function (pr) { return { ...pr }; });
 	if (!ensureDataDir() || !fs.existsSync(APPROVAL_FILE)) {
-		return { items: seed, nextSeq: seed.length + 1 };
+		return { items: [], nextSeq: 1 };
 	}
 	try {
 		const raw = JSON.parse(fs.readFileSync(APPROVAL_FILE, "utf8"));
@@ -60,7 +57,7 @@ function loadApprovals() {
 		return { items: items, nextSeq: nextSeq };
 	} catch (e) {
 		console.error("⚠️ Load approvals THAT BAI:", e.message);
-		return { items: seed, nextSeq: seed.length + 1 };
+		return { items: [], nextSeq: 1 };
 	}
 }
 
@@ -144,10 +141,25 @@ function sapAuth() {
 	};
 }
 
-function findCeoEmails() {
-	return employees
+async function fetchAllEmployeesFromSAP() {
+	if (!process.env.SAP_HOST) { return []; }
+	try {
+		const response = await axios.get(
+			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/EmployeeSet`,
+			{ params: { "$format": "json" }, auth: sapAuth() }
+		);
+		return (response.data && response.data.d && response.data.d.results) || [];
+	} catch (error) {
+		console.error("[fetchAllEmployeesFromSAP] Khong lay duoc danh sach nhan vien tu SAP:", error.message);
+		return [];
+	}
+}
+
+async function findEmailsByRole(role) {
+	const list = await fetchAllEmployeesFromSAP();
+	return list
 		.filter(function (e) {
-			return e.IsActive && String(e.Role || "").toUpperCase() === "CEO";
+			return e.IsActive && String(e.Role || "").toUpperCase() === String(role).toUpperCase();
 		})
 		.map(function (e) { return e.Email; })
 		.filter(Boolean);
@@ -157,8 +169,9 @@ function notifyRequester(record, message) {
 	pushNotification(record.RequesterEmail, record.PRId, message);
 }
 
-function notifyCeos(prId, message) {
-	findCeoEmails().forEach(function (email) {
+async function notifyCeos(prId, message) {
+	const emails = await findEmailsByRole("CEO");
+	emails.forEach(function (email) {
 		pushNotification(email, prId, message);
 	});
 }
@@ -418,13 +431,7 @@ app.post("/api/login", async (req, res) => {
 	}
 
 	if (!process.env.SAP_HOST) {
-		const employee = employees.find(
-			(emp) => emp.Email.toLowerCase() === String(email).toLowerCase()
-		);
-		if (!employee || !employee.IsActive) {
-			return res.status(401).json({ success: false, message: "Email khong ton tai hoac tai khoan da bi khoa." });
-		}
-		return res.json({ success: true, employee });
+		return res.status(503).json({ success: false, message: "He thong SAP chua duoc cau hinh (thieu SAP_HOST)." });
 	}
 
 	try {
@@ -437,29 +444,19 @@ app.post("/api/login", async (req, res) => {
 			(emp) => emp.Email && emp.Email.toLowerCase() === String(email).toLowerCase()
 		);
 
-		if (!employee) {
-			const mockEmp = employees.find((emp) => emp.Email.toLowerCase() === String(email).toLowerCase());
-			if (!mockEmp || !mockEmp.IsActive) {
-				return res.status(401).json({ success: false, message: "Email khong ton tai hoac tai khoan da bi khoa." });
-			}
-			return res.json({ success: true, employee: mockEmp });
-		}
-		if (!employee.IsActive) {
+		if (!employee || !employee.IsActive) {
 			return res.status(401).json({ success: false, message: "Email khong ton tai hoac tai khoan da bi khoa." });
 		}
 		return res.json({ success: true, employee });
 	} catch (error) {
-		const mockEmp = employees.find((emp) => emp.Email.toLowerCase() === String(email).toLowerCase());
-		if (mockEmp && mockEmp.IsActive) {
-			return res.json({ success: true, employee: mockEmp });
-		}
+		console.error("❌ [login] Loi ket noi SAP:", error.message);
 		return res.status(502).json({ success: false, message: "Khong the ket noi toi he thong SAP." });
 	}
 });
 
 app.get("/api/materials", async (req, res) => {
 	if (!process.env.SAP_HOST) {
-		return res.json({ success: true, data: materials });
+		return res.status(503).json({ success: false, message: "He thong SAP chua duoc cau hinh (thieu SAP_HOST)." });
 	}
 	try {
 		const response = await axios.get(
@@ -468,13 +465,14 @@ app.get("/api/materials", async (req, res) => {
 		);
 		return res.json({ success: true, data: (response.data && response.data.d && response.data.d.results) || [] });
 	} catch (error) {
-		return res.json({ success: true, data: materials, sapError: true });
+		console.error("❌ MaterialSet:", error.message);
+		return res.status(502).json({ success: false, message: "Khong the lay du lieu vat tu tu SAP.", sapError: true });
 	}
 });
 
 app.get("/api/vendors", async (req, res) => {
 	if (!process.env.SAP_HOST) {
-		return res.json({ success: true, data: vendors });
+		return res.status(503).json({ success: false, message: "He thong SAP chua duoc cau hinh (thieu SAP_HOST)." });
 	}
 	try {
 		const response = await axios.get(
@@ -490,7 +488,7 @@ app.get("/api/vendors", async (req, res) => {
 		return res.json({ success: true, data: allVendors });
 	} catch (error) {
 		console.error("❌ VendorSet:", error.message);
-		return res.json({ success: true, data: vendors, sapError: true });
+		return res.status(502).json({ success: false, message: "Khong the lay du lieu nha cung cap tu SAP.", sapError: true });
 	}
 });
 
@@ -499,7 +497,10 @@ app.post("/api/ai/recommend-vendor", async (req, res) => {
 	if (!process.env.GROQ_API_KEY) {
 		return res.status(500).json({ success: false, message: "Thieu GROQ_API_KEY." });
 	}
-	const vendorList = candidateVendors && candidateVendors.length ? candidateVendors : vendors;
+	if (!Array.isArray(candidateVendors) || candidateVendors.length === 0) {
+		return res.status(400).json({ success: false, message: "Thieu danh sach nha cung cap (goi /api/vendors truoc)." });
+	}
+	const vendorList = candidateVendors;
 	const prompt = `Ban la chuyen gia mua hang. De xuat NCC cho:
 - Vat tu: ${materialName || "N/A"} (nhom: ${materialGroup || "N/A"})
 - So luong: ${quantity || "N/A"}
@@ -519,29 +520,18 @@ Tra loi ngan gon tieng Viet: ten NCC va ly do.`;
 	}
 });
 
-function findPurchasingEmails() {
-	return employees
-		.filter(function (e) {
-			return e.IsActive && String(e.Role || "").toUpperCase() === "PURCHASING";
-		})
-		.map(function (e) { return e.Email; })
-		.filter(Boolean);
-}
-
-function notifyPurchasing(prId, message) {
-	findPurchasingEmails().forEach(function (email) {
+async function notifyPurchasing(prId, message) {
+	const emails = await findEmailsByRole("PURCHASING");
+	emails.forEach(function (email) {
 		pushNotification(email, prId, message);
 	});
 }
 
-function notifyCfo(prId, message) {
-	employees
-		.filter(function (e) {
-			return e.IsActive && String(e.Role || "").toUpperCase() === "CFO";
-		})
-		.forEach(function (e) {
-			if (e.Email) { pushNotification(e.Email, prId, message); }
-		});
+async function notifyCfo(prId, message) {
+	const emails = await findEmailsByRole("CFO");
+	emails.forEach(function (email) {
+		pushNotification(email, prId, message);
+	});
 }
 
 app.post("/api/approval/submit", async (req, res) => {
@@ -601,7 +591,7 @@ app.post("/api/approval/submit", async (req, res) => {
 		record,
 		"Đề nghị " + record.PRId + " đã được gửi, đang chờ Bộ phận mua sắm (Purchasing) xem xét. Số PR SAP sẽ có sau khi phê duyệt cuối."
 	);
-	notifyPurchasing(
+	await notifyPurchasing(
 		record.PRId,
 		"Có đề nghị mới " + record.PRId + " từ " + requesterEmail
 		+ " — giá trị " + Number(record.TotalValue).toLocaleString("vi-VN") + " " + record.Currency
@@ -833,7 +823,7 @@ app.patch("/api/approval/:id", async (req, res) => {
 				record,
 				"Đề nghị " + record.PRId + " đã được Bộ phận mua sắm duyệt, đang chờ CFO xem xét."
 			);
-			notifyCfo(
+			await notifyCfo(
 				record.PRId,
 				"PR " + record.PRId + " từ " + record.RequesterEmail
 				+ " đã qua Purchasing — chờ CFO duyệt. Giá trị: "
@@ -862,7 +852,7 @@ app.patch("/api/approval/:id", async (req, res) => {
 				record,
 				"Đề nghị " + record.PRId + " đã được CFO chuyển lên CEO. Bạn sẽ nhận thông báo khi CEO quyết định."
 			);
-			notifyCeos(
+			await notifyCeos(
 				record.PRId,
 				"PR " + record.PRId + " từ " + record.RequesterEmail
 				+ " leo thang lên CEO. " + record.EscalationReason
