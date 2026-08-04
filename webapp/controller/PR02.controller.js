@@ -144,7 +144,7 @@ sap.ui.define([
 			if (bIsApprove && sRole === "PURCHASING") {
 				sRoleHint = "\n\nSau khi bạn duyệt, đề nghị sẽ chuyển sang CFO (chưa ghi SAP).";
 			} else if (bIsApprove && sRole === "CFO") {
-				sRoleHint = "\n\n≤ 300 triệu: ghi SAP ngay. > 300 triệu: chuyển CEO.";
+				sRoleHint = "\n\n≤ ngưỡng Internal Order: ghi SAP ngay. Vượt ngưỡng IO: chuyển CEO.";
 			} else if (bIsApprove && sRole === "CEO") {
 				sRoleHint = "\n\nDuyệt cuối → hệ thống ghi PR lên SAP và cấp số PR thật.";
 			}

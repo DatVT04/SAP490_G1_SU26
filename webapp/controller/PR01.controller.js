@@ -10,10 +10,11 @@ sap.ui.define([
 	var BACKEND = Config.BACKEND;
 	var REQUEST_TIMEOUT_MS = 15000;
 
-	var CEO_THRESHOLD = 300000000;
-	var CFO_THRESHOLD = 100000000;
+	// Chỉ cảnh báo “giá trị lớn” — KHÔNG dùng để bắt buộc leo CEO (CEO theo ngưỡng IO từ SAP)
+	var LEGAL_WARN_THRESHOLD = 100000000;
 
-	function emptyCatalogItem() {
+	function emptyCatalogItem(defaults) {
+		defaults = defaults || {};
 		return {
 			isFreeText: false,
 			materialNo: "",
@@ -22,26 +23,10 @@ sap.ui.define([
 			uom: "",
 			quantity: null,
 			estimatedValue: null,
-			costCenter: "",
-			internalOrder: "",
+			costCenter: defaults.costCenter || "",
+			internalOrder: defaults.internalOrder || "",
 			assetNo: "",
-			glAccount: ""
-		};
-	}
-
-	function emptyFreeTextItem() {
-		return {
-			isFreeText: true,
-			materialNo: "FREE_TEXT",
-			materialType: "ZROH",
-			description: "",
-			uom: "PC",
-			quantity: 1,
-			estimatedValue: null,
-			costCenter: "",
-			internalOrder: "",
-			assetNo: "",
-			glAccount: ""
+			glAccount: defaults.glAccount || ""
 		};
 	}
 
@@ -65,18 +50,23 @@ sap.ui.define([
 				costCenters: [],
 				internalOrders: [],
 				header: { currency: "VND" },
-				items: [],
+				items: [emptyCatalogItem()],
 				totalText: "0",
 				escalationText: "",
-				notifications: []
+				notifications: [],
+				ioThresholds: {}
 			});
 			this.getView().setModel(oModel);
 
 			this._ioToCostCenter = {};
 			this._costCenterToIOs = {};
+			this._defaultIO = "";
+			this._defaultCC = "";
+			this._defaultGL = "";
 
 			this._loadMaterials();
 			this._loadAccountingLists();
+			this._loadThresholds();
 
 			this.getOwnerComponent().getRouter()
 				.getRoute("pr01")
@@ -85,6 +75,61 @@ sap.ui.define([
 
 		_onRouteMatched: function () {
 			this._loadNotifications();
+			var oModel = this.getView().getModel();
+			var aItems = oModel.getProperty("/items") || [];
+			if (aItems.length === 0) {
+				oModel.setProperty("/items", [emptyCatalogItem(this._getDefaults())]);
+				this._recalcTotal();
+			}
+		},
+
+		_getDefaults: function () {
+			return {
+				internalOrder: this._defaultIO || "",
+				costCenter: this._defaultCC || "",
+				glAccount: this._defaultGL || ""
+			};
+		},
+
+		_applyDefaultsToEmptyItems: function () {
+			var oModel = this.getView().getModel();
+			var aItems = oModel.getProperty("/items") || [];
+			var bChanged = false;
+			var sIO = this._defaultIO;
+			var sCC = this._defaultCC;
+			var sGL = this._defaultGL;
+
+			aItems.forEach(function (item) {
+				if (!item.internalOrder && sIO) {
+					item.internalOrder = sIO;
+					bChanged = true;
+				}
+				if (!item.costCenter && sCC) {
+					item.costCenter = sCC;
+					bChanged = true;
+				}
+				if (!item.glAccount && sGL) {
+					item.glAccount = sGL;
+					bChanged = true;
+				}
+			});
+			if (bChanged) {
+				oModel.setProperty("/items", aItems.slice());
+				this._recalcTotal();
+			}
+		},
+
+		_loadThresholds: function () {
+			var oModel = this.getView().getModel();
+			var that = this;
+			this._fetchWithTimeout(BACKEND + "/api/thresholds")
+				.then(function (oResult) {
+					if (oResult && oResult.success) {
+						oModel.setProperty("/ioThresholds", oResult.byIO || {});
+						that._recalcTotal();
+					}
+				})
+				.catch(function () { /* im lang */ });
 		},
 
 		_loadNotifications: function () {
@@ -131,22 +176,55 @@ sap.ui.define([
 
 			this._fetchWithTimeout(BACKEND + "/api/gl-accounts")
 				.then(function (oResult) {
-					if (oResult.success) { oModel.setProperty("/glAccounts", oResult.data || []); }
+					if (oResult.success) {
+						var aGL = oResult.data || [];
+						oModel.setProperty("/glAccounts", aGL);
+						if (aGL.length >= 1) {
+							that._defaultGL = aGL[0].GLAccount || "";
+						}
+						that._applyDefaultsToEmptyItems();
+					}
 				})
 				.catch(function () { /* im lang */ });
 
 			this._fetchWithTimeout(BACKEND + "/api/cost-centers")
 				.then(function (oResult) {
-					if (oResult.success) { oModel.setProperty("/costCenters", oResult.data || []); }
+					if (oResult.success) {
+						var aCC = oResult.data || [];
+						oModel.setProperty("/costCenters", aCC);
+						if (aCC.length > 0 && !that._defaultCC) {
+							that._defaultCC = aCC[0].CostCenter || "";
+						}
+						that._applyDefaultsToEmptyItems();
+					}
 				})
 				.catch(function () { /* im lang */ });
 
 			this._fetchWithTimeout(BACKEND + "/api/internal-orders")
 				.then(function (oResult) {
 					if (oResult.success) {
-						oModel.setProperty("/internalOrders", oResult.data || []);
+						var aIO = oResult.data || [];
+						oModel.setProperty("/internalOrders", aIO);
 						that._ioToCostCenter = oResult.ioToCostCenter || {};
 						that._costCenterToIOs = oResult.costCenterToIOs || {};
+
+						// Budget từ SAP (nếu API trả kèm trên từng IO)
+						var oTh = oModel.getProperty("/ioThresholds") || {};
+						aIO.forEach(function (io) {
+							if (io.Budget != null && Number(io.Budget) > 0) {
+								oTh[io.InternalOrder] = Number(io.Budget);
+							}
+						});
+						oModel.setProperty("/ioThresholds", oTh);
+
+						if (aIO.length > 0) {
+							that._defaultIO = aIO[0].InternalOrder || "";
+							if (that._defaultIO && that._ioToCostCenter[that._defaultIO]) {
+								that._defaultCC = that._ioToCostCenter[that._defaultIO];
+							}
+						}
+						that._applyDefaultsToEmptyItems();
+						that._recalcTotal();
 					}
 				})
 				.catch(function () { /* im lang */ });
@@ -157,14 +235,17 @@ sap.ui.define([
 			if (!oItem) { return; }
 
 			var sIO = oItem.getKey();
-			var sPath = oEvent.getSource().getBindingContext().getPath();
+			var oCtx = oEvent.getSource().getBindingContext();
+			if (!oCtx) { return; }
+
+			var sPath = oCtx.getPath();
 			var oModel = this.getView().getModel();
 			var sMappedCC = this._ioToCostCenter[sIO];
 
-			if (sMappedCC && !oModel.getProperty(sPath + "/costCenter")) {
+			if (sMappedCC) {
 				oModel.setProperty(sPath + "/costCenter", sMappedCC);
-				MessageToast.show("Đã tự điền Cost Center " + sMappedCC + " (theo SAP Internal Order).");
 			}
+			this._recalcTotal();
 		},
 
 		onCostCenterSelect: function (oEvent) {
@@ -172,16 +253,28 @@ sap.ui.define([
 			if (!oItem) { return; }
 
 			var sCC = oItem.getKey();
-			var sPath = oEvent.getSource().getBindingContext().getPath();
+			var oCtx = oEvent.getSource().getBindingContext();
+			if (!oCtx) { return; }
+
+			var sPath = oCtx.getPath();
 			var oModel = this.getView().getModel();
 			var aMappedIOs = this._costCenterToIOs[sCC] || [];
 
-			if (aMappedIOs.length === 1 && !oModel.getProperty(sPath + "/internalOrder")) {
+			if (aMappedIOs.length === 1) {
 				oModel.setProperty(sPath + "/internalOrder", aMappedIOs[0]);
-				MessageToast.show("Đã tự điền Internal Order " + aMappedIOs[0] + " (theo SAP).");
 			} else if (aMappedIOs.length > 1) {
-				MessageToast.show("Cost Center này gắn nhiều Internal Order — vui lòng chọn đúng IO.");
+				var sCurrentIO = oModel.getProperty(sPath + "/internalOrder");
+				if (aMappedIOs.indexOf(sCurrentIO) === -1) {
+					oModel.setProperty(sPath + "/internalOrder", aMappedIOs[0]);
+				}
+				MessageToast.show(
+					"Cost Center gắn " + aMappedIOs.length + " Internal Order — đã chọn "
+					+ (oModel.getProperty(sPath + "/internalOrder") || aMappedIOs[0])
+				);
+			} else {
+				oModel.setProperty(sPath + "/internalOrder", "");
 			}
+			this._recalcTotal();
 		},
 
 		onItemValueChange: function () {
@@ -192,15 +285,42 @@ sap.ui.define([
 			var oModel = this.getView().getModel();
 			var aItems = oModel.getProperty("/items") || [];
 			var fTotal = sumItems(aItems);
+			var oTh = oModel.getProperty("/ioThresholds") || {};
 
 			oModel.setProperty("/totalText", fTotal.toLocaleString("vi-VN"));
 
+			// So với ngưỡng IO (từ SAP /api/thresholds) — không còn 300tr cố định
 			var sWarn = "";
-			if (fTotal > CEO_THRESHOLD) {
-				sWarn = "Giá trị vượt 300 triệu VND — sau khi CFO duyệt sẽ leo thang lên CEO. Số PR SAP chỉ có sau khi duyệt cuối.";
-			} else if (fTotal > CFO_THRESHOLD) {
-				sWarn = "Giá trị vượt 100 triệu VND — CFO sẽ xem xét kỹ. Số PR SAP chỉ có sau khi phê duyệt.";
+			var bOverIO = false;
+			var sHitIO = "";
+			var nHitTh = null;
+
+			aItems.forEach(function (it) {
+				var sIO = String(it.internalOrder || "").trim();
+				if (!sIO) { return; }
+				var nTh = oTh[sIO];
+				if (nTh == null) { return; }
+				nTh = Number(nTh);
+				if (!isNaN(nTh) && fTotal > nTh) {
+					bOverIO = true;
+					if (nHitTh == null || nTh < nHitTh) {
+						nHitTh = nTh;
+						sHitIO = sIO;
+					}
+				}
+			});
+
+			if (bOverIO) {
+				sWarn = "Tổng giá trị vượt ngưỡng Internal Order " + sHitIO
+					+ " (" + Number(nHitTh).toLocaleString("vi-VN") + " VND) — sau CFO sẽ leo thang lên CEO. "
+					+ "Số PR SAP chỉ có sau khi duyệt cuối.";
+			} else if (fTotal > LEGAL_WARN_THRESHOLD) {
+				sWarn = "Giá trị lớn (> 100 triệu VND) — CFO sẽ xem xét kỹ. "
+					+ "Số PR SAP chỉ có sau khi phê duyệt.";
+			} else if (aItems.some(function (it) { return !!(it.internalOrder && String(it.internalOrder).trim()); })) {
+				sWarn = "Đề nghị gắn Internal Order. Leo CEO chỉ khi vượt ngưỡng ngân sách IO trên SAP.";
 			}
+
 			oModel.setProperty("/escalationText", sWarn);
 		},
 
@@ -217,11 +337,10 @@ sap.ui.define([
 					}
 					oModel.setProperty("/materials", oResult.data || []);
 
-					// Giữ dòng chưa chọn là trống — không bị gán mã đầu tiên
 					var aItems = oModel.getProperty("/items") || [];
 					var bChanged = false;
 					aItems.forEach(function (item) {
-						if (!item.isFreeText && !item.description && item.materialNo) {
+						if (!item.description && item.materialNo) {
 							item.materialNo = "";
 							item.materialType = "";
 							bChanged = true;
@@ -240,25 +359,24 @@ sap.ui.define([
 		onAddItem: function () {
 			var oModel = this.getView().getModel();
 			var aItems = oModel.getProperty("/items").slice();
-			aItems.push(emptyCatalogItem());
-			oModel.setProperty("/items", aItems);
-			this._recalcTotal();
-		},
-
-		onAddFreeTextItem: function () {
-			var oModel = this.getView().getModel();
-			var aItems = oModel.getProperty("/items").slice();
-			aItems.push(emptyFreeTextItem());
+			aItems.push(emptyCatalogItem(this._getDefaults()));
 			oModel.setProperty("/items", aItems);
 			this._recalcTotal();
 		},
 
 		onDeleteItem: function (oEvent) {
-			var sPath = oEvent.getSource().getBindingContext().getPath();
-			var iIndex = parseInt(sPath.split("/").pop(), 10);
+			var oCtx = oEvent.getSource().getBindingContext();
+			if (!oCtx) { return; }
 
+			var iIndex = parseInt(oCtx.getPath().split("/").pop(), 10);
 			var oModel = this.getView().getModel();
 			var aItems = oModel.getProperty("/items").slice();
+
+			if (aItems.length <= 1) {
+				MessageToast.show("Phải có ít nhất 1 dòng vật tư.");
+				return;
+			}
+
 			aItems.splice(iIndex, 1);
 			oModel.setProperty("/items", aItems);
 			this._recalcTotal();
@@ -292,9 +410,7 @@ sap.ui.define([
 				oModel.setProperty(sPath + "/materialType", oMaterial.MaterialType || "");
 				oModel.setProperty(sPath + "/description", oMaterial.Description || "");
 				oModel.setProperty(sPath + "/uom", oMaterial.BaseUoM || "PC");
-				if (oMaterial.MaterialType !== "ZAST") {
-					oModel.setProperty(sPath + "/assetNo", "");
-				}
+				// Asset không bắt buộc — không xóa / không khóa theo ZAST
 			}
 			this._recalcTotal();
 		},
@@ -303,12 +419,14 @@ sap.ui.define([
 			var aItems = this.getView().getModel().getProperty("/items") || [];
 			if (aItems.length === 0) { return; }
 
-			MessageBox.confirm("Xóa toàn bộ " + aItems.length + " dòng vật tư đã nhập?", {
+			MessageBox.confirm("Xóa toàn bộ dòng và tạo lại 1 dòng trống?", {
 				actions: [MessageBox.Action.YES, MessageBox.Action.NO],
 				emphasizedAction: MessageBox.Action.NO,
 				onClose: function (sAction) {
 					if (sAction === MessageBox.Action.YES) {
-						this.getView().getModel().setProperty("/items", []);
+						this.getView().getModel().setProperty("/items", [
+							emptyCatalogItem(this._getDefaults())
+						]);
 						this._recalcTotal();
 					}
 				}.bind(this)
@@ -331,12 +449,12 @@ sap.ui.define([
 				var item = aItems[i];
 				var idx = i + 1;
 
-				if (!item.isFreeText && !item.materialNo) {
+				if (!item.materialNo) {
 					MessageBox.warning("Dòng " + idx + ": Vui lòng chọn vật tư.");
 					return;
 				}
 				if (!item.description) {
-					MessageBox.warning("Dòng " + idx + ": Vui lòng nhập Mô tả (SAP bắt buộc phải có Kurztext).");
+					MessageBox.warning("Dòng " + idx + ": Vui lòng nhập Mô tả.");
 					return;
 				}
 				if (!item.quantity || Number(item.quantity) <= 0) {
@@ -351,10 +469,16 @@ sap.ui.define([
 					MessageBox.warning("Dòng " + idx + ": Vui lòng chọn GL Account.");
 					return;
 				}
-				if (!item.costCenter && !item.internalOrder) {
-					MessageBox.warning("Dòng " + idx + ": Vui lòng chọn Cost Center hoặc Internal Order.");
+				// Luôn cần Internal Order
+				if (!String(item.internalOrder || "").trim()) {
+					MessageBox.warning("Dòng " + idx + ": Vui lòng chọn Internal Order.");
 					return;
 				}
+				if (!item.costCenter) {
+					MessageBox.warning("Dòng " + idx + ": Vui lòng chọn Cost Center.");
+					return;
+				}
+				// Asset No: KHÔNG bắt buộc (kể cả ZAST)
 			}
 
 			var nTotalPRValue = sumItems(aItems);
@@ -383,11 +507,18 @@ sap.ui.define([
 					var sPrNumber = oApproval.PRId || "";
 					var iItemCount = (oApproval.items && oApproval.items.length) || 0;
 					var aWarnings = [];
-					if (oApproval.needsLegalReview) {
-						aWarnings.push("Giá trị > 100 triệu VND — CFO sẽ xem xét kỹ.");
-					}
+
 					if (oApproval.needsProcurementHeadReview) {
-						aWarnings.push("Giá trị > 300 triệu VND — sau CFO có thể leo thang CEO.");
+						aWarnings.push(
+							"Vượt ngưỡng Internal Order"
+							+ (oApproval.escalationIO ? (" " + oApproval.escalationIO) : "")
+							+ (oApproval.ioThreshold != null
+								? (" (" + Number(oApproval.ioThreshold).toLocaleString("vi-VN") + " VND)")
+								: "")
+							+ " — sau CFO sẽ leo thang CEO."
+						);
+					} else if (oApproval.needsLegalReview) {
+						aWarnings.push("Giá trị lớn — CFO sẽ xem xét kỹ.");
 					}
 
 					var sMsg = "✓ Đã gửi đề nghị " + sPrNumber + "\n\n"
@@ -403,7 +534,7 @@ sap.ui.define([
 					MessageBox.success(sMsg, {
 						title: "Đã gửi đề nghị — " + sPrNumber,
 						onClose: function () {
-							oModel.setProperty("/items", []);
+							oModel.setProperty("/items", [emptyCatalogItem(this._getDefaults())]);
 							this._recalcTotal();
 							this.getOwnerComponent().getRouter().navTo("dashboard");
 						}.bind(this)

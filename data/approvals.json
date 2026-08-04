@@ -156,7 +156,161 @@
       "DecidedByRole": "CFO",
       "CfoProcessedBy": "CFO@QDAVY.COM",
       "CfoAction": "APPROVED"
+    },
+    {
+      "PRId": "0010004005",
+      "InternalId": "PR-2026-0005",
+      "SapPRId": "0010004005",
+      "RequesterEmail": "REQUESTER@QDAVY.COM",
+      "TotalValue": 15000,
+      "Currency": "VND",
+      "Status": "APPROVED",
+      "CreatedAt": "2026-07-30T14:59:38.279Z",
+      "items": [
+        {
+          "LineNo": "00001",
+          "MaterialNo": "MON-002",
+          "MaterialType": "ZAST",
+          "Description": "Man hinh LG 27 inch 4K",
+          "Quantity": 10,
+          "UoM": "ST",
+          "EstimatedValue": 1500,
+          "CostCenter": "CCADM",
+          "InternalOrder": "600160",
+          "AssetNo": "",
+          "GLAccount": "0000650002",
+          "isFreeText": false
+        }
+      ],
+      "needsProcurementHeadReview": false,
+      "needsLegalReview": false,
+      "PurchasingApprovedBy": "PURCHASING@QDAVY.COM",
+      "PurchasingAction": "APPROVED",
+      "UpdatedAt": "2026-07-30T15:00:51.605Z",
+      "DecidedByEmail": "CFO@QDAVY.COM",
+      "DecidedByRole": "CFO",
+      "CfoProcessedBy": "CFO@QDAVY.COM",
+      "CfoAction": "APPROVED"
+    },
+    {
+      "PRId": "0010004006",
+      "InternalId": "PR-2026-0006",
+      "SapPRId": "0010004006",
+      "RequesterEmail": "REQUESTER@QDAVY.COM",
+      "TotalValue": 1010000,
+      "Currency": "VND",
+      "Status": "APPROVED",
+      "CreatedAt": "2026-07-30T15:30:05.677Z",
+      "items": [
+        {
+          "LineNo": "00001",
+          "MaterialNo": "MON-003",
+          "MaterialType": "ZAST",
+          "Description": "Man hinh HP 24 inch FHD",
+          "Quantity": 10,
+          "UoM": "ST",
+          "EstimatedValue": 100000,
+          "CostCenter": "CCBUS",
+          "InternalOrder": "600161",
+          "AssetNo": "",
+          "GLAccount": "0000650002",
+          "isFreeText": false
+        },
+        {
+          "LineNo": "00002",
+          "MaterialNo": "FREE_TEXT",
+          "MaterialType": "LAP-100",
+          "Description": "Ban phim",
+          "Quantity": 1,
+          "UoM": "PC",
+          "EstimatedValue": 10000,
+          "CostCenter": "CCADM",
+          "InternalOrder": "600160",
+          "AssetNo": "",
+          "GLAccount": "0000650002",
+          "isFreeText": true
+        }
+      ],
+      "needsProcurementHeadReview": false,
+      "needsLegalReview": false,
+      "PurchasingApprovedBy": "PURCHASING@QDAVY.COM",
+      "PurchasingAction": "APPROVED",
+      "UpdatedAt": "2026-07-30T15:31:03.356Z",
+      "DecidedByEmail": "CFO@QDAVY.COM",
+      "DecidedByRole": "CFO",
+      "CfoProcessedBy": "CFO@QDAVY.COM",
+      "CfoAction": "APPROVED"
+    },
+    {
+      "PRId": "PR-2026-0007",
+      "InternalId": "PR-2026-0007",
+      "SapPRId": null,
+      "RequesterEmail": "REQUESTER@QDAVY.COM",
+      "TotalValue": 100002,
+      "Currency": "VND",
+      "Status": "PENDING_CFO",
+      "CreatedAt": "2026-07-30T15:34:05.455Z",
+      "items": [
+        {
+          "LineNo": "00001",
+          "MaterialNo": "FREE_TEXT",
+          "MaterialType": "LAP-102",
+          "Description": "Chuot",
+          "Quantity": 1,
+          "UoM": "PC",
+          "EstimatedValue": 100002,
+          "CostCenter": "CCADM",
+          "InternalOrder": "600160",
+          "AssetNo": "",
+          "GLAccount": "0000650002",
+          "isFreeText": true
+        }
+      ],
+      "needsProcurementHeadReview": false,
+      "needsLegalReview": false,
+      "PurchasingApprovedBy": "PURCHASING@QDAVY.COM",
+      "PurchasingAction": "APPROVED",
+      "UpdatedAt": "2026-07-30T15:34:33.898Z"
+    },
+    {
+      "PRId": "0010004031",
+      "InternalId": "PR-2026-0008",
+      "SapPRId": "0010004031",
+      "RequesterEmail": "REQUESTER@QDAVY.COM",
+      "TotalValue": 1000000,
+      "Currency": "VND",
+      "Status": "APPROVED",
+      "CreatedAt": "2026-08-03T15:59:44.488Z",
+      "items": [
+        {
+          "LineNo": "00001",
+          "MaterialNo": "LAPTOP-002",
+          "MaterialType": "ZAST",
+          "Description": "Laptop MacBook Pro 14 M3",
+          "Quantity": 10,
+          "UoM": "ST",
+          "EstimatedValue": 100000,
+          "CostCenter": "CCADM",
+          "InternalOrder": "600160",
+          "AssetNo": "",
+          "GLAccount": "0000650002",
+          "isFreeText": false
+        }
+      ],
+      "needsProcurementHeadReview": false,
+      "needsLegalReview": false,
+      "ioThreshold": null,
+      "escalationIO": null,
+      "PurchasingApprovedBy": "PURCHASING@QDAVY.COM",
+      "PurchasingAction": "APPROVED",
+      "PurchasingAt": "2026-08-03T16:00:15.540Z",
+      "UpdatedAt": "2026-08-03T16:00:37.191Z",
+      "DecidedByEmail": "CFO@QDAVY.COM",
+      "DecidedByRole": "CFO",
+      "CfoProcessedBy": "CFO@QDAVY.COM",
+      "CfoAction": "APPROVED",
+      "CfoAt": "2026-08-03T16:00:37.191Z"
     }
   ],
-  "nextSeq": 5
+  "nextSeq": 9
 }

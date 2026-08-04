@@ -101,54 +101,6 @@ html, body {
 	filter: drop-shadow(0 0 12px rgba(125, 211, 252, 0.5));
 }
 
-.qdLoginTitle {
-	color: #fff !important;
-	font-size: 2rem !important;
-	font-weight: 700 !important;
-	line-height: 1.25 !important;
-	text-shadow: 0 2px 20px rgba(0, 0, 0, 0.25);
-}
-
-.qdLoginTagline {
-	color: rgba(255, 255, 255, 0.85) !important;
-	font-size: 1.05rem !important;
-	line-height: 1.5 !important;
-}
-
-.qdFeatureList {
-	gap: 0.75rem;
-}
-
-.qdFeatureItem {
-	padding: 0.65rem 0.9rem;
-	border-radius: 12px;
-	background: rgba(255, 255, 255, 0.08);
-	border: 1px solid rgba(255, 255, 255, 0.12);
-	backdrop-filter: blur(8px);
-	-webkit-backdrop-filter: blur(8px);
-}
-
-.qdFeatureIconWrap {
-	width: 2.25rem;
-	height: 2.25rem;
-	border-radius: 10px;
-	background: rgba(125, 211, 252, 0.2);
-	align-items: center;
-	justify-content: center;
-	display: flex;
-	margin-right: 0.75rem;
-	flex-shrink: 0;
-}
-
-.qdFeatureIcon {
-	color: #7dd3fc !important;
-}
-
-.qdFeatureText {
-	color: rgba(255, 255, 255, 0.95) !important;
-	font-size: 0.95rem !important;
-}
-
 .qdLoginFooterHint {
 	color: rgba(255, 255, 255, 0.45) !important;
 	font-size: 0.75rem !important;
@@ -242,6 +194,7 @@ html, body {
 		max-width: 100%;
 	}
 }
+
 /* ==========================================================================
    Global button accent
    ========================================================================== */
@@ -542,6 +495,57 @@ html, body {
 .qdRowActions {
 	flex-wrap: wrap;
 	gap: 0.35rem;
+}
+/* ===== PR Detail Timeline ===== */
+.qdTimelineRow {
+	gap: 0.25rem;
+	padding: 1rem 0.25rem 0.5rem;
+	width: 100%;
+}
+.qdTimelineItem {
+	flex: 1 1 0;
+	min-width: 6.5rem;
+	max-width: 11rem;
+	padding: 0 0.25rem;
+}
+.qdTimelineIconDone {
+	color: #107e3e !important;
+	background: #e8f7ef;
+	border-radius: 50%;
+	padding: 0.55rem;
+}
+.qdTimelineIconActive {
+	color: #ffffff !important;
+	background: #107e3e;
+	border-radius: 50%;
+	padding: 0.55rem;
+	box-shadow: 0 0 0 3px rgba(16, 126, 62, 0.28);
+}
+.qdTimelineIconWait {
+	color: #a8a8a8 !important;
+	background: #f2f2f2;
+	border-radius: 50%;
+	padding: 0.55rem;
+}
+.qdTimelineTitle {
+	font-size: 0.8rem;
+	font-weight: 600;
+	margin-top: 0.5rem;
+	color: #32363a;
+	line-height: 1.25;
+}
+.qdTimelineTime {
+	font-size: 0.7rem;
+	color: #6a6d70;
+	margin-top: 0.2rem;
+	line-height: 1.2;
+}
+.qdTimelineSub {
+	font-size: 0.7rem;
+	color: #0a6ed1;
+	margin-top: 0.15rem;
+	line-height: 1.2;
+	word-break: break-word;
 }
 
 /* ==========================================================================
@@ -988,6 +992,34 @@ html, body {
 /* ==========================================================================
    PR01 / PR02 / PO01 — shared card & badge patterns
    ========================================================================== */
+  /* PR-01: vùng cuộn bảng + header cột cố định */
+.qdItemsScroll {
+	border: 1px solid #e5e5e5;
+	border-radius: 0.5rem;
+	background: #fff;
+}
+
+.qdItemsScroll .sapMScrollContScroll {
+	min-width: 100%;
+}
+
+/* Header cột luôn nổi trên dòng dữ liệu khi scroll trong ScrollContainer */
+.qdItemsTable .sapMListTblHeader,
+.qdItemsTable .sapMListTblHeaderCell {
+	position: sticky !important;
+	top: 0 !important;
+	z-index: 5 !important;
+	background: #f5f6f7 !important;
+}
+
+.qdItemsTable .sapMListTblHeader {
+	box-shadow: 0 1px 0 #d9d9d9;
+}
+
+.qdItemsTable .sapMListTblHeaderCell {
+	font-weight: 600;
+	color: #6a6d70;
+}
 .qdFormCard {
 	background: var(--qd-card-bg);
 	border-radius: var(--qd-radius-lg);

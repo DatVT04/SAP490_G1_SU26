@@ -15,20 +15,20 @@ app.use(cors());
 app.use(express.json());
 
 app.get("/api/health", (req, res) => res.json({ ok: true }));
-
 app.use(express.static(path.join(__dirname, "webapp")));
 
 const ODATA_SERVICE_PATH = "/sap/opu/odata/sap/ZG1_PROC_SRV_SRV";
 
-const PAMS_ESCALATION_THRESHOLD = 300000000;
+// Chỉ cảnh báo “giá trị lớn” — KHÔNG dùng để leo CEO
 const LEGAL_ESCALATION_THRESHOLD = 100000000;
 
 // ============================================================================
-// PERSIST — lưu file JSON, không mất khi restart server
+// PERSIST
 // ============================================================================
 const DATA_DIR = path.join(__dirname, "data");
 const APPROVAL_FILE = path.join(DATA_DIR, "approvals.json");
 const NOTIF_FILE = path.join(DATA_DIR, "notifications.json");
+const THRESHOLD_FILE = path.join(DATA_DIR, "thresholds.json");
 
 function ensureDataDir() {
 	if (!fs.existsSync(DATA_DIR)) {
@@ -88,6 +88,72 @@ function saveNotifications() {
 	);
 }
 
+function loadThresholds() {
+	ensureDataDir();
+	if (!fs.existsSync(THRESHOLD_FILE)) {
+		return { byIO: {} };
+	}
+	try {
+		const raw = JSON.parse(fs.readFileSync(THRESHOLD_FILE, "utf8"));
+		return { byIO: raw.byIO && typeof raw.byIO === "object" ? raw.byIO : {} };
+	} catch (e) {
+		console.error("⚠️ Load thresholds THAT BAI:", e.message);
+		return { byIO: {} };
+	}
+}
+
+function saveThresholds() {
+	ensureDataDir();
+	fs.writeFileSync(THRESHOLD_FILE, JSON.stringify(thresholdStore, null, 2), "utf8");
+}
+
+function normalizeOrderNo(orderNo) {
+	orderNo = String(orderNo || "").trim();
+	if (!orderNo) { return ""; }
+	var s = orderNo.replace(/^0+/, "");
+	return s || "0";
+}
+
+/** null = IO chưa cấu hình ngưỡng → không leo CEO */
+function getThresholdForIO(internalOrder) {
+	const key = normalizeOrderNo(internalOrder);
+	if (!key) { return null; }
+	if (thresholdStore.byIO[key] == null || thresholdStore.byIO[key] === "") {
+		return null;
+	}
+	return Number(thresholdStore.byIO[key]);
+}
+
+/**
+ * Leo CEO khi total > ngưỡng của ít nhất 1 IO đã cấu hình.
+ * Không còn số 300tr cố định.
+ */
+function buildApprovalFlags(totalValue, items) {
+	const total = Number(totalValue) || 0;
+	let needCeo = false;
+	let hitThreshold = null;
+	let hitIO = null;
+
+	(items || []).forEach(function (it) {
+		const io = it.internalOrder || it.InternalOrder || "";
+		const t = getThresholdForIO(io);
+		if (t != null && total > t) {
+			needCeo = true;
+			if (hitThreshold == null || t < hitThreshold) {
+				hitThreshold = t;
+				hitIO = normalizeOrderNo(io);
+			}
+		}
+	});
+
+	return {
+		needsProcurementHeadReview: needCeo,
+		needsLegalReview: total > LEGAL_ESCALATION_THRESHOLD,
+		ioThreshold: hitThreshold,
+		escalationIO: hitIO
+	};
+}
+
 const _loadedApprovals = loadApprovals();
 const approvalStore = _loadedApprovals.items;
 let nextApprovalSeq = _loadedApprovals.nextSeq;
@@ -96,8 +162,11 @@ const _loadedNotifs = loadNotifications();
 const notificationStore = _loadedNotifs.items;
 let nextNotificationId = _loadedNotifs.nextId;
 
+const thresholdStore = loadThresholds();
+
 console.log("[DATA] Loaded PR:", approvalStore.length, "| nextSeq:", nextApprovalSeq);
 console.log("[DATA] Loaded notif:", notificationStore.length);
+console.log("[DATA] IO thresholds:", Object.keys(thresholdStore.byIO).length);
 
 function pushNotification(toEmail, prId, message) {
 	if (!toEmail) { return; }
@@ -110,13 +179,6 @@ function pushNotification(toEmail, prId, message) {
 		read: false
 	});
 	saveNotifications();
-}
-
-function buildApprovalFlags(totalValue) {
-	return {
-		needsProcurementHeadReview: totalValue > PAMS_ESCALATION_THRESHOLD,
-		needsLegalReview: totalValue > LEGAL_ESCALATION_THRESHOLD
-	};
 }
 
 function sapAuth() {
@@ -145,6 +207,31 @@ function notifyCeos(prId, message) {
 	});
 }
 
+function findPurchasingEmails() {
+	return employees
+		.filter(function (e) {
+			return e.IsActive && String(e.Role || "").toUpperCase() === "PURCHASING";
+		})
+		.map(function (e) { return e.Email; })
+		.filter(Boolean);
+}
+
+function notifyPurchasing(prId, message) {
+	findPurchasingEmails().forEach(function (email) {
+		pushNotification(email, prId, message);
+	});
+}
+
+function notifyCfo(prId, message) {
+	employees
+		.filter(function (e) {
+			return e.IsActive && String(e.Role || "").toUpperCase() === "CFO";
+		})
+		.forEach(function (e) {
+			if (e.Email) { pushNotification(e.Email, prId, message); }
+		});
+}
+
 async function fetchInternalOrderMaster() {
 	const EMPTY = {
 		internalOrders: [],
@@ -164,7 +251,7 @@ async function fetchInternalOrderMaster() {
 	const costCenterToIOs = {};
 
 	function addIO(orderNo, orderName, cc, ccName) {
-		orderNo = String(orderNo || "").trim();
+		orderNo = normalizeOrderNo(orderNo);
 		cc = String(cc || "").trim();
 		if (!orderNo) { return; }
 
@@ -178,8 +265,9 @@ async function fetchInternalOrderMaster() {
 				OrderType: ""
 			};
 		} else {
-			if (orderName && ioMap[orderNo].Description === orderNo) {
-				ioMap[orderNo].Description = String(orderName).trim();
+			var sName = String(orderName || "").trim();
+			if (sName && sName !== orderNo && ioMap[orderNo].Description === orderNo) {
+				ioMap[orderNo].Description = sName;
 			}
 			if (cc && !ioMap[orderNo].CostCenter) {
 				ioMap[orderNo].CostCenter = cc;
@@ -219,20 +307,14 @@ async function fetchInternalOrderMaster() {
 			const cc = row.CostCenter || row.Kostl || "";
 			const ccName = row.CostCenterName || row.KtextCc || cc;
 			addIO(orderNo, orderName, cc, ccName);
-			if (row.CompanyCode) {
-				const key = String(orderNo).trim();
-				if (ioMap[key]) { ioMap[key].CompanyCode = row.CompanyCode; }
-			}
-			if (row.OrderType) {
-				const key = String(orderNo).trim();
-				if (ioMap[key]) { ioMap[key].OrderType = row.OrderType; }
+			const key = normalizeOrderNo(orderNo);
+			if (key && ioMap[key]) {
+				if (row.CompanyCode) { ioMap[key].CompanyCode = row.CompanyCode; }
+				if (row.OrderType) { ioMap[key].OrderType = row.OrderType; }
 			}
 		});
 	} catch (error) {
 		console.error("⚠️ InternalOrderSet THAT BAI:", error.response?.status || error.message);
-		if (error.response?.data) {
-			console.error(JSON.stringify(error.response.data).slice(0, 500));
-		}
 	}
 
 	try {
@@ -254,23 +336,18 @@ async function fetchInternalOrderMaster() {
 			const cc = row.CostCenter || "";
 			const io = row.InternalOrder || "";
 			addCC(cc, cc);
-			if (io) {
-				addIO(io, io, cc, cc);
-			}
+			if (io) { addIO(io, io, cc, cc); }
 		});
 	} catch (error) {
 		console.error("⚠️ PR history CC/IO THAT BAI:", error.response?.status || error.message);
 	}
 
-	const internalOrders = Object.keys(ioMap).sort().map(function (k) {
-		return ioMap[k];
-	});
+	const internalOrders = Object.keys(ioMap).sort().map(function (k) { return ioMap[k]; });
 	const costCenters = Object.keys(ccMap).sort().map(function (code) {
 		return { CostCenter: code, Description: ccMap[code] };
 	});
 
 	console.log("[SAP] Master ket qua: IO=", internalOrders.length, "CC=", costCenters.length);
-
 	return { internalOrders, costCenters, ioToCostCenter, costCenterToIOs };
 }
 
@@ -317,6 +394,42 @@ app.get("/api/internal-orders", async (req, res) => {
 		ioToCostCenter: master.ioToCostCenter,
 		costCenterToIOs: master.costCenterToIOs
 	});
+});
+
+// --- Ngưỡng theo Internal Order ---
+app.get("/api/thresholds", (req, res) => {
+	return res.json({ success: true, byIO: thresholdStore.byIO });
+});
+
+app.put("/api/thresholds", (req, res) => {
+	const body = req.body || {};
+
+	if (body.internalOrder != null) {
+		const key = normalizeOrderNo(body.internalOrder);
+		if (!key) {
+			return res.status(400).json({ success: false, message: "Internal Order khong hop le." });
+		}
+		if (body.threshold == null || body.threshold === "") {
+			delete thresholdStore.byIO[key];
+		} else {
+			thresholdStore.byIO[key] = Number(body.threshold);
+		}
+	}
+
+	if (body.byIO && typeof body.byIO === "object") {
+		Object.keys(body.byIO).forEach(function (io) {
+			const key = normalizeOrderNo(io);
+			if (!key) { return; }
+			if (body.byIO[io] == null || body.byIO[io] === "") {
+				delete thresholdStore.byIO[key];
+			} else {
+				thresholdStore.byIO[key] = Number(body.byIO[io]);
+			}
+		});
+	}
+
+	saveThresholds();
+	return res.json({ success: true, byIO: thresholdStore.byIO });
 });
 
 function defaultGLAccount(materialType) {
@@ -391,7 +504,6 @@ async function createPRInSAP(record) {
 	}
 }
 
-// --- Login ---
 app.post("/api/login", async (req, res) => {
 	const { email } = req.body || {};
 	if (!email) {
@@ -500,31 +612,6 @@ Tra loi ngan gon tieng Viet: ten NCC va ly do.`;
 	}
 });
 
-function findPurchasingEmails() {
-	return employees
-		.filter(function (e) {
-			return e.IsActive && String(e.Role || "").toUpperCase() === "PURCHASING";
-		})
-		.map(function (e) { return e.Email; })
-		.filter(Boolean);
-}
-
-function notifyPurchasing(prId, message) {
-	findPurchasingEmails().forEach(function (email) {
-		pushNotification(email, prId, message);
-	});
-}
-
-function notifyCfo(prId, message) {
-	employees
-		.filter(function (e) {
-			return e.IsActive && String(e.Role || "").toUpperCase() === "CFO";
-		})
-		.forEach(function (e) {
-			if (e.Email) { pushNotification(e.Email, prId, message); }
-		});
-}
-
 app.post("/api/approval/submit", async (req, res) => {
 	const { requesterEmail, currency, totalPRValue, items } = req.body || {};
 
@@ -542,10 +629,32 @@ app.post("/api/approval/submit", async (req, res) => {
 		if (!it.quantity || Number(it.quantity) <= 0) {
 			return res.status(400).json({ success: false, message: "Dong " + (i + 1) + ": So luong khong hop le." });
 		}
+		if (!String(it.internalOrder || "").trim()) {
+			return res.status(400).json({ success: false, message: "Dong " + (i + 1) + ": Bat buoc chon Internal Order." });
+		}
 	}
 
 	const tempPRId = "PR-" + new Date().getFullYear() + "-" + String(nextApprovalSeq).padStart(4, "0");
 	nextApprovalSeq += 1;
+
+	const mappedItems = items.map(function (item, idx) {
+		return {
+			LineNo: String(idx + 1).padStart(5, "0"),
+			MaterialNo: item.materialNo || (item.isFreeText ? "FREE_TEXT" : ""),
+			MaterialType: item.materialType || "ZSRV",
+			Description: item.description || "",
+			Quantity: Number(item.quantity),
+			UoM: item.uom || "PC",
+			EstimatedValue: Number(item.estimatedValue) || 0,
+			CostCenter: item.costCenter || "",
+			InternalOrder: normalizeOrderNo(item.internalOrder) || String(item.internalOrder || "").trim(),
+			AssetNo: item.assetNo || "",
+			GLAccount: item.glAccount || "",
+			isFreeText: item.isFreeText || false
+		};
+	});
+
+	const flags = buildApprovalFlags(totalPRValue || 0, mappedItems);
 
 	const record = {
 		PRId: tempPRId,
@@ -556,23 +665,11 @@ app.post("/api/approval/submit", async (req, res) => {
 		Currency: currency || "VND",
 		Status: "PENDING_PURCHASING",
 		CreatedAt: new Date().toISOString(),
-		items: items.map(function (item, idx) {
-			return {
-				LineNo: String(idx + 1).padStart(5, "0"),
-				MaterialNo: item.materialNo || (item.isFreeText ? "FREE_TEXT" : ""),
-				MaterialType: item.materialType || "ZSRV",
-				Description: item.description || "",
-				Quantity: Number(item.quantity),
-				UoM: item.uom || "PC",
-				EstimatedValue: Number(item.estimatedValue) || 0,
-				CostCenter: item.costCenter || "",
-				InternalOrder: item.internalOrder || "",
-				AssetNo: item.assetNo || "",
-				GLAccount: item.glAccount || "",
-				isFreeText: item.isFreeText || false
-			};
-		}),
-		...buildApprovalFlags(totalPRValue || 0)
+		items: mappedItems,
+		needsProcurementHeadReview: flags.needsProcurementHeadReview,
+		needsLegalReview: flags.needsLegalReview,
+		ioThreshold: flags.ioThreshold,
+		escalationIO: flags.escalationIO
 	};
 
 	approvalStore.push(record);
@@ -618,9 +715,6 @@ app.get("/api/approval/approved", (req, res) => {
 	return res.json({ success: true, data });
 });
 
-// ============================================================================
-// HISTORY theo role — PHẢI đặt TRƯỚC /api/approval/:id
-// ============================================================================
 app.get("/api/approval/history", (req, res) => {
 	const email = String(req.query.email || "").trim().toLowerCase();
 	const role = String(req.query.role || "").toUpperCase();
@@ -650,7 +744,6 @@ app.get("/api/approval/history", (req, res) => {
 			})
 			.slice()
 			.sort(sortNewest);
-
 		history = approvalStore
 			.filter(function (item) {
 				if (item.PurchasingApprovedBy || item.PurchasingAction) { return true; }
@@ -665,7 +758,6 @@ app.get("/api/approval/history", (req, res) => {
 			})
 			.slice()
 			.sort(sortNewest);
-
 		history = approvalStore
 			.filter(function (item) {
 				if (item.CfoProcessedBy || item.CfoAction) { return true; }
@@ -680,7 +772,6 @@ app.get("/api/approval/history", (req, res) => {
 			})
 			.slice()
 			.sort(sortNewest);
-
 		history = approvalStore
 			.filter(function (item) {
 				if (item.CeoProcessedBy || item.CeoAction) { return true; }
@@ -698,12 +789,7 @@ app.get("/api/approval/history", (req, res) => {
 			.sort(sortNewest);
 	}
 
-	return res.json({
-		success: true,
-		role: role,
-		pending: pending,
-		history: history
-	});
+	return res.json({ success: true, role: role, pending: pending, history: history });
 });
 
 app.get("/api/approval/:id", (req, res) => {
@@ -754,6 +840,7 @@ app.patch("/api/approval/:id", async (req, res) => {
 	}
 
 	const sRole = String(decidedByRole || "").toUpperCase();
+	const nowIso = new Date().toISOString();
 
 	if (sRole === "PURCHASING" && record.Status !== "PENDING_PURCHASING") {
 		return res.status(400).json({ success: false, message: "Đề nghị này không ở trạng thái chờ Purchasing duyệt." });
@@ -768,37 +855,36 @@ app.patch("/api/approval/:id", async (req, res) => {
 		return res.status(403).json({ success: false, message: "Role không được phê duyệt." });
 	}
 
-	// ── TỪ CHỐI ──────────────────────────────────────────────────────────
 	if (status === "REJECTED") {
 		record.Status = "REJECTED";
 		record.Comment = comment || record.Comment;
 		record.DecidedByEmail = decidedByEmail;
 		record.DecidedByRole = sRole;
-		record.UpdatedAt = new Date().toISOString();
+		record.UpdatedAt = nowIso;
 
 		if (sRole === "PURCHASING") {
 			record.PurchasingApprovedBy = decidedByEmail;
 			record.PurchasingAction = "REJECTED";
+			record.PurchasingAt = nowIso;
 		} else if (sRole === "CFO") {
 			record.CfoProcessedBy = decidedByEmail;
 			record.CfoAction = "REJECTED";
+			record.CfoAt = nowIso;
 		} else if (sRole === "CEO") {
 			record.CeoProcessedBy = decidedByEmail;
 			record.CeoAction = "REJECTED";
+			record.CeoAt = nowIso;
 		}
 
 		saveApprovals();
-
 		notifyRequester(
 			record,
 			"Đề nghị " + record.PRId + " đã bị TỪ CHỐI bởi " + sRole + "."
 			+ (comment ? " Lý do: " + comment : "")
 		);
-
 		return res.json({ success: true, approval: record });
 	}
 
-	// ── PHÊ DUYỆT ────────────────────────────────────────────────────────
 	if (status === "APPROVED") {
 		// 1) Purchasing → CFO
 		if (sRole === "PURCHASING") {
@@ -806,8 +892,8 @@ app.patch("/api/approval/:id", async (req, res) => {
 			record.Comment = comment || record.Comment;
 			record.PurchasingApprovedBy = decidedByEmail;
 			record.PurchasingAction = "APPROVED";
-			record.UpdatedAt = new Date().toISOString();
-
+			record.PurchasingAt = nowIso;
+			record.UpdatedAt = nowIso;
 			saveApprovals();
 
 			notifyRequester(
@@ -821,27 +907,26 @@ app.patch("/api/approval/:id", async (req, res) => {
 				+ Number(record.TotalValue).toLocaleString("vi-VN") + " " + record.Currency
 			);
 
-			return res.json({
-				success: true,
-				approval: record,
-				forwarded: "CFO"
-			});
+			return res.json({ success: true, approval: record, forwarded: "CFO" });
 		}
 
-		// 2) CFO + >300tr → CEO
+		// 2) CFO + vượt ngưỡng IO → CEO
 		if (sRole === "CFO" && record.needsProcurementHeadReview) {
+			const t = record.ioThreshold;
+			const io = record.escalationIO || "";
 			record.Status = "PENDING_CEO";
-			record.EscalationReason = "Giá trị vượt 300 triệu VND — cần CEO phê duyệt thêm.";
+			record.EscalationReason = "Vượt ngưỡng Internal Order "
+				+ io + " (" + Number(t).toLocaleString("vi-VN") + " VND) — cần CEO phê duyệt.";
 			record.Comment = comment || record.Comment;
 			record.CfoProcessedBy = decidedByEmail;
 			record.CfoAction = "ESCALATED";
-			record.UpdatedAt = new Date().toISOString();
-
+			record.CfoAt = nowIso;
+			record.UpdatedAt = nowIso;
 			saveApprovals();
 
 			notifyRequester(
 				record,
-				"Đề nghị " + record.PRId + " đã được CFO chuyển lên CEO. Bạn sẽ nhận thông báo khi CEO quyết định."
+				"Đề nghị " + record.PRId + " đã được CFO chuyển lên CEO (vượt ngưỡng IO). Bạn sẽ nhận thông báo khi CEO quyết định."
 			);
 			notifyCeos(
 				record.PRId,
@@ -858,55 +943,58 @@ app.patch("/api/approval/:id", async (req, res) => {
 			});
 		}
 
-		// 3) Duyệt cuối: CFO ≤300tr hoặc CEO → SAP
-		const sapResult = await createPRInSAP(record);
+		// 3) CFO (không vượt) hoặc CEO → SAP
+		if (sRole === "CFO" || sRole === "CEO") {
+			const sapResult = await createPRInSAP(record);
 
-		if (sapResult.sapIntegration === "failed" || !sapResult.sapPrNumber) {
-			return res.status(502).json({
-				success: false,
-				message: "Không ghi được PR lên SAP: " + (sapResult.sapErrorMessage || "không có PRNumber"),
-				sapErrorMessage: sapResult.sapErrorMessage
+			if (sapResult.sapIntegration === "failed" || !sapResult.sapPrNumber) {
+				return res.status(502).json({
+					success: false,
+					message: "Không ghi được PR lên SAP: " + (sapResult.sapErrorMessage || "không có PRNumber"),
+					sapErrorMessage: sapResult.sapErrorMessage
+				});
+			}
+
+			const oldId = record.PRId;
+			record.InternalId = record.InternalId || oldId;
+			record.SapPRId = sapResult.sapPrNumber;
+			record.PRId = sapResult.sapPrNumber;
+			record.Status = "APPROVED";
+			record.Comment = comment || record.Comment;
+			record.DecidedByEmail = decidedByEmail;
+			record.DecidedByRole = sRole;
+			record.UpdatedAt = nowIso;
+
+			if (sRole === "CFO") {
+				record.CfoProcessedBy = decidedByEmail;
+				record.CfoAction = "APPROVED";
+				record.CfoAt = nowIso;
+			} else {
+				record.CeoProcessedBy = decidedByEmail;
+				record.CeoAction = "APPROVED";
+				record.CeoAt = nowIso;
+			}
+
+			saveApprovals();
+
+			notifyRequester(
+				record,
+				"Đề nghị " + oldId + " đã được PHÊ DUYỆT bởi " + sRole
+				+ ". Số PR trên SAP: " + record.SapPRId + " (ME53N)."
+			);
+
+			return res.json({
+				success: true,
+				approval: record,
+				sapIntegration: "created",
+				sapPrNumber: sapResult.sapPrNumber
 			});
 		}
-
-		const oldId = record.PRId;
-		record.InternalId = record.InternalId || oldId;
-		record.SapPRId = sapResult.sapPrNumber;
-		record.PRId = sapResult.sapPrNumber;
-		record.Status = "APPROVED";
-		record.Comment = comment || record.Comment;
-		record.DecidedByEmail = decidedByEmail;
-		record.DecidedByRole = sRole;
-		record.UpdatedAt = new Date().toISOString();
-
-		if (sRole === "CFO") {
-			record.CfoProcessedBy = decidedByEmail;
-			record.CfoAction = "APPROVED";
-		} else if (sRole === "CEO") {
-			record.CeoProcessedBy = decidedByEmail;
-			record.CeoAction = "APPROVED";
-		}
-
-		saveApprovals();
-
-		notifyRequester(
-			record,
-			"Đề nghị " + oldId + " đã được PHÊ DUYỆT bởi " + sRole
-			+ ". Số PR trên SAP: " + record.SapPRId + " (ME53N)."
-		);
-
-		return res.json({
-			success: true,
-			approval: record,
-			sapIntegration: "created",
-			sapPrNumber: sapResult.sapPrNumber
-		});
 	}
 
 	return res.status(400).json({ success: false, message: "Status không hợp lệ (chỉ nhận APPROVED/REJECTED)." });
 });
 
-// --- PO ---
 app.post("/api/po/create", async (req, res) => {
 	const { vendorNo, items } = req.body || {};
 
@@ -1031,6 +1119,7 @@ if (require.main === module) {
 			? `OData: ${process.env.SAP_HOST}${ODATA_SERVICE_PATH}`
 			: "Che do: mock (SAP_HOST chua cau hinh)");
 		console.log("[DATA] Folder:", DATA_DIR);
+		console.log("[LOGIC] Leo CEO theo ngưỡng Internal Order (khong con 300tr co dinh)");
 	});
 }
 
