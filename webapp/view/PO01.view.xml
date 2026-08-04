@@ -77,7 +77,7 @@
 							<l:SplitterLayoutData size="65%" minSize="450"/>
 						</layoutData>
 
-						<!-- CARD 1: THÔNG TIN PR NGUỒN (ORIGIN PR REFERENCE) -->
+						<!-- CARD 2: THÔNG TIN PR NGUỒN (ORIGIN PR REFERENCE) -->
 						<VBox class="qdContentCard">
 							<HBox alignItems="Center" class="sapUiSmallMarginBottom">
 								<Text text="2" class="qdStepBadge"/>
@@ -108,66 +108,113 @@
 							</HBox>
 						</VBox>
 
-						<!-- CARD 2: FORM THÔNG TIN PO CHUẨN CỦA SAP (HEADER DATA & ORGANIZATIONAL UNITS) -->
+						<!-- CARD 3: TỔ CHỨC & BÊN MUA (HEADER ORG DATA + BUYER) -->
 						<VBox class="qdContentCard">
 							<HBox alignItems="Center" class="sapUiSmallMarginBottom">
 								<Text text="3" class="qdStepBadge"/>
 								<VBox>
-									<Title text="Xác nhận &amp; Cấu hình Purchase Order tiêu chuẩn" level="H3" class="qdCardTitle"/>
-									<Text text="Nhập các dữ liệu tổ chức (Org Data) và Nhà cung cấp theo chuẩn SAP" class="qdCellHint"/>
+									<Title text="Dữ liệu Tổ chức &amp; Bên mua" level="H3" class="qdCardTitle"/>
+									<Text text="Loại chứng từ, đơn vị tổ chức mua hàng theo chuẩn SAP và thông tin đơn vị mua hàng" class="qdCellHint"/>
 								</VBox>
 							</HBox>
 
-							<f:SimpleForm 
-								editable="true" 
-								layout="ColumnLayout" 
-								columnsM="2" 
+							<f:SimpleForm
+								editable="true"
+								layout="ColumnLayout"
+								columnsM="1"
 								columnsL="2"
-								labelSpanM="12"
-								labelSpanL="12"
-								class="sapUiNoContentPadding"
+								columnsXL="2"
+								labelSpanM="4"
+								labelSpanL="4"
+								labelSpanXL="4"
+								emptySpanM="0"
+								emptySpanL="0"
+								emptySpanXL="0"
+								class="sapUiNoContentPadding qdSimpleForm"
 							>
 								<f:content>
-									<core:Title text="1. Dữ liệu Tổ chức &amp; Loại Đơn hàng (Header)" />
-									
+									<core:Title text="Dữ liệu tổ chức (Org Data)" class="qdFormSectionTitle"/>
+
 									<Label text="Mã công ty (Company Code)" required="true"/>
-									<Input 
-										id="inCompanyCode" 
-										value="1000" 
+									<Input
+										id="inCompanyCode"
+										value="1000"
 										placeholder="VD: 1000"
 									/>
 
 									<Label text="Tổ chức mua hàng (Purchasing Org)" required="true"/>
-									<Input 
-										id="inPurchOrg" 
-										value="1000" 
+									<Input
+										id="inPurchOrg"
+										value="1000"
 										placeholder="VD: 1000"
 									/>
 
 									<Label text="Nhóm mua hàng (Purchasing Group)" required="true"/>
-									<Input 
-										id="inPurchGroup" 
-										value="001" 
+									<Input
+										id="inPurchGroup"
+										value="001"
 										placeholder="VD: 001"
 									/>
 
 									<Label text="Loại chứng từ (Doc Type)"/>
-									<Input 
-										id="inDocType" 
-										value="NB" 
+									<Input
+										id="inDocType"
+										value="NB"
 										editable="false"
 										placeholder="NB - Standard PO"
 									/>
 
-									<Label text="Ngày lập chứng từ (Doc Date)"/>
-									<DatePicker 
-										id="inDocDate" 
-										displayFormat="yyyy-MM-dd" 
+									<Label text="Ngày lập chứng từ (Doc Date)" required="true"/>
+									<DatePicker
+										id="inDocDate"
+										displayFormat="yyyy-MM-dd"
 										valueFormat="yyyy-MM-dd"
 										required="true"
 									/>
 
-									<core:Title text="2. Nhà cung cấp &amp; Thương lượng Giá" />
+									<core:Title text="Đơn vị mua hàng (Buyer)" class="qdFormSectionTitle"/>
+
+									<Label text="Tên đơn vị mua hàng" required="true"/>
+									<Input
+										id="inBuyerName"
+										placeholder="Tên công ty / đơn vị mua hàng"
+									/>
+
+									<Label text="Địa chỉ đơn vị mua hàng"/>
+									<Input
+										id="inBuyerAddress"
+										placeholder="Địa chỉ trụ sở bên mua"
+									/>
+								</f:content>
+							</f:SimpleForm>
+						</VBox>
+
+						<!-- CARD 4: NHÀ CUNG CẤP & GIÁ MUA (VENDOR & PRICING) -->
+						<VBox class="qdContentCard">
+							<HBox alignItems="Center" class="sapUiSmallMarginBottom">
+								<Text text="4" class="qdStepBadge"/>
+								<VBox>
+									<Title text="Nhà cung cấp &amp; Giá mua" level="H3" class="qdCardTitle"/>
+									<Text text="Chọn Nhà cung cấp từ SAP, mã số thuế xuất hóa đơn và thương lượng giá" class="qdCellHint"/>
+								</VBox>
+							</HBox>
+
+							<f:SimpleForm
+								editable="true"
+								layout="ColumnLayout"
+								columnsM="1"
+								columnsL="2"
+								columnsXL="2"
+								labelSpanM="4"
+								labelSpanL="4"
+								labelSpanXL="4"
+								emptySpanM="0"
+								emptySpanL="0"
+								emptySpanXL="0"
+								class="sapUiNoContentPadding qdSimpleForm"
+							>
+								<f:content>
+									<core:Title text="Nhà cung cấp (Vendor)" class="qdFormSectionTitle"/>
 
 									<Label text="Nhà cung cấp (Vendor / LIFNR)" required="true"/>
 									<ComboBox
@@ -178,98 +225,182 @@
 										selectionChange=".onVendorChange"
 										showSecondaryValues="true"
 									>
-										<core:ListItem 
-											key="{VendorNo}" 
-											text="{VendorName} ({VendorNo})" 
+										<core:ListItem
+											key="{VendorNo}"
+											text="{VendorName} ({VendorNo})"
 											additionalText="{Email}"
 										/>
 									</ComboBox>
 
-									<Label text="Email gửi thông báo (Tự động lấy từ SAP Vendor)"/>
-									<Input 
-										id="inVendorEmail" 
-										placeholder="Email nhà cung cấp sẽ tự động hiển thị tại đây" 
+									<Label text="Mã số thuế Nhà cung cấp" required="true"/>
+									<Input
+										id="inVendorTaxCode"
+										placeholder="Tự động lấy từ trường Tax Code trong Business Partner (BP)"
 										editable="true"
 									/>
 
+									<Label text="Email gửi thông báo"/>
+									<Input
+										id="inVendorEmail"
+										placeholder="Email nhà cung cấp sẽ tự động hiển thị tại đây"
+										editable="true"
+									/>
+
+									<core:Title text="Giá mua (Pricing)" class="qdFormSectionTitle"/>
+
 									<Label text="Đơn giá mua thương lượng (Net Price)" required="true"/>
-<Input
-    id="inNetPrice"
-    placeholder="Nhập đơn giá mới..."
-    liveChange=".onRecalculateTotal"
-/>
+									<Input
+										id="inNetPrice"
+										placeholder="Nhập đơn giá mới..."
+										liveChange=".onRecalculateTotal"
+									/>
 
-<Label text="Loại tiền"/>
-<Input
-    id="inCurrency"
-    value="VND"
-    editable="false"
-/>
+									<Label text="Loại tiền"/>
+									<Input
+										id="inCurrency"
+										value="VND"
+										editable="false"
+									/>
 
-<Label text="Tổng giá trị PO (Total Value)"/>
-<ObjectNumber
-    id="numTotalValue"
-    number="0"
-    unit="VND"
-    state="Success"
-/>
+									<Label text="Tổng giá trị PO (Total Value)"/>
+									<ObjectNumber
+										id="numTotalValue"
+										number="0"
+										unit="VND"
+										state="Success"
+									/>
 								</f:content>
 							</f:SimpleForm>
 						</VBox>
 
-						<!-- CARD 3: BẢNG PO ITEMS (DANH SÁCH DÒNG HÀNG SẼ TẠO - PURCHASE ORDER ITEMS) -->
-						<!-- CARD 3: BẢNG PO ITEMS (DANH SÁCH DÒNG HÀNG SẼ TẠO) -->
-<VBox class="qdContentCard">
-	<HBox alignItems="Center" class="sapUiSmallMarginBottom">
-		<Text text="4" class="qdStepBadge"/>
-		<Title text="Chi tiết dòng hàng (PO Items Table)" level="H3" class="qdCardTitle"/>
-	</HBox>
+						<!-- CARD 5: GIAO HÀNG & THANH TOÁN -->
+						<VBox class="qdContentCard">
+							<HBox alignItems="Center" class="sapUiSmallMarginBottom">
+								<Text text="5" class="qdStepBadge"/>
+								<VBox>
+									<Title text="Giao hàng &amp; Thanh toán" level="H3" class="qdCardTitle"/>
+									<Text text="Địa chỉ nhận hàng, người nhận, ngày nhận dự kiến và điều khoản thanh toán" class="qdCellHint"/>
+								</VBox>
+							</HBox>
 
-	<Table id="poItemsTable" items="{/poItems}" noDataText="Chưa có dữ liệu dòng hàng">
-		<columns>
-			<Column width="4rem"><Text text="Item"/></Column>
-			<Column width="8rem"><Text text="Mã PR Nguồn"/></Column>
-			<Column><Text text="Mã &amp; Tên Vật tư"/></Column>
-			<Column hAlign="End" width="7rem"><Text text="Số lượng"/></Column>
-			<Column hAlign="End" width="8rem"><Text text="Đơn giá mua"/></Column>
-			<Column width="6rem"><Text text="Nhà máy (Plant)"/></Column>
-			<Column width="7rem"><Text text="Cost Center"/></Column>
-		</columns>
-		<items>
-			<ColumnListItem>
-				<cells>
-					<Text text="{LineNo}"/>
-					<Text text="{PreqNo}"/>
-					<VBox>
-						<Text text="{MaterialNo}" class="sapMTextBold"/>
-						<Text text="{Description}"/>
-					</VBox>
-					<Text text="{Quantity} {UoM}"/>
-					<Text text="{path: 'NetPrice', formatter: '.formatCurrency'} {Currency}"/>
-					<Input value="{Plant}"/>
-					<Input value="{CostCenter}"/>
-				</cells>
-			</ColumnListItem>
-		</items>
-	</Table>
+							<f:SimpleForm
+								editable="true"
+								layout="ColumnLayout"
+								columnsM="1"
+								columnsL="2"
+								columnsXL="2"
+								labelSpanM="4"
+								labelSpanL="4"
+								labelSpanXL="4"
+								emptySpanM="0"
+								emptySpanL="0"
+								emptySpanXL="0"
+								class="sapUiNoContentPadding qdSimpleForm"
+							>
+								<f:content>
+									<core:Title text="Địa điểm &amp; Người nhận hàng" class="qdFormSectionTitle"/>
 
-	<MessageStrip
-		text="Sau khi bấm xác nhận, hệ thống sẽ gọi SAP Gateway OData Service ZG1_PROC_SRV để ghi đè PO vào bảng EKKO/EKPO, đồng thời kích hoạt gửi mail trực tiếp tới Nhà cung cấp."
-		type="Information"
-		showIcon="true"
-		class="sapUiSmallMarginTop qdAiMessageStrip"
-	/>
+									<Label text="Địa chỉ giao hàng" required="true"/>
+									<TextArea
+										id="inDeliveryAddress"
+										rows="2"
+										placeholder="Địa chỉ nhận hàng (kho / công trình / văn phòng...)"
+									/>
 
-	<HBox justifyContent="End" alignItems="Center" class="sapUiMediumMarginTop">
-		<Button
-			text="Tạo PO Chuẩn SAP &amp; Gửi Mail Vendor"
-			type="Emphasized"
-			icon="sap-icon://email"
-			press=".onConfirmCreatePO"
-			class="qdPrimarySubmitBtn"
-		/>
-	</HBox>
-</VBox>
+									<Label text="Người nhận hàng" required="true"/>
+									<Input
+										id="inReceiverName"
+										placeholder="Họ tên người nhận hàng"
+									/>
+
+									<Label text="Số điện thoại người nhận" required="true"/>
+									<Input
+										id="inReceiverPhone"
+										placeholder="VD: 0912 345 678"
+										type="Tel"
+									/>
+
+									<Label text="Ngày nhận hàng dự kiến" required="true"/>
+									<DatePicker
+										id="inDeliveryDate"
+										displayFormat="yyyy-MM-dd"
+										valueFormat="yyyy-MM-dd"
+										placeholder="Ngày dự kiến nhận hàng (khác ngày lập PO)"
+										required="true"
+									/>
+
+									<core:Title text="Thanh toán" class="qdFormSectionTitle"/>
+
+									<Label text="Hình thức thanh toán" required="true"/>
+									<Select id="inPaymentMethod">
+										<core:Item key="TRANSFER" text="Chuyển khoản"/>
+										<core:Item key="CASH" text="Tiền mặt"/>
+									</Select>
+
+									<Label text="Điều khoản thanh toán" required="true"/>
+									<Select id="inPaymentTerms">
+										<core:Item key="IMMEDIATE" text="Thanh toán ngay"/>
+										<core:Item key="ADVANCE" text="Thanh toán trước"/>
+										<core:Item key="ON_DELIVERY" text="Thanh toán khi giao hàng"/>
+										<core:Item key="AFTER_ACCEPTANCE" text="Thanh toán sau nghiệm thu"/>
+										<core:Item key="NET45" text="Thanh toán sau 45 ngày"/>
+									</Select>
+								</f:content>
+							</f:SimpleForm>
+						</VBox>
+
+						<!-- CARD 6: BẢNG PO ITEMS (DANH SÁCH DÒNG HÀNG SẼ TẠO) -->
+						<VBox class="qdContentCard">
+							<HBox alignItems="Center" class="sapUiSmallMarginBottom">
+								<Text text="6" class="qdStepBadge"/>
+								<Title text="Chi tiết dòng hàng (PO Items Table)" level="H3" class="qdCardTitle"/>
+							</HBox>
+
+							<Table id="poItemsTable" items="{/poItems}" noDataText="Chưa có dữ liệu dòng hàng">
+								<columns>
+									<Column width="4rem"><Text text="Item"/></Column>
+									<Column width="8rem"><Text text="Mã PR Nguồn"/></Column>
+									<Column><Text text="Mã &amp; Tên Vật tư"/></Column>
+									<Column hAlign="End" width="7rem"><Text text="Số lượng"/></Column>
+									<Column hAlign="End" width="8rem"><Text text="Đơn giá mua"/></Column>
+									<Column width="6rem"><Text text="Nhà máy (Plant)"/></Column>
+									<Column width="7rem"><Text text="Cost Center"/></Column>
+								</columns>
+								<items>
+									<ColumnListItem>
+										<cells>
+											<Text text="{LineNo}"/>
+											<Text text="{PreqNo}"/>
+											<VBox>
+												<Text text="{MaterialNo}" class="sapMTextBold"/>
+												<Text text="{Description}"/>
+											</VBox>
+											<Text text="{Quantity} {UoM}"/>
+											<Text text="{path: 'NetPrice', formatter: '.formatCurrency'} {Currency}"/>
+											<Input value="{Plant}"/>
+											<Input value="{CostCenter}"/>
+										</cells>
+									</ColumnListItem>
+								</items>
+							</Table>
+
+							<MessageStrip
+								text="Sau khi bấm xác nhận, hệ thống sẽ gọi SAP Gateway OData Service ZG1_PROC_SRV để ghi đè PO vào bảng EKKO/EKPO, đồng thời kích hoạt gửi mail trực tiếp tới Nhà cung cấp."
+								type="Information"
+								showIcon="true"
+								class="sapUiSmallMarginTop qdAiMessageStrip"
+							/>
+
+							<HBox justifyContent="End" alignItems="Center" class="sapUiMediumMarginTop">
+								<Button
+									text="Tạo PO Chuẩn SAP &amp; Gửi Mail Vendor"
+									type="Emphasized"
+									icon="sap-icon://email"
+									press=".onConfirmCreatePO"
+									class="qdPrimarySubmitBtn"
+								/>
+							</HBox>
+						</VBox>
 					</VBox>
 
 				</l:contentAreas>

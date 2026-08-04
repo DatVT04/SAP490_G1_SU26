@@ -1,5 +1,12 @@
+const nodemailer = require("nodemailer");
 require("dotenv").config();
-
+const transporter = nodemailer.createTransport({
+	service: "gmail",
+	auth: {
+		user: process.env.EMAIL_USER,
+		pass: process.env.EMAIL_PASS
+	}
+});
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
@@ -622,7 +629,7 @@ app.get("/api/approval/pending", (req, res) => {
 app.get("/api/approval/approved", (req, res) => {
 	const data = approvalStore.filter((item) => {
 		const s = String(item.Status || "").toUpperCase();
-		return s === "APPROVED" || s === "OPENED" || s === "OPEN";
+		return s === "APPROVED" && !item.PoNumber;
 	});
 	return res.json({ success: true, data });
 });
@@ -948,6 +955,98 @@ async function fetchPRItemsFromSAP(prNumber) {
 function pickRealItemNo(row) {
 	return row.ItemNo || row.PRItem || row.ReqItem || row.PrItem || row.Item || row.LineNo || null;
 }
+
+// gửi mail Vendor
+async function sendPOEmailToVendor(vendorEmail, poNumber, data) {
+
+	if (!vendorEmail) {
+		return false;
+	}
+
+	const rows = (data.items || []).map(function (item) {
+		return `
+        <tr>
+            <td>${item.materialNo || ""}</td>
+            <td>${item.description || ""}</td>
+            <td>${item.quantity || ""}</td>
+            <td>${item.uom || ""}</td>
+            <td>${Number(item.netPrice || 0).toLocaleString("vi-VN")}</td>
+        </tr>`;
+	}).join("");
+
+	const html = `
+        <h2>Purchase Order Notification</h2>
+
+        <p>Dear Vendor,</p>
+
+        <p>
+            A new Purchase Order has been created.
+        </p>
+
+        <table border="1" cellpadding="6" cellspacing="0">
+            <tr>
+                <td><b>PO Number</b></td>
+                <td>${poNumber}</td>
+            </tr>
+
+            <tr>
+                <td><b>Company Code</b></td>
+                <td>${data.companyCode}</td>
+            </tr>
+
+            <tr>
+                <td><b>Document Date</b></td>
+                <td>${data.docDate}</td>
+            </tr>
+
+            <tr>
+                <td><b>Currency</b></td>
+                <td>${data.currency}</td>
+            </tr>
+        </table>
+
+        <br>
+
+        <table border="1" cellpadding="6" cellspacing="0">
+            <tr>
+                <th>Material</th>
+                <th>Description</th>
+                <th>Quantity</th>
+                <th>UoM</th>
+                <th>Net Price</th>
+            </tr>
+
+            ${rows}
+
+        </table>
+
+        <br>
+
+        <p>
+            Please review the Purchase Order and prepare the requested goods.
+        </p>
+
+        <br>
+
+        <p>Regards,</p>
+
+        <p>Purchasing Department</p>
+    `;
+
+	await transporter.sendMail({
+
+		from: process.env.EMAIL_USER,
+
+		to: vendorEmail,
+
+		subject: `Purchase Order ${poNumber}`,
+
+		html
+
+	});
+
+	return true;
+}
 // ── API TẠO PURCHASE ORDER TRÊN SAP GATEWAY ODATA ──
 app.post("/api/po/create", async (req, res) => {
 	const {
@@ -1043,6 +1142,7 @@ app.post("/api/po/create", async (req, res) => {
 		const sapResponse = await axios.post(
 			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseOrderHeaderSet`,
 			sapPayload,
+
 			{
 				auth: sapAuth(),
 				headers: {
@@ -1053,11 +1153,38 @@ app.post("/api/po/create", async (req, res) => {
 				}
 			}
 		);
+		console.log("=== SAP CREATE PO SUCCESS ===");
+		console.dir(sapResponse.data, { depth: null });
 
 		const createdPo = sapResponse.data && sapResponse.data.d;
 		const realPoNum = createdPo ? createdPo.PoNumber : "PO_SUCCESS";
 
-		const isMailSent = false;
+		const approval = approvalStore.find(
+			x => x.SapPRId === prNumber || x.PRId === prNumber
+		);
+
+		if (approval) {
+			approval.Status = "PO_CREATED";
+			approval.PoNumber = realPoNum;
+			approval.PoCreatedAt = new Date().toISOString();
+
+			saveApprovals();
+		}
+		console.log("=== BEFORE SEND EMAIL ===");
+
+		const isMailSent = await sendPOEmailToVendor(
+			vendorEmail,
+			realPoNum,
+			{
+				items,
+				currency,
+				docDate,
+				companyCode
+			}
+		);
+		console.log("=== EMAIL SENT ===");
+
+	
 		return res.status(201).json({
 			success: true,
 			sapIntegration: "created",
@@ -1066,35 +1193,99 @@ app.post("/api/po/create", async (req, res) => {
 			po: createdPo
 		});
 	} catch (error) {
-    console.error("========== SAP ERROR ==========");
+		console.error("========== SAP ERROR ==========");
 
-    if (error.response) {
-        console.error("HTTP Status:", error.response.status);
-        console.dir(error.response.data, { depth: null });
+		if (error.response) {
+			console.error("HTTP Status:", error.response.status);
+			console.dir(error.response.data, { depth: null });
 
-        const details =
-            error.response.data?.error?.innererror?.errordetails;
+			const details =
+				error.response.data?.error?.innererror?.errordetails;
 
-        if (Array.isArray(details)) {
-            console.log("===== ERROR DETAILS =====");
-            details.forEach((d) => {
-                console.log(
-                    `[${d.severity}] ${d.code} - ${d.message}`
-                );
-            });
-        }
-    } else {
-        console.error(error);
-    }
+			if (Array.isArray(details)) {
+				console.log("===== ERROR DETAILS =====");
+				details.forEach((d) => {
+					console.log(
+						`[${d.severity}] ${d.code} - ${d.message}`
+					);
+				});
+			}
+		} else {
+			console.error(error);
+		}
 
-    return res.status(502).json({
-        success: false,
-        message:
-            error.response?.data?.error?.message?.value ||
-            error.message
-    });
-}
+		return res.status(502).json({
+			success: false,
+			message:
+				error.response?.data?.error?.message?.value ||
+				error.message
+		});
+	}
 });
+// ============================================================================
+// API BÁO CÁO TIẾN ĐỘ PO (REPORT) — MERGE TIMELINE & PHÂN QUYỀN VAI TRÒ (ROLE)
+// ============================================================================
+app.get("/api/po/report", async (req, res) => {
+	const userEmail = String(req.query.email || "").trim().toLowerCase();
+
+	// Chế độ Mock Data khi chưa cấu hình kết nối SAP
+	if (!process.env.SAP_HOST) {
+		return res.json({ success: true, sapIntegration: "mock", data: [] });
+	}
+
+	try {
+		// 1. Gọi OData lấy danh sách lịch sử Purchase Order từ SAP S/4HANA
+		const response = await axios.get(
+			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseOrderHistorySet`,
+			{ params: { "$format": "json" }, auth: sapAuth() }
+		);
+		let results = (response.data && response.data.d && response.data.d.results) || [];
+		console.log("===== PO HISTORY =====");
+		console.log(results.length);
+		console.dir(results, { depth: null });
+		// 2. Merge (trộn) dữ liệu mốc thời gian duyệt PR từ approvalStore ở Node.js vào PO từ SAP
+		results = results.map((po) => {
+			// Tra cứu PR tương ứng trong approvalStore dựa trên SapPRId hoặc PreqNo
+			const matchedPR = approvalStore.find(
+				(pr) => pr.SapPRId === po.PoNumber || pr.PRId === po.PreqNo || pr.InternalId === po.PreqNo
+			);
+
+			return {
+				...po,
+				// Gán thông tin người tạo PR
+				RequesterEmail: matchedPR ? matchedPR.RequesterEmail : (po.RequesterEmail || "requester@qdavy.com"),
+
+				// Gán các mốc thời gian (Dates) cho Timeline 6 bước
+				PrDate: matchedPR ? matchedPR.CreatedAt?.split("T")[0] : po.DocDate,
+				LeadDate: matchedPR?.PurchasingApprovedAt ? matchedPR.PurchasingApprovedAt.split("T")[0] : null,
+				CfoDate: matchedPR?.CfoProcessedAt ? matchedPR.CfoProcessedAt.split("T")[0] : null,
+				CeoDate: matchedPR?.CeoProcessedAt ? matchedPR.CeoProcessedAt.split("T")[0] : null,
+				DocDate: po.DocDate || new Date().toISOString().split("T")[0],
+				DeliveryDate: po.Status === "DELIVERED" ? po.DeliveryDate : null
+			};
+		});
+
+		// 3. Phân quyền xem dữ liệu báo cáo theo Email người dùng
+		if (userEmail === "requester@qdavy.com") {
+			// Requester chỉ lọc và thấy danh sách PO do chính mình đề nghị
+			results = results.filter((po) =>
+				String(po.RequesterEmail || "").toLowerCase() === "requester@qdavy.com"
+			);
+		}
+		// Các email cấp quản lý: purchasing@qdavy.com, cfo@qdavy.com, ceo@qdavy.com
+		// sẽ nhận được toàn bộ danh sách PO trên hệ thống.
+
+		return res.json({ success: true, sapIntegration: "fetched", data: results });
+	} catch (error) {
+		console.error("❌ Lỗi lấy báo cáo PO:", error.message);
+		return res.status(502).json({
+			success: false,
+			sapError: true,
+			message: "Node.js không thể kết nối tới SAP Gateway!"
+		});
+	}
+});
+
 // ============================================================================
 // API BÁO CÁO TIẾN ĐỘ PO (REPORT) — MERGE TIMELINE & PHÂN QUYỀN VAI TRÒ (ROLE)
 // ============================================================================
