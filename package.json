@@ -6,8 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js",
-    "start:server": "node server.js",
-    "start:ui5": "ui5 serve"
+    "start:server": "node server.js"
   },
   "repository": {
     "type": "git",
@@ -21,9 +20,6 @@
     "url": "https://github.com/yenphhs170751-beep/SAP490_G1_SU26/issues"
   },
   "homepage": "https://github.com/yenphhs170751-beep/SAP490_G1_SU26#readme",
-  "devDependencies": {
-    "@ui5/cli": "^3.0.0"
-  },
   "dependencies": {
     "axios": "^1.7.9",
     "cors": "^2.8.5",

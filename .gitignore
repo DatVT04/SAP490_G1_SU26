@@ -6,3 +6,8 @@ dist/
 *.log
 .vercel
 .env*
+
+# Runtime state (seed lại tự động bởi server.js nếu thiếu — không nên track theo git,
+# vì mỗi lần chạy/test local sẽ đổi nội dung và gây conflict giữa các thành viên)
+data/approvals.json
+data/notifications.json
