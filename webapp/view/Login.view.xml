@@ -47,6 +47,17 @@
 						<Title text="{i18n>loginWelcome}" level="H2" class="qdLoginCardTitle sapUiTinyMarginBottom"/>
 						<Text text="{i18n>loginSubtext}" class="qdLoginCardSub sapUiMediumMarginBottom"/>
 
+						<!-- Nut Dang nhap Google duoc Google Identity Services tu ve vao day
+							 (xem Login.controller.js). An san khi backend chua cau hinh
+							 GOOGLE_CLIENT_ID (kiem tra qua /api/config). -->
+						<VBox id="googleBtnHost" class="qdGoogleBtnHost sapUiTinyMarginBottom" visible="{= !!${/googleAvailable} }">
+							<core:HTML id="googleBtnMount" content="&lt;div id=&quot;qdGoogleBtnMount&quot;&gt;&lt;/div&gt;"/>
+						</VBox>
+
+						<HBox alignItems="Center" justifyContent="Center" class="qdOrDivider sapUiTinyMarginBottom" visible="{= !!${/googleAvailable} }">
+							<Text text="hoặc đăng nhập bằng email" class="qdOrDividerText"/>
+						</HBox>
+
 						<Label text="{i18n>loginEmailLabel}" labelFor="emailInput" class="qdLoginLabel"/>
 						<Input
 							id="emailInput"
