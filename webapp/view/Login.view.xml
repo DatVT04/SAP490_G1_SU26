@@ -48,39 +48,26 @@
 						<Text text="{i18n>loginSubtext}" class="qdLoginCardSub sapUiMediumMarginBottom"/>
 
 						<!-- Nut Dang nhap Google duoc Google Identity Services tu ve vao day
-							 (xem Login.controller.js). An san khi backend chua cau hinh
-							 GOOGLE_CLIENT_ID (kiem tra qua /api/config). -->
-						<VBox id="googleBtnHost" class="qdGoogleBtnHost sapUiTinyMarginBottom" visible="{= !!${/googleAvailable} }">
+							 (xem Login.controller.js). Day gio la duong dang nhap DUY NHAT —
+							 khong con fallback go email thu cong nua. -->
+						<VBox id="googleBtnHost" class="qdGoogleBtnHost" visible="{= !!${/googleAvailable} }">
 							<core:HTML id="googleBtnMount" content="&lt;div id=&quot;qdGoogleBtnMount&quot;&gt;&lt;/div&gt;"/>
 						</VBox>
 
-						<HBox alignItems="Center" justifyContent="Center" class="qdOrDivider sapUiTinyMarginBottom" visible="{= !!${/googleAvailable} }">
-							<Text text="hoặc đăng nhập bằng email" class="qdOrDividerText"/>
-						</HBox>
-
-						<Label text="{i18n>loginEmailLabel}" labelFor="emailInput" class="qdLoginLabel"/>
-						<Input
-							id="emailInput"
-							width="100%"
-							type="Email"
-							placeholder="{i18n>loginEmailPlaceholder}"
-							value="{/email}"
-							submit=".onLoginPress"
-							class="qdLoginInput sapUiSmallMarginBottom"
-						/>
-
-						<Button
-							id="loginButton"
-							text="{i18n>loginButton}"
-							type="Emphasized"
-							width="100%"
-							press=".onLoginPress"
-							class="qdLoginSubmit"
+						<!-- Chi hien khi da goi xong /api/config ma van khong co Google —
+							 tranh tinh trang trang trang khong co cach nao dang nhap ma
+							 khong bao loi gi ca. -->
+						<MessageStrip
+							type="Warning"
+							showIcon="true"
+							class="qdLoginConfigWarning sapUiTinyMarginTop"
+							visible="{= ${/googleConfigChecked} &amp;&amp; !${/googleAvailable} }"
+							text="Đăng nhập Google chưa được cấu hình cho môi trường này (thiếu GOOGLE_CLIENT_ID). Vui lòng liên hệ quản trị hệ thống."
 						/>
 
 						<HBox justifyContent="Center" class="sapUiMediumMarginTop">
 							<Text
-								text="Xác thực qua email công ty · Không cần mật khẩu"
+								text="Chỉ tài khoản Google đã được cấp quyền trong SAP mới đăng nhập được"
 								class="qdLoginHint"
 								textAlign="Center"
 							/>

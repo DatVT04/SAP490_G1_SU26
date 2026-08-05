@@ -40,6 +40,19 @@ sap.ui.define([
 			this.getOwnerComponent().getRouter()
 				.getRoute("dashboard")
 				.attachPatternMatched(this._onRouteMatched, this);
+
+			// Loi chao doi theo gio trong ngay — cap nhat lai moi 5 phut de
+			// khong bi "dinh" (VD mo tab tu sang, ngoi lam viec toi trua/chieu
+			// van thay "Chao buoi sang" vi khong ai bam lai vao Dashboard).
+			this._iGreetingInterval = setInterval(function () {
+				this.getView().getModel("dash").setProperty("/greeting", this._buildGreeting());
+			}.bind(this), 5 * 60 * 1000);
+		},
+
+		onExit: function () {
+			if (this._iGreetingInterval) {
+				clearInterval(this._iGreetingInterval);
+			}
 		},
 
 		_onRouteMatched: function () {

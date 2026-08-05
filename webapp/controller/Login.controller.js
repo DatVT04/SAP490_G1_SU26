@@ -10,19 +10,22 @@ sap.ui.define([
 	return Controller.extend("com.qdavy.procurement.controller.Login", {
 		onInit: function () {
 			this.getView().setModel(new JSONModel({
-				email: "",
-				googleAvailable: false
+				googleAvailable: false,
+				// True sau khi da hoi xong /api/config (du co hay khong co Google) —
+				// dung de quyet dinh co hien canh bao "chua cau hinh" hay khong,
+				// tranh nham lan voi luc dang con cho load.
+				googleConfigChecked: false
 			}));
 
 			this._loadGoogleConfig();
 		},
 
 		/**
-		 * Hoi backend xem GOOGLE_CLIENT_ID da duoc cau hinh chua. Neu co thi
-		 * nap script Google Identity Services va ve nut "Dang nhap voi Google"
-		 * vao div qdGoogleBtnMount. Neu chua cau hinh, an han nut nay di — chi
-		 * con duong dang nhap email (giu tuong thich nguoc, khong lam vo app
-		 * cua nhung ai chua tao Google OAuth Client ID).
+		 * Hoi backend xem GOOGLE_CLIENT_ID da duoc cau hinh chua. Neu co thi nap
+		 * script Google Identity Services va ve nut "Dang nhap voi Google" vao
+		 * div qdGoogleBtnMount. Day gio la duong dang nhap DUY NHAT (khong con
+		 * fallback go email) — neu chua cau hinh thi hien canh bao thay vi de
+		 * trang trong khong biet lam sao dang nhap.
 		 */
 		_loadGoogleConfig: function () {
 			var oModel = this.getView().getModel();
@@ -30,6 +33,7 @@ sap.ui.define([
 			fetch(Config.BACKEND + "/api/config")
 				.then(function (oResponse) { return oResponse.json(); })
 				.then(function (oData) {
+					oModel.setProperty("/googleConfigChecked", true);
 					var sClientId = oData && oData.googleClientId;
 					if (!sClientId) { return; }
 
@@ -38,7 +42,7 @@ sap.ui.define([
 					this._renderGoogleButtonWhenReady();
 				}.bind(this))
 				.catch(function () {
-					// Khong lay duoc config -> coi nhu chua bat Google, van con email login.
+					oModel.setProperty("/googleConfigChecked", true);
 				});
 		},
 
@@ -119,40 +123,9 @@ sap.ui.define([
 				});
 		},
 
-		onLoginPress: function () {
-			var oView = this.getView();
-			var sEmail = oView.getModel().getProperty("/email");
-
-			if (!sEmail) {
-				MessageBox.error("Vui lòng nhập email công ty.");
-				return;
-			}
-
-			oView.setBusy(true);
-
-			fetch(Config.BACKEND + "/api/login", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json"
-				},
-				body: JSON.stringify({ email: sEmail })
-			})
-				.then(function (oResponse) {
-					return oResponse.json().then(function (oData) {
-						return { status: oResponse.status, body: oData };
-					});
-				})
-				.then(this._handleLoginResult.bind(this))
-				.catch(function (oError) {
-					oView.setBusy(false);
-					MessageBox.error("Không thể kết nối tới máy chủ xác thực. Vui lòng thử lại sau.");
-				});
-		},
-
 		/**
-		 * Dung chung cho ca 2 duong dang nhap (email-only va Google): nhan ket
-		 * qua tu backend, dung sai thi bao loi, dung thi ghi vao model "user"
-		 * va chuyen sang Dashboard.
+		 * Nhan ket qua tu backend sau khi dang nhap Google: dung sai thi bao
+		 * loi, dung thi ghi vao model "user" va chuyen sang Dashboard.
 		 */
 		_handleLoginResult: function (oResult) {
 			var oView = this.getView();
@@ -174,11 +147,11 @@ sap.ui.define([
 				role: oEmployee.Role,
 				position: oEmployee.Position,
 				costCenter: oEmployee.CostCenter,
-				// Anh dai dien: co that neu dang nhap qua Google (payload.picture tu
-				// /api/login/google), rong neu dang nhap bang email — luc do UI hien
-				// initials (2 chu cai dau) thay vi anh, xem sap.m.Avatar o Dashboard.
+				// Anh dai dien lay tu tai khoan Google (payload.picture). Neu vi ly do
+				// nao do khong co anh, fallback sang initials lay tu EMAIL (khong lay
+				// tu ten SAP nua — ten SAP co the khong khop voi ten Google that).
 				avatarUrl: oResult.body.googlePicture || "",
-				avatarInitials: this._computeInitials(sFullName),
+				avatarInitials: this._computeInitials(oEmployee.Email),
 				// Cac field con lai chi con dung noi bo (khong con man Profile de sua),
 				// giu lai phong khi can hien thi/doi chieu sau nay.
 				firstName: oEmployee.FirstName || "",
@@ -190,17 +163,15 @@ sap.ui.define([
 				isLoggedIn: true
 			});
 
-			MessageToast.show("Xin chào " + sFullName);
+			MessageToast.show("Xin chào " + oEmployee.Email);
 			this.getOwnerComponent().getRouter().navTo("dashboard");
 		},
 
-		// Lay toi da 2 ky tu dau (tu dau + tu cuoi cua ten day du) lam initials
-		// cho sap.m.Avatar khi khong co anh Google — VD "Vu Tien Đạt" -> "VĐ".
-		_computeInitials: function (sFullName) {
-			var aParts = String(sFullName || "").trim().split(/\s+/).filter(Boolean);
-			if (aParts.length === 0) { return ""; }
-			if (aParts.length === 1) { return aParts[0].charAt(0).toUpperCase(); }
-			return (aParts[0].charAt(0) + aParts[aParts.length - 1].charAt(0)).toUpperCase();
+		// Lay 2 ky tu dau cua phan truoc @ trong email lam initials cho
+		// sap.m.Avatar khi khong co anh Google — VD "requestersu26@gmail.com" -> "RE".
+		_computeInitials: function (sEmail) {
+			var sLocal = String(sEmail || "").split("@")[0];
+			return sLocal.slice(0, 2).toUpperCase();
 		}
 	});
 });

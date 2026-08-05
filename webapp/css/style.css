@@ -197,13 +197,8 @@ html, body {
 	line-height: 1.45 !important;
 }
 
-.qdLoginLabel {
-	font-weight: 600 !important;
-	color: #334155 !important;
-	margin-bottom: 0.35rem !important;
-}
-
-/* Nut "Dang nhap voi Google" (Google Identity Services tu ve vao trong) */
+/* Nut "Dang nhap voi Google" (Google Identity Services tu ve vao trong) —
+   day gio la duong dang nhap duy nhat, khong con form email fallback. */
 .qdGoogleBtnHost {
 	width: 100%;
 	display: flex;
@@ -211,36 +206,8 @@ html, body {
 	overflow: hidden;
 }
 
-/* Duong ke "hoac dang nhap bang email" giua 2 phuong thuc dang nhap */
-.qdOrDivider {
-	position: relative;
-	gap: 0.75rem;
-}
-
-.qdOrDivider::before,
-.qdOrDivider::after {
-	content: "";
-	flex: 1 1 auto;
-	height: 1px;
-	background: var(--qd-border);
-}
-
-.qdOrDividerText {
-	color: #94a3b8 !important;
-	font-size: 0.78rem !important;
-	white-space: nowrap;
-}
-
-.qdLoginInput .sapMInputBaseContentWrapper {
-	border-radius: 10px !important;
-	min-height: 2.75rem;
-}
-
-.qdLoginSubmit {
-	margin-top: 0.5rem;
-	height: 2.85rem !important;
-	border-radius: 10px !important;
-	font-weight: 600 !important;
+.qdLoginConfigWarning {
+	border-radius: 8px;
 }
 
 .qdLoginHint {
@@ -842,6 +809,11 @@ html, body {
 	background: rgba(20, 41, 77, 0.08) !important;
 	border-color: rgba(20, 41, 77, 0.18) !important;
 	color: var(--qd-primary) !important;
+}
+
+.qdUserMenuPosition {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.78rem !important;
 }
 
 .qdUserMenuList .sapMLIB {

@@ -12,10 +12,8 @@
 			<VBox class="qdDashHero">
 				<HBox justifyContent="SpaceBetween" alignItems="Start" wrap="Wrap">
 					<VBox class="qdHeroIdentity">
-						<Text text="{dash>/greeting}" class="qdHeroEyebrow"/>
-						<Title text="{user>/fullName}" level="H1" class="qdHeroName"/>
-						<HBox alignItems="Center" wrap="Wrap" class="qdHeroMetaRow">
-							<Text text="{user>/position}" class="qdHeroPosition"/>
+						<Title text="{dash>/greeting}" level="H1" class="qdHeroName"/>
+						<HBox alignItems="Center" wrap="Wrap" class="qdHeroMetaRow sapUiTinyMarginTop">
 							<Text class="qdRoleBadge" text="{user>/role}"/>
 						</HBox>
 					</VBox>
@@ -295,10 +293,10 @@
 						displaySize="M"
 						class="qdUserMenuAvatar"
 					/>
-					<Title text="{user>/fullName}" level="H4" class="qdUserMenuName sapUiTinyMarginTop"/>
-					<Text text="{user>/email}" class="qdUserMenuEmail"/>
-					<HBox class="sapUiTinyMarginTop">
+					<Title text="{user>/email}" level="H4" class="qdUserMenuName sapUiTinyMarginTop"/>
+					<HBox class="sapUiTinyMarginTop" alignItems="Center">
 						<Text text="{user>/role}" class="qdRoleBadge qdRoleBadgeDark"/>
+						<Text text="{user>/position}" class="qdUserMenuPosition sapUiTinyMarginBegin"/>
 					</HBox>
 				</VBox>
 				<List mode="None" class="qdUserMenuList">
