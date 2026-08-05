@@ -39,11 +39,15 @@
 							press=".onRefreshStats"
 							class="qdHeroBtn sapUiTinyMarginEnd"
 						/>
-						<Button
-							icon="sap-icon://log"
-							text="{i18n>logoutButton}"
-							press=".onLogoutPress"
-							class="qdHeroBtn"
+						<Avatar
+							id="userAvatarBtn"
+							src="{user>/avatarUrl}"
+							initials="{user>/avatarInitials}"
+							displayShape="Circle"
+							displaySize="S"
+							press=".onAvatarPress"
+							tooltip="Tài khoản"
+							class="qdHeroAvatarBtn"
 						/>
 					</HBox>
 				</HBox>
@@ -238,28 +242,6 @@
 						/>
 					</VBox>
 
-					<!-- PROFILE -->
-					<VBox
-						class="qdActionCard qdAccentSlate"
-						visible="{= ['REQUESTER','PURCHASING','CEO','CFO','ACC'].indexOf(${user>/role}) !== -1 }"
-					>
-						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
-							<VBox class="qdActionIconBox">
-								<core:Icon src="sap-icon://person-placeholder" class="qdActionIcon"/>
-							</VBox>
-							<Text text="PROFILE" class="qdActionCode"/>
-						</HBox>
-						<Title text="{i18n>tileProfileTitle}" level="H3" class="qdActionTitle"/>
-						<Text text="{i18n>tileProfileSubtitle}" class="qdActionDesc"/>
-						<Button
-							text="{i18n>dashTileOpen}"
-							icon="sap-icon://arrow-right"
-							iconFirst="false"
-							press=".onNavToProfile"
-							class="qdActionBtn"
-						/>
-					</VBox>
-
 				</HBox>
 			</VBox>
 
@@ -294,6 +276,37 @@
 						type="Active"
 						press=".onNotifItemPress"
 						highlight="{= ${dash>read} ? 'None' : 'Information' }"
+					/>
+				</List>
+			</Popover>
+
+			<Popover
+				id="userMenuPopover"
+				placement="Bottom"
+				showHeader="false"
+				contentWidth="17rem"
+				class="qdUserMenuPopover"
+			>
+				<VBox alignItems="Center" class="qdUserMenuHeader">
+					<Avatar
+						src="{user>/avatarUrl}"
+						initials="{user>/avatarInitials}"
+						displayShape="Circle"
+						displaySize="M"
+						class="qdUserMenuAvatar"
+					/>
+					<Title text="{user>/fullName}" level="H4" class="qdUserMenuName sapUiTinyMarginTop"/>
+					<Text text="{user>/email}" class="qdUserMenuEmail"/>
+					<HBox class="sapUiTinyMarginTop">
+						<Text text="{user>/role}" class="qdRoleBadge qdRoleBadgeDark"/>
+					</HBox>
+				</VBox>
+				<List mode="None" class="qdUserMenuList">
+					<StandardListItem
+						title="Đăng xuất"
+						icon="sap-icon://log"
+						type="Active"
+						press=".onLogoutPress"
 					/>
 				</List>
 			</Popover>

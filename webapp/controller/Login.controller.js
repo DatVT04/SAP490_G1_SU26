@@ -174,10 +174,13 @@ sap.ui.define([
 				role: oEmployee.Role,
 				position: oEmployee.Position,
 				costCenter: oEmployee.CostCenter,
-				// Cac field ho so ca nhan (man Profile) — chi co du lieu that neu
-				// ABAP GET_ENTITYSET da duoc mo rong doc them PA0006 (xem HUONG_DAN).
-				// Neu chua lam ben SAP, cac field nay se rong — man Profile van mo
-				// duoc, chi la form trong, khong loi.
+				// Anh dai dien: co that neu dang nhap qua Google (payload.picture tu
+				// /api/login/google), rong neu dang nhap bang email — luc do UI hien
+				// initials (2 chu cai dau) thay vi anh, xem sap.m.Avatar o Dashboard.
+				avatarUrl: oResult.body.googlePicture || "",
+				avatarInitials: this._computeInitials(sFullName),
+				// Cac field con lai chi con dung noi bo (khong con man Profile de sua),
+				// giu lai phong khi can hien thi/doi chieu sau nay.
 				firstName: oEmployee.FirstName || "",
 				lastName: oEmployee.LastName || "",
 				phoneNumber: oEmployee.PhoneNumber || "",
@@ -189,6 +192,15 @@ sap.ui.define([
 
 			MessageToast.show("Xin chào " + sFullName);
 			this.getOwnerComponent().getRouter().navTo("dashboard");
+		},
+
+		// Lay toi da 2 ky tu dau (tu dau + tu cuoi cua ten day du) lam initials
+		// cho sap.m.Avatar khi khong co anh Google — VD "Vu Tien Đạt" -> "VĐ".
+		_computeInitials: function (sFullName) {
+			var aParts = String(sFullName || "").trim().split(/\s+/).filter(Boolean);
+			if (aParts.length === 0) { return ""; }
+			if (aParts.length === 1) { return aParts[0].charAt(0).toUpperCase(); }
+			return (aParts[0].charAt(0) + aParts[aParts.length - 1].charAt(0)).toUpperCase();
 		}
 	});
 });

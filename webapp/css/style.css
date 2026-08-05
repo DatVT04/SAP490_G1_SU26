@@ -803,6 +803,51 @@ html, body {
 	color: #FFFFFF !important;
 }
 
+/* Avatar tai khoan trong hero (thay cho nut Dang xuat cu) */
+.qdHeroAvatarBtn {
+	cursor: pointer;
+	border: 2px solid rgba(255, 255, 255, 0.4);
+	transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.qdHeroAvatarBtn:hover {
+	border-color: rgba(255, 255, 255, 0.85);
+	transform: translateY(-1px);
+}
+
+/* Popover tai khoan mo tu avatar */
+.qdUserMenuHeader {
+	padding: 1.25rem 1rem 1rem;
+	border-bottom: 1px solid var(--qd-border);
+}
+
+.qdUserMenuAvatar {
+	border: 2px solid var(--qd-border);
+}
+
+.qdUserMenuName.sapMTitle {
+	color: #0f172a !important;
+	font-size: 1rem !important;
+	font-weight: 700 !important;
+	text-align: center;
+}
+
+.qdUserMenuEmail {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.78rem !important;
+	text-align: center;
+}
+
+.qdRoleBadgeDark {
+	background: rgba(20, 41, 77, 0.08) !important;
+	border-color: rgba(20, 41, 77, 0.18) !important;
+	color: var(--qd-primary) !important;
+}
+
+.qdUserMenuList .sapMLIB {
+	padding: 0.6rem 1rem !important;
+}
+
 /* ==========================================================================
    Dashboard — section heading (eyebrow + title + subtitle)
    ========================================================================== */

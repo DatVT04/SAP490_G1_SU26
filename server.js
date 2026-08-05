@@ -639,7 +639,7 @@ app.post("/api/login/google", async (req, res) => {
 				message: `Email ${email} chua duoc cap quyen truy cap he thong (khong co trong SAP hoac da bi khoa).`
 			});
 		}
-		return res.json({ success: true, employee });
+		return res.json({ success: true, employee, googlePicture: payload.picture || null });
 	} catch (error) {
 		console.error("❌ [login/google] Loi ket noi SAP:", error.message);
 		return res.status(502).json({ success: false, message: "Khong the ket noi toi he thong SAP." });

@@ -11,11 +11,11 @@ sap.ui.define([
 	var BACKEND = Config.BACKEND;
 
 	var TILES_BY_ROLE = {
-		REQUESTER:  ["pr01", "report", "history", "profile"],
-		PURCHASING: ["pr02", "po01", "report", "history", "profile"],
-		CFO:        ["pr02", "report", "history", "profile"],
-		CEO:        ["pr02", "report", "config", "history", "profile"],
-		ACC:        ["report", "history", "profile"]
+		REQUESTER:  ["pr01", "report", "history"],
+		PURCHASING: ["pr02", "po01", "report", "history"],
+		CFO:        ["pr02", "report", "history"],
+		CEO:        ["pr02", "report", "config", "history"],
+		ACC:        ["report", "history"]
 	};
 
 	var oValueFormat = NumberFormat.getIntegerInstance({
@@ -223,11 +223,17 @@ sap.ui.define([
 			this.getOwnerComponent().getRouter().navTo("poReport");
 		},
 
-		onNavToProfile: function () {
-			this.getOwnerComponent().getRouter().navTo("profile");
+		onAvatarPress: function (oEvent) {
+			if (!this._oUserMenuPopover) {
+				this._oUserMenuPopover = this.byId("userMenuPopover");
+			}
+			this._oUserMenuPopover.openBy(oEvent.getSource());
 		},
 
 		onLogoutPress: function () {
+			if (this._oUserMenuPopover) {
+				this._oUserMenuPopover.close();
+			}
 			var oUserModel = this.getOwnerComponent().getModel("user");
 			oUserModel.setData({
 				email: "",
@@ -236,6 +242,8 @@ sap.ui.define([
 				role: "",
 				position: "",
 				costCenter: "",
+				avatarUrl: "",
+				avatarInitials: "",
 				firstName: "",
 				lastName: "",
 				phoneNumber: "",

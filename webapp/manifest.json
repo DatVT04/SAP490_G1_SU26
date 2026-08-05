@@ -126,11 +126,6 @@
           "name": "poReport",
           "pattern": "po-report",
           "target": ["targetPOReport"]
-        },
-        {
-          "name": "profile",
-          "pattern": "profile",
-          "target": ["targetProfile"]
         }
       ],
       "targets": {
@@ -180,12 +175,6 @@
           "transition": "slide",
           "clearControlAggregation": true,
           "viewName": "POReport"
-        },
-        "targetProfile": {
-          "viewType": "XML",
-          "transition": "slide",
-          "clearControlAggregation": true,
-          "viewName": "Profile"
         }
       }
     }
