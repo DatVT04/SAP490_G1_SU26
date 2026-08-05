@@ -1,12 +1,29 @@
-const nodemailer = require("nodemailer");
 require("dotenv").config();
-const transporter = nodemailer.createTransport({
-	service: "gmail",
-	auth: {
-		user: process.env.EMAIL_USER,
-		pass: process.env.EMAIL_PASS
+
+// nodemailer chỉ dùng cho tính năng phụ (gửi PO cho vendor qua email).
+// Lazy-load + try/catch để nếu module thiếu/lỗi trên môi trường deploy
+// (VD Vercel không bundle đúng nodemailer) thì CHỈ tính năng gửi mail bị
+// tắt, không kéo sập toàn bộ server (login, PR, PO... vẫn chạy bình thường).
+let _mailTransporter;
+let _mailInitTried = false;
+function getMailTransporter() {
+	if (_mailInitTried) { return _mailTransporter; }
+	_mailInitTried = true;
+	try {
+		const nodemailer = require("nodemailer");
+		_mailTransporter = nodemailer.createTransport({
+			service: "gmail",
+			auth: {
+				user: process.env.EMAIL_USER,
+				pass: process.env.EMAIL_PASS
+			}
+		});
+	} catch (e) {
+		console.error("⚠️ Khong khoi tao duoc nodemailer (tinh nang gui email se bi tat):", e.message);
+		_mailTransporter = null;
 	}
-});
+	return _mailTransporter;
+}
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
@@ -1122,19 +1139,30 @@ async function sendPOEmailToVendor(vendorEmail, poNumber, data) {
         <p>Purchasing Department</p>
     `;
 
-	await transporter.sendMail({
+	const transporter = getMailTransporter();
+	if (!transporter) {
+		console.error("⚠️ Bo qua gui email PO (nodemailer khong san sang):", poNumber);
+		return false;
+	}
 
-		from: process.env.EMAIL_USER,
+	try {
+		await transporter.sendMail({
 
-		to: vendorEmail,
+			from: process.env.EMAIL_USER,
 
-		subject: `Purchase Order ${poNumber}`,
+			to: vendorEmail,
 
-		html
+			subject: `Purchase Order ${poNumber}`,
 
-	});
+			html
 
-	return true;
+		});
+
+		return true;
+	} catch (e) {
+		console.error("⚠️ Gui email PO that bai:", e.message);
+		return false;
+	}
 }
 // ── API TẠO PURCHASE ORDER TRÊN SAP GATEWAY ODATA ──
 app.post("/api/po/create", async (req, res) => {
