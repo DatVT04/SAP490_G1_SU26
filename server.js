@@ -862,7 +862,10 @@ app.post("/api/ai/recommend-vendor", async (req, res) => {
 		+ `- Ngan sach du kien: ${budget || "N/A"} VND\n`
 		+ `- Danh sach NCC: ${JSON.stringify(anonymized, null, 2)}\n\n`
 		+ `Hay de xuat cac ma NCC (vendorCode) nen moi bao gia va giai thich ngan gon bang tieng Viet. `
-		+ `Luu y day chi la goi y de moi bao gia, chua phai quyet dinh chon NCC.`;
+		+ `Luu y day chi la goi y de moi bao gia, chua phai quyet dinh chon NCC.\n\n`
+		+ `QUAN TRONG VE HINH THUC TRA LOI: chi viet van xuoi thuan tuy, KHONG dung markdown `
+		+ `(khong dung #, ##, **, gach dau dong, danh so thu tu). Toi da 4-5 cau. Ket qua se duoc `
+		+ `hien thi nguyen van trong mot o text thuong tren giao dien, khong render duoc markdown.`;
 
 	try {
 		const aiText = await callClaude(prompt, 500);
@@ -2231,7 +2234,9 @@ app.post("/api/ai/compare-quotations", async (req, res) => {
 			+ `Hay de xuat 1 ma NCC (vendorCode) nen chon, giai thich ngan gon (3-5 cau) dua tren `
 			+ `gia, thoi gian giao hang, bao hanh, dieu khoan thanh toan va tinh hop le ho so phap ly. `
 			+ `Tra loi bang tieng Viet, dong dau tien chi ghi dung ma vendorCode duoc chon (vi du: "V2"), `
-			+ `cac dong sau la giai thich.`;
+			+ `cac dong sau la giai thich. Chi viet van xuoi thuan tuy, KHONG dung markdown `
+			+ `(khong dung #, ##, **, gach dau dong, danh so thu tu) vi ket qua se hien thi nguyen van `
+			+ `trong mot o text thuong khong render duoc markdown.`;
 
 		const aiText = await callClaude(prompt, 500);
 
