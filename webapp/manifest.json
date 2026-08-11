@@ -118,6 +118,16 @@
           "target": "po01"
         },
         {
+          "name": "rfq01",
+          "pattern": "create-rfq",
+          "target": "rfq01"
+        },
+        {
+          "name": "rfq02",
+          "pattern": "manage-quotations",
+          "target": "rfq02"
+        },
+        {
           "name": "thresholdConfig",
           "pattern": "threshold-config",
           "target": ["targetThresholdConfig"]
@@ -162,6 +172,16 @@
         "po01": {
           "viewName": "PO01",
           "viewId": "po01",
+          "viewLevel": 2
+        },
+        "rfq01": {
+          "viewName": "RFQ01",
+          "viewId": "rfq01",
+          "viewLevel": 2
+        },
+        "rfq02": {
+          "viewName": "RFQ02",
+          "viewId": "rfq02",
           "viewLevel": 2
         },
         "targetThresholdConfig": {

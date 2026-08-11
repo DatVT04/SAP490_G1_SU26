@@ -12,7 +12,7 @@ sap.ui.define([
 
 	var TILES_BY_ROLE = {
 		REQUESTER:  ["pr01", "report", "history"],
-		PURCHASING: ["pr02", "po01", "report", "history"],
+		PURCHASING: ["pr02", "rfq01", "rfq02", "po01", "report", "history"],
 		CFO:        ["pr02", "report", "history"],
 		CEO:        ["pr02", "report", "config", "history"],
 		ACC:        ["report", "history"]
@@ -222,6 +222,14 @@ sap.ui.define([
 
 		onNavToPO01: function () {
 			this.getOwnerComponent().getRouter().navTo("po01");
+		},
+
+		onNavToRFQ01: function () {
+			this.getOwnerComponent().getRouter().navTo("rfq01");
+		},
+
+		onNavToRFQ02: function () {
+			this.getOwnerComponent().getRouter().navTo("rfq02");
 		},
 
 		onNavToHistory: function () {

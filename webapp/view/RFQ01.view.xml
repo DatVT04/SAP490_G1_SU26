@@ -1,0 +1,164 @@
+<mvc:View
+	controllerName="com.qdavy.procurement.controller.RFQ01"
+	xmlns="sap.m"
+	xmlns:mvc="sap.ui.core.mvc"
+	xmlns:core="sap.ui.core"
+	xmlns:l="sap.ui.layout"
+>
+	<Page showHeader="false" class="qdInnerPage">
+		<content>
+
+			<!-- HERO HEADER -->
+			<VBox class="qdPageHero qdPageHeroPurple">
+				<HBox alignItems="Center">
+					<Button icon="sap-icon://nav-back" press=".onNavBack" class="qdHeroBackBtn"/>
+					<VBox>
+						<Text text="Quy trình Mua sắm · Bước 2a" class="qdPageEyebrow"/>
+						<Title text="RFQ-01 · Lập &amp; Gửi Yêu cầu báo giá (RFQ)" level="H1" class="qdPageTitle"/>
+						<Text text="Chọn PR đang chờ xử lý, mời nhà cung cấp báo giá qua email — AI gợi ý NCC phù hợp" class="qdPageSub"/>
+					</VBox>
+				</HBox>
+			</VBox>
+
+			<l:Splitter height="100%" width="100%" class="qdSplitter">
+				<l:contentAreas>
+
+					<!-- CARD 1: DANH SACH PR CHO PURCHASING XU LY -->
+					<VBox width="100%">
+						<layoutData>
+							<l:SplitterLayoutData size="35%" minSize="320"/>
+						</layoutData>
+
+						<VBox class="qdContentCard qdCardTight">
+							<HBox alignItems="Center" class="sapUiSmallMargin">
+								<Text text="1" class="qdStepBadge"/>
+								<VBox>
+									<Title text="PR chờ Purchasing xử lý" level="H3" class="qdCardTitle"/>
+									<Text text="Chọn một Yêu cầu mua hàng để mở RFQ" class="qdCellHint"/>
+								</VBox>
+							</HBox>
+
+							<Table
+								id="pendingPRTable"
+								items="{/PendingPRs}"
+								mode="SingleSelectMaster"
+								selectionChange=".onPRSelect"
+								noDataText="Không có PR nào đang chờ Purchasing xử lý."
+							>
+								<columns>
+									<Column width="8rem"><Text text="Mã PR"/></Column>
+									<Column><Text text="Vật tư &amp; Yêu cầu"/></Column>
+									<Column hAlign="End" width="8rem"><Text text="Giá trị ước tính"/></Column>
+								</columns>
+								<items>
+									<ColumnListItem type="Active">
+										<cells>
+											<ObjectIdentifier title="{PRId}"/>
+											<VBox>
+												<Text text="{Description}"/>
+												<Text text="Người yêu cầu: {RequesterEmail}" class="qdCellHint"/>
+											</VBox>
+											<ObjectNumber
+												number="{path: 'TotalValue', formatter: '.formatCurrency'}"
+												unit="{Currency}"
+											/>
+										</cells>
+									</ColumnListItem>
+								</items>
+							</Table>
+						</VBox>
+					</VBox>
+
+					<!-- KHU VUC LAP RFQ -->
+					<VBox id="rfqCreationArea" width="100%" visible="false">
+						<layoutData>
+							<l:SplitterLayoutData size="65%" minSize="450"/>
+						</layoutData>
+
+						<!-- CARD 2: CHON NHA CUNG CAP MOI BAO GIA -->
+						<VBox class="qdContentCard">
+							<HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
+								<HBox alignItems="Center">
+									<Text text="2" class="qdStepBadge"/>
+									<VBox>
+										<Title text="Chọn Nhà cung cấp mời báo giá" level="H3" class="qdCardTitle"/>
+										<Text text="Nên mời tối thiểu 2 NCC để có cơ sở so sánh — nếu chỉ mời 1, khi chốt sẽ phải nhập lý do chỉ định (sole source)" class="qdCellHint"/>
+									</VBox>
+								</HBox>
+								<Button
+									text="AI gợi ý NCC"
+									icon="sap-icon://ai"
+									press=".onAiSuggestPress"
+									busy="{/busyAi}"
+									class="qdActionBtn"
+								/>
+							</HBox>
+
+							<MessageStrip
+								text="{/aiText}"
+								type="Information"
+								showIcon="true"
+								visible="{= !!${/aiText} }"
+								class="sapUiSmallMarginBottom"
+							/>
+
+							<Table
+								id="vendorTable"
+								items="{/Vendors}"
+								mode="MultiSelect"
+								noDataText="Không tải được danh sách Nhà cung cấp từ SAP."
+							>
+								<columns>
+									<Column width="9rem"><Text text="Mã NCC"/></Column>
+									<Column><Text text="Tên Nhà cung cấp"/></Column>
+									<Column><Text text="Email nhận RFQ"/></Column>
+								</columns>
+								<items>
+									<ColumnListItem>
+										<cells>
+											<ObjectIdentifier title="{VendorNo}"/>
+											<Text text="{VendorName}"/>
+											<Text text="{= ${Email} || ${VendorEmail} || '(chưa có email — sẽ bỏ qua khi gửi)' }"/>
+										</cells>
+									</ColumnListItem>
+								</items>
+							</Table>
+						</VBox>
+
+						<!-- CARD 3: HAN NOP & GUI -->
+						<VBox class="qdContentCard">
+							<HBox alignItems="Center" class="sapUiSmallMarginBottom">
+								<Text text="3" class="qdStepBadge"/>
+								<VBox>
+									<Title text="Hạn nộp báo giá &amp; Gửi RFQ" level="H3" class="qdCardTitle"/>
+									<Text text="Hệ thống sinh mã RFQ, lưu vào SAP và gửi email mời báo giá tới các NCC đã chọn" class="qdCellHint"/>
+								</VBox>
+							</HBox>
+
+							<HBox alignItems="End" wrap="Wrap">
+								<VBox class="sapUiSmallMarginEnd">
+									<Label text="Hạn nộp báo giá (Deadline)" required="true"/>
+									<DatePicker
+										id="dpDeadline"
+										valueFormat="yyyy-MM-dd"
+										displayFormat="dd/MM/yyyy"
+										width="14rem"
+									/>
+								</VBox>
+								<Button
+									text="Tạo &amp; Gửi RFQ"
+									type="Emphasized"
+									icon="sap-icon://email"
+									press=".onCreateAndSendRFQ"
+									class="qdActionBtn"
+								/>
+							</HBox>
+						</VBox>
+
+					</VBox>
+				</l:contentAreas>
+			</l:Splitter>
+
+		</content>
+	</Page>
+</mvc:View>

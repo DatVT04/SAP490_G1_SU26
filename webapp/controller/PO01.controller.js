@@ -12,12 +12,38 @@ sap.ui.define([
 	return Controller.extend("com.qdavy.procurement.controller.PO01", {
 
 		onInit: function () {
+			this._orgDefaults = {};
+
+			// Tạo model 1 lần duy nhất ở đây. Trước đây _loadApprovedPRs() gọi
+			// setModel(new JSONModel(...)) nên nếu /api/vendors trả về TRƯỚC thì
+			// danh sách vendor vừa nạp bị ghi đè mất — ComboBox NCC rỗng ngẫu nhiên
+			// tuỳ tốc độ mạng. Giờ 2 request chỉ setProperty vào cùng 1 model.
+			this.getView().setModel(new JSONModel({
+				PurchaseRequisitions: [],
+				poItems: [],
+				Vendors: []
+			}));
+
+			this._loadOrgDefaults();
 			this._loadApprovedPRs();
 			this._loadVendors();
 
 			this.getOwnerComponent().getRouter()
 				.getRoute("po01")
 				.attachPatternMatched(this._onRouteMatched, this);
+		},
+
+		// Org data (Company Code / Purch Org / Purch Group) khong duoc luu tren ban ghi PR,
+		// nen truoc day 3 o nay luon rong va nguoi dung phai go tay moi lan tao PO.
+		// Lay tu /api/config de dung chung 1 nguon voi backend (ORG_DEFAULTS trong server.js).
+		_loadOrgDefaults: function () {
+			var that = this;
+			fetch(BACKEND + "/api/config")
+				.then(function (r) { return r.json(); })
+				.then(function (cfg) {
+					that._orgDefaults = (cfg && cfg.orgDefaults) || {};
+				})
+				.catch(function () { /* im lang — van cho go tay neu khong lay duoc */ });
 		},
 
 		_onRouteMatched: function () {
@@ -60,14 +86,20 @@ sap.ui.define([
 								CostCenter: firstItem.CostCenter || "",
 								Plant: firstItem.Plant || "",
 								AssetNo: firstItem.AssetNo || "",
+								// Ket qua chot NCC tu luong RFQ (do /api/rfq/:id/award ghi lai
+								// tren chinh ban ghi approval nay) — dung de tu dien vendor + gia,
+								// khong bat nguoi mua go tay lai gia da thuong luong.
+								RfqId: pr.RfqId || "",
+								RfqAwardedVendor: pr.RfqAwardedVendor || "",
+								RfqFinalValue: pr.RfqFinalValue != null ? pr.RfqFinalValue : null,
+								EstimatedTotalValue: pr.EstimatedTotalValue != null ? pr.EstimatedTotalValue : null,
 								_items: aItems
 							};
 						});
 
-						oView.setModel(new JSONModel({ 
-							PurchaseRequisitions: aMappedPRs,
-							poItems: [] 
-						}));
+						var oModel = oView.getModel();
+						oModel.setProperty("/PurchaseRequisitions", aMappedPRs);
+						oModel.setProperty("/poItems", []);
 					}
 				})
 				.catch(function () {
@@ -83,15 +115,11 @@ sap.ui.define([
 				.then(function (r) { return r.json(); })
 				.then(function (res) {
 					if (res && res.success) {
-						var aVendors = res.data || [];
-						var oModel = oView.getModel();
-						if (oModel) {
-							oModel.setProperty("/Vendors", aVendors);
-						}
+						oView.getModel().setProperty("/Vendors", res.data || []);
 					}
 				})
 				.catch(function () {
-					console.error("Lỗi tải danh sách Vendor từ OData.");
+					MessageToast.show("Không tải được danh sách Nhà cung cấp từ SAP.");
 				});
 		},
 
@@ -106,7 +134,6 @@ sap.ui.define([
 
 		// ── 3. SỰ KIỆN KHI CHỌN DÒNG PR (FIX KHÔNG CRASH) ──
 		onPRSelect: function (oEvent) {
-			console.log("CLICK");
 			try {
 				var oSelectedItem = oEvent.getParameter("listItem");
 				if (!oSelectedItem) { return; }
@@ -124,8 +151,6 @@ sap.ui.define([
 				oView.byId("poCreationArea").setVisible(true);
 
 				var aItems = oPRData._items || [];
-		console.log("=== RAW ITEMS ===");
-console.table(aItems);		
 				var firstItem = aItems[0] || {};
 
 				// 2. Điền dữ liệu thông tin PR tham chiếu (Card 1)
@@ -136,18 +161,29 @@ console.table(aItems);
 				oView.byId("numEstimatedValue").setNumber(this.formatCurrency(oPRData.EstimatedValue));
 				oView.byId("numEstimatedValue").setUnit(oPRData.Currency || "");
 
-				// 3. Đổ dữ liệu tổ chức (Card 2)
-				oView.byId("inCompanyCode").setValue(oPRData.CompanyCode || "");
-				oView.byId("inPurchOrg").setValue(oPRData.PurchOrg || "");
-				oView.byId("inPurchGroup").setValue(oPRData.PurchGroup || "");
-				oView.byId("inCurrency").setValue(oPRData.Currency || "");
+				// 3. Đổ dữ liệu tổ chức (Card 2).
+				// Bản ghi PR không lưu org data, nên lấy mặc định từ /api/config (ORG_DEFAULTS
+				// bên server) — vẫn cho sửa tay nếu PR nào đó thực sự khác.
+				var oOrg = this._orgDefaults || {};
+				oView.byId("inCompanyCode").setValue(oPRData.CompanyCode || oOrg.companyCode || "");
+				oView.byId("inPurchOrg").setValue(oPRData.PurchOrg || oOrg.purchOrg || "");
+				oView.byId("inPurchGroup").setValue(oPRData.PurchGroup || oOrg.purchGroup || "");
+				oView.byId("inCurrency").setValue(oPRData.Currency || oOrg.currency || "");
 
-				// 4. Tính đơn giá khởi tạo
+				// 4. Tính đơn giá khởi tạo.
+				// Ưu tiên GIÁ THẬT từ báo giá đã chốt qua RFQ (RfqFinalValue là tổng giá trị
+				// PR theo báo giá thắng, giống cách /api/rfq/:id/award ghi vào approvalStore);
+				// chỉ khi PR không đi qua RFQ mới rơi về giá ước tính lúc lập PR.
 				var fQty = Number(firstItem.Quantity || oPRData.Quantity || 1);
-				var fUnitPrice = fQty > 0 ? (oPRData.EstimatedValue / fQty) : oPRData.EstimatedValue;
+				var bFromRfq = oPRData.RfqFinalValue != null && Number(oPRData.RfqFinalValue) > 0;
+				var fBaseValue = bFromRfq ? Number(oPRData.RfqFinalValue) : Number(oPRData.EstimatedValue || 0);
+				var fUnitPrice = fQty > 0 ? (fBaseValue / fQty) : fBaseValue;
 				oView.byId("inNetPrice").setValue(fUnitPrice);
 
-				// 5. Cập nhật mảng /poItems cho Bảng Card 3
+				// 5. Kế thừa nhà cung cấp đã thắng thầu (nếu PR này đi qua RFQ)
+				this._applyRfqAward(oPRData, fBaseValue, bFromRfq);
+
+				// 6. Cập nhật mảng /poItems cho Bảng Card 3
 				var aTableItems = aItems.map(function(it, idx) {
 					return {
 						LineNo: it.LineNo || String((idx + 1) * 10).padStart(5, "0"),
@@ -162,8 +198,7 @@ console.table(aItems);
 						CostCenter: it.CostCenter || ""
 					};
 				});
-console.log("=== TABLE ITEMS ===");
-console.table(aTableItems);
+
 				if (aTableItems.length === 0) {
 					aTableItems.push({
 						LineNo: "00010",
@@ -184,6 +219,56 @@ console.table(aTableItems);
 
 			} catch (err) {
 				console.error("Lỗi khi chọn dòng PR:", err);
+			}
+		},
+
+		// ── 3b. KẾ THỪA NCC + GIÁ TỪ BÁO GIÁ ĐÃ CHỐT (RFQ-02) ──
+		// Trước đây người mua phải tự nhớ ai thắng thầu rồi chọn lại tay, giá cũng gõ lại —
+		// vừa mất thời gian vừa dễ lệch so với giá đã chốt. Giờ đọc thẳng RfqAwardedVendor /
+		// RfqFinalValue mà /api/rfq/:id/award đã ghi lên chính bản ghi PR này.
+		_applyRfqAward: function (oPRData, fBaseValue, bFromRfq) {
+			var oView = this.getView();
+			var oStrip = oView.byId("msRfqInherited");
+			var oVendorBox = oView.byId("inSelectedVendor");
+
+			if (!bFromRfq || !oPRData.RfqAwardedVendor) {
+				oVendorBox.setSelectedKey("");
+				oView.byId("inVendorEmail").setValue("");
+				if (oStrip) {
+					oStrip.setVisible(false);
+				}
+				return;
+			}
+
+			var sVendorNo = String(oPRData.RfqAwardedVendor);
+			oVendorBox.setSelectedKey(sVendorNo);
+
+			// Lấy email/tên NCC từ danh sách /Vendors đã tải sẵn, thay vì bắt chọn lại
+			var oModel = oView.getModel();
+			var aVendors = (oModel && oModel.getProperty("/Vendors")) || [];
+			var oVendor = aVendors.filter(function (v) {
+				return String(v.VendorNo) === sVendorNo;
+			})[0];
+
+			if (oVendor) {
+				oView.byId("inVendorEmail").setValue(oVendor.Email || "");
+			}
+
+			if (oStrip) {
+				var sVendorLabel = oVendor
+					? (oVendor.VendorName + " (" + sVendorNo + ")")
+					: sVendorNo;
+				oStrip.setText(
+					"Đã tự điền từ báo giá thắng của RFQ " + (oPRData.RfqId || "")
+					+ ": " + sVendorLabel
+					+ " — tổng giá chốt " + this.formatCurrency(fBaseValue)
+					+ " " + (oPRData.Currency || "")
+					+ (oPRData.EstimatedTotalValue != null
+						? " (ước tính ban đầu: " + this.formatCurrency(oPRData.EstimatedTotalValue) + ")"
+						: "")
+					+ ". Vẫn sửa được nếu cần."
+				);
+				oStrip.setVisible(true);
 			}
 		},
 
@@ -261,8 +346,7 @@ console.table(aTableItems);
 
 			var oModel = oView.getModel();
 			var aTableItems = oModel.getProperty("/poItems") || [];
-console.log("=== PO ITEMS ===");
-console.table(aTableItems);
+
 			var aItemsPayload = aTableItems.map(function (it, idx) {
 				return {
 					preqNo: oPR.PrNumber,
@@ -290,8 +374,7 @@ console.table(aTableItems);
 				currency: sCurrency,
 				items: aItemsPayload
 			};
-console.log("=== PAYLOAD ===");
-console.log(JSON.stringify(oPayload, null, 2));
+
 			oView.setBusy(true);
 
 			fetch(BACKEND + "/api/po/create", {

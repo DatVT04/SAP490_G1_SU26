@@ -41,6 +41,25 @@ app.use(express.static(path.join(__dirname, "webapp")));
 
 const ODATA_SERVICE_PATH = "/sap/opu/odata/sap/ZG1_PROC_SRV_SRV";
 
+// ============================================================================
+// ORG DATA THAT — cau hinh SPRO cua he thong (xem MASTER_DATA_SAP490_G1.md).
+// Truoc day cac gia tri nay bi de fallback "1000"/"001" rai rac trong
+// /api/po/create. Voi PR thi vo hai (ABAP create_pr_deep tu hardcode QDPL/QD1
+// va header PR khong co comp_code), NHUNG voi PO thi ABAP doc thang
+// comp_code/purch_org/pur_group tu deep entity gui len -> sai org that su.
+// Gom ve 1 cho de FE va BE dung chung, khong lap so ma nua.
+// ============================================================================
+// purchGroup = "QD1" (mo ta "QDAVY PG") — da xac minh truc tiep tren OME4 ngay 11/08.
+// MASTER_DATA_SAP490_G1.md ghi "QDG" la SAI; ABAP hardcode 'QD1' moi dung. Dung sua nguoc lai.
+const ORG_DEFAULTS = {
+	companyCode: "QD01",
+	purchOrg: "QDPO",
+	purchGroup: "QD1",
+	plant: "QDPL",
+	storageLocation: "QDSL",
+	currency: "VND"
+};
+
 // Chỉ cảnh báo “giá trị lớn” — KHÔNG dùng để leo CEO
 const LEGAL_ESCALATION_THRESHOLD = 100000000;
 
@@ -473,7 +492,32 @@ async function createPRInSAP(record) {
 		return { sapIntegration: "mock", sapPrNumber: null, sapErrorMessage: "SAP_HOST chua cau hinh" };
 	}
 
-	const firstItem = record.items[0] || {};
+	if (!Array.isArray(record.items) || record.items.length === 0) {
+		return {
+			sapIntegration: "failed",
+			sapPrNumber: null,
+			sapErrorMessage: "PR khong co dong item nao de gui len SAP"
+		};
+	}
+
+	// Deep-insert: gui ca header + toan bo dong item qua nav property PRToItems.
+	// Da verify thuc te qua Gateway Client (HTTP 201) — xem CLAUDE.md muc "Loi da biet" #1.
+	const prToItems = record.items.map(function (item, idx) {
+		const preqItem = String(idx + 1).padStart(5, "0");
+		return {
+			PreqItem: preqItem,
+			MaterialNo: item.isFreeText ? "" : (item.MaterialNo || ""),
+			MaterialType: item.MaterialType || "",
+			Description: item.Description || "",
+			Quantity: String(item.Quantity || 0),
+			UoM: item.UoM || "PC",
+			EstimatedValue: String(item.EstimatedValue || 0),
+			CostCenter: item.CostCenter || "",
+			InternalOrder: item.InternalOrder || "",
+			AssetNo: item.AssetNo || ""
+		};
+	});
+
 	try {
 		const tokenResponse = await axios.get(
 			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}`,
@@ -483,17 +527,15 @@ async function createPRInSAP(record) {
 		const cookies = tokenResponse.headers["set-cookie"];
 
 		const sapResponse = await axios.post(
-			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseRequisitionHisSet`,
+			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseRequisitionHeaderSet`,
 			{
-				MaterialNo: firstItem.MaterialNo || "",
-				Description: firstItem.Description || "",
-				Quantity: String(firstItem.Quantity || 1),
-				Uom: firstItem.UoM || "PC",
-				EstimatedValue: String(firstItem.EstimatedValue || 0),
+				CompanyCode: record.CompanyCode || "1000",
 				Currency: record.Currency || "VND",
-				CostCenter: firstItem.CostCenter || "",
-				InternalOrder: firstItem.InternalOrder || "",
-				GLAccount: firstItem.GLAccount || defaultGLAccount(firstItem.MaterialType)
+				Requester: record.RequesterEmail || "",
+				TotalValue: String(record.TotalValue || 0),
+				PRToItems: {
+					results: prToItems
+				}
 			},
 			{
 				auth: sapAuth(),
@@ -535,6 +577,110 @@ async function createPRInSAP(record) {
 	}
 }
 
+// ============================================================================
+// HELPER SAP OData DUNG CHUNG CHO CAC ROUTE RFQ (RfqSet / QuotationSet)
+// Tai su dung dung pattern CSRF token da dung trong createPRInSAP() o tren.
+// ============================================================================
+
+/** Escape dau nhay don trong gia tri key OData (vd RfqSet('...')) de tranh loi cu phap. */
+function odataEscape(v) {
+	return String(v == null ? "" : v).replace(/'/g, "''");
+}
+
+/**
+ * 5 field ngay gio cua RFQ/Quotation (CreatedAt, SentAt, Deadline, AwardedAt, EnteredAt)
+ * la Edm.String 14 ky tu YYYYMMDDHHMMSS, KHONG phai Edm.DateTime — xem CLAUDE.md.
+ */
+function sapTimestamp(date) {
+	const d = date || new Date();
+	const p = (n) => String(n).padStart(2, "0");
+	return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+}
+
+/** Field Deadline la DATS 8 ky tu YYYYMMDD (khac 14 ky tu cua 4 field TIMESTAMP con lai). */
+function sapDateOnly(date) {
+	const d = date || new Date();
+	const p = (n) => String(n).padStart(2, "0");
+	return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`;
+}
+
+/** Chuan hoa deadline FE gui len (vd "2026-08-20" hoac da la "20260820") ve 8 ky tu, hoac "" neu khong hop le. */
+function normalizeSapDeadline(input) {
+	if (!input) { return ""; }
+	const digits = String(input).replace(/-/g, "").slice(0, 8);
+	return /^\d{8}$/.test(digits) ? digits : "";
+}
+
+async function sapFetchCsrfToken() {
+	const tokenResponse = await axios.get(
+		`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}`,
+		{ auth: sapAuth(), headers: { "X-CSRF-Token": "Fetch", "sap-language": "EN" } }
+	);
+	return {
+		csrfToken: tokenResponse.headers["x-csrf-token"],
+		cookies: tokenResponse.headers["set-cookie"]
+	};
+}
+
+/** POST/MERGE vao 1 entity path (vd "RfqSet" hoac "RfqSet('RFQ-2026-0001')"). Truyen session de tai su dung 1 CSRF token cho nhieu lan ghi lien tiep. */
+async function sapWrite(method, entityPath, data, session) {
+	const s = session || await sapFetchCsrfToken();
+	return axios({
+		method,
+		url: `${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/${entityPath}`,
+		data,
+		auth: sapAuth(),
+		headers: {
+			"Content-Type": "application/json",
+			"X-CSRF-Token": s.csrfToken,
+			"Cookie": s.cookies ? s.cookies.join("; ") : "",
+			"sap-language": "EN"
+		}
+	});
+}
+
+/** GET 1 entity path (vd "RfqSet('RFQ-2026-0001')/RfqToQuotations"). */
+async function sapRead(entityPath) {
+	return axios.get(
+		`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/${entityPath}`,
+		{ params: { "$format": "json" }, auth: sapAuth(), timeout: 20000 }
+	);
+}
+
+/** Rut gon message loi tu SAP OData (hoac API ngoai nhu Anthropic) de tra ve FE, khong nuot loi. */
+function extractSapErrorMessage(error) {
+	const errorDetails = error.response?.data?.error?.innererror?.errordetails;
+	if (Array.isArray(errorDetails)) {
+		const realErrors = errorDetails
+			.filter((d) => d.severity === "error" && d.code !== "/IWBEP/CX_MGW_BUSI_EXCEPTION")
+			.map((d) => d.message);
+		if (realErrors.length) { return realErrors.join("; "); }
+	}
+	const odataMsg = error.response?.data?.error?.message?.value;
+	if (odataMsg) { return odataMsg; }
+	const rawMsg = error.response?.data?.error?.message;
+	if (typeof rawMsg === "string" && rawMsg) { return rawMsg; }
+	if (error.response) {
+		return `HTTP ${error.response.status}: ${JSON.stringify(error.response.data).slice(0, 300)}`;
+	}
+	return error.message;
+}
+
+/** Lay toan bo NCC tu SAP VendorSet (dung chung cho /api/vendors va cac route RFQ). */
+async function fetchAllVendorsFromSAP() {
+	if (!process.env.SAP_HOST) { return []; }
+	const response = await axios.get(
+		`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/VendorSet`,
+		{ params: { "$format": "json" }, auth: sapAuth() }
+	);
+	const results = (response.data && response.data.d && response.data.d.results) || [];
+	return results.map((v) => ({
+		...v,
+		VendorNo: v.VendorNo || v.Lifnr || v.Vendor || "",
+		VendorName: v.VendorName || v.Name1 || v.Name || `Nhà cung cấp ${v.VendorNo || v.Lifnr}`
+	}));
+}
+
 /**
  * Tra cuu 1 nhan vien active theo email trong SAP EmployeeSet.
  * Dung chung cho ca 2 duong dang nhap (email-only cu va Google moi) de
@@ -558,7 +704,12 @@ async function findActiveEmployeeByEmail(email) {
 // Cho frontend biet co the hien nut "Dang nhap voi Google" hay khong,
 // va lay dung Client ID (khong bi coi la bi mat, an toan de tra ve public).
 app.get("/api/config", (req, res) => {
-	res.json({ googleClientId: process.env.GOOGLE_CLIENT_ID || null });
+	// orgDefaults: de PO-01 tu dien san Company Code / Purch Org / Purch Group
+	// thay vi bat nguoi dung go tay moi lan (ban ghi PR khong he luu cac field nay).
+	res.json({
+		googleClientId: process.env.GOOGLE_CLIENT_ID || null,
+		orgDefaults: ORG_DEFAULTS
+	});
 });
 
 /**
@@ -667,16 +818,7 @@ app.get("/api/vendors", async (req, res) => {
 		return res.status(503).json({ success: false, message: "He thong SAP chua duoc cau hinh (thieu SAP_HOST)." });
 	}
 	try {
-		const response = await axios.get(
-			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/VendorSet`,
-			{ params: { "$format": "json" }, auth: sapAuth() }
-		);
-		const results = (response.data && response.data.d && response.data.d.results) || [];
-		const allVendors = results.map((v) => ({
-			...v,
-			VendorNo: v.VendorNo || v.Lifnr || v.Vendor || "",
-			VendorName: v.VendorName || v.Name1 || v.Name || `Nhà cung cấp ${v.VendorNo || v.Lifnr}`
-		}));
+		const allVendors = await fetchAllVendorsFromSAP();
 		return res.json({ success: true, data: allVendors });
 	} catch (error) {
 		console.error("❌ VendorSet:", error.message);
@@ -684,31 +826,65 @@ app.get("/api/vendors", async (req, res) => {
 	}
 });
 
+// Goi y NCC TRUOC khi gui RFQ (khac /api/ai/compare-quotations la sau khi da co gia that).
+// Truoc day route nay gui thang ten/email/ma so thue NCC that len Groq — cung mot lo hong
+// ma B2 da vá cho compare-quotations nhung bo sot o day. Nay dung chung 1 co che: an danh
+// V1/V2/... truoc khi goi, dich nguoc sau khi co ket qua, va ghi log moi lan goi.
 app.post("/api/ai/recommend-vendor", async (req, res) => {
 	const { materialName, materialGroup, quantity, budget, vendors: candidateVendors } = req.body || {};
-	if (!process.env.GROQ_API_KEY) {
-		return res.status(500).json({ success: false, message: "Thieu GROQ_API_KEY." });
+
+	if (!process.env.ANTHROPIC_API_KEY) {
+		return res.status(500).json({ success: false, message: "Thieu ANTHROPIC_API_KEY." });
 	}
 	if (!Array.isArray(candidateVendors) || candidateVendors.length === 0) {
 		return res.status(400).json({ success: false, message: "Thieu danh sach nha cung cap (goi /api/vendors truoc)." });
 	}
-	const vendorList = candidateVendors;
-	const prompt = `Ban la chuyen gia mua hang. De xuat NCC cho:
-- Vat tu: ${materialName || "N/A"} (nhom: ${materialGroup || "N/A"})
-- So luong: ${quantity || "N/A"}
-- Ngan sach: ${budget || "N/A"} VND
-Danh sach: ${JSON.stringify(vendorList)}
-Tra loi ngan gon tieng Viet: ten NCC va ly do.`;
+
+	// An danh hoa: chi gui cho AI nhung thuoc tinh phuc vu viec chon NCC, tuyet doi khong
+	// gui VendorName / Email / TaxCode / dia chi ra ngoai he thong.
+	const anonMap = {};
+	const anonymized = candidateVendors.map(function (v, idx) {
+		const code = "V" + (idx + 1);
+		anonMap[code] = String(v.VendorNo || v.Lifnr || "");
+		return {
+			vendorCode: code,
+			country: v.Country || v.Land1 || "",
+			city: v.City || v.Ort01 || "",
+			paymentTerms: v.PaymentTerms || v.Zterm || "",
+			currency: v.Currency || v.Waers || ""
+		};
+	});
+
+	const prompt = `Ban la chuyen gia mua hang. Duoi day la danh sach nha cung cap da an danh hoa `
+		+ `(khong co ten/email that) cho nhu cau mua sam:\n`
+		+ `- Vat tu: ${materialName || "N/A"} (nhom: ${materialGroup || "N/A"})\n`
+		+ `- So luong: ${quantity || "N/A"}\n`
+		+ `- Ngan sach du kien: ${budget || "N/A"} VND\n`
+		+ `- Danh sach NCC: ${JSON.stringify(anonymized, null, 2)}\n\n`
+		+ `Hay de xuat cac ma NCC (vendorCode) nen moi bao gia va giai thich ngan gon bang tieng Viet. `
+		+ `Luu y day chi la goi y de moi bao gia, chua phai quyet dinh chon NCC.`;
 
 	try {
-		const response = await axios.post(
-			"https://api.groq.com/openai/v1/chat/completions",
-			{ model: "llama-3.3-70b-versatile", messages: [{ role: "user", content: prompt }], temperature: 0.3 },
-			{ headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}`, "Content-Type": "application/json" } }
+		const aiText = await callClaude(prompt, 500);
+
+		// Dich nguoc ma an danh ve VendorNo that; dung word boundary de V1 khong khop nham trong V10.
+		let translatedText = aiText;
+		Object.keys(anonMap).forEach(function (code) {
+			if (anonMap[code]) {
+				translatedText = translatedText.replace(new RegExp("\\b" + code + "\\b", "g"), anonMap[code]);
+			}
+		});
+
+		console.log(
+			"[AI recommend-vendor] " + new Date().toISOString()
+			+ " vatTu=" + (materialName || "N/A") + " soNCCGuiVaoAI=" + anonymized.length
 		);
-		return res.json({ success: true, recommendation: response.data.choices[0].message.content });
+
+		return res.json({ success: true, recommendation: translatedText, vendorCount: anonymized.length });
 	} catch (error) {
-		return res.status(502).json({ success: false, message: "Khong the goi AI." });
+		const message = extractSapErrorMessage(error);
+		console.error("[POST /api/ai/recommend-vendor] THAT BAI:", message);
+		return res.status(502).json({ success: false, message: "Khong the goi AI: " + message });
 	}
 });
 
@@ -860,6 +1036,11 @@ app.get("/api/approval/history", (req, res) => {
 			.sort(sortNewest);
 		history = approvalStore
 			.filter(function (item) {
+				// PR dang trong giai doan RFQ (chua co quyet dinh Approve/Reject nao ca) van
+				// phai hien o day, khong thi bien mat khoi man Purchasing tu luc tao RFQ toi
+				// luc PENDING_CFO — chua co man RFQ01/RFQ02 rieng de theo doi.
+				const s = String(item.Status || "").toUpperCase();
+				if (s === "PENDING_RFQ" || s === "RFQ_SENT" || s === "QUOTATIONS_RECEIVED") { return true; }
 				if (item.PurchasingApprovedBy || item.PurchasingAction) { return true; }
 				return String(item.DecidedByRole || "").toUpperCase() === "PURCHASING";
 			})
@@ -1269,24 +1450,14 @@ app.post("/api/po/create", async (req, res) => {
 		0
 	);
 
-	// Trường hợp chạy MOCK
+	// Khong con nhanh MOCK: truoc day thieu SAP_HOST van tra ve so PO gia
+	// (PO-<nam>-xxxxx) kem success:true, nen FE bao "tao PO thanh cong" trong khi
+	// SAP khong he co chung tu nao — rat de nham khi demo. PR da bo mock tu truoc,
+	// nay PO lam giong: thieu cau hinh thi bao loi that.
 	if (!process.env.SAP_HOST) {
-		const mockPoNum = `PO-${new Date().getFullYear()}-${Math.floor(Math.random() * 90000) + 10000}`;
-
-		const isMailSent = false;
-		return res.status(201).json({
-			success: true,
-			sapIntegration: "mock",
-			poNumber: mockPoNum,
-			emailSent: isMailSent,
-			po: {
-				PoNumber: mockPoNum,
-				VendorNo: vendorNo,
-				TotalValue: totalValue,
-				Currency: currency || "VND",
-				Status: "CREATED",
-				Items: items
-			}
+		return res.status(503).json({
+			success: false,
+			message: "He thong SAP chua duoc cau hinh (thieu SAP_HOST) — khong the tao Purchase Order."
 		});
 	}
 
@@ -1303,12 +1474,12 @@ app.post("/api/po/create", async (req, res) => {
 		var formattedVendor = /^\d+$/.test(rawVendor) ? rawVendor.padStart(10, "0") : rawVendor;
 
 		const sapPayload = {
-			CompanyCode: companyCode || "1000",
+			CompanyCode: companyCode || ORG_DEFAULTS.companyCode,
 			DocType: docType || "NB",
 			VendorNo: formattedVendor,
-			PurchOrg: purchOrg || "1000",
-			PurchGroup: purchGroup || "001",
-			Currency: currency || "VND",
+			PurchOrg: purchOrg || ORG_DEFAULTS.purchOrg,
+			PurchGroup: purchGroup || ORG_DEFAULTS.purchGroup,
+			Currency: currency || ORG_DEFAULTS.currency,
 			DocDate: docDate || new Date().toISOString().split('T')[0],
 			TotalValue: totalValue.toFixed(2),
 			POToItems: {
@@ -1330,8 +1501,8 @@ app.post("/api/po/create", async (req, res) => {
 						Quantity: Number(item.quantity || 1).toFixed(3),
 						UoM: String(item.uom || "PC").substring(0, 3),
 						NetPrice: Number(item.netPrice || 0).toFixed(2),
-						CostCenter: String(item.costCenter || "CCADM").substring(0, 10),
-						Plant: item.plant || "1000"
+						CostCenter: String(item.costCenter || "").substring(0, 10),
+						Plant: item.plant || ORG_DEFAULTS.plant
 					};
 				})
 			}
@@ -1545,6 +1716,532 @@ app.get("/api/po/report", async (req, res) => {
 		});
 	}
 });
+// ============================================================================
+// API RFQ (Request for Quotation) — Z-table ZG1_RFQ / ZG1_QUOTATION qua OData
+// RfqSet + QuotationSet, KHONG phai ME41 chuan cua SAP (quyet dinh da chot,
+// xem KE_HOACH_RFQ_2_TUAN.md muc B3). Sinh RfqId dang RFQ-<nam>-<4 chu so>.
+// ============================================================================
+
+/** Sinh RfqId ke tiep bang cach dem so RFQ da co trong nam hien tai tren SAP. */
+async function generateNextRfqId() {
+	const year = new Date().getFullYear();
+	const prefix = `RFQ-${year}-`;
+	let maxSeq = 0;
+	try {
+		const response = await sapRead("RfqSet");
+		const results = (response.data && response.data.d && response.data.d.results) || [];
+		results.forEach(function (row) {
+			const rid = String(row.RfqId || "");
+			if (rid.indexOf(prefix) === 0) {
+				const seq = parseInt(rid.slice(prefix.length), 10);
+				if (!isNaN(seq) && seq > maxSeq) { maxSeq = seq; }
+			}
+		});
+	} catch (error) {
+		console.error("[generateNextRfqId] Khong doc duoc RfqSet, dung seq du phong:", error.message);
+	}
+	return prefix + String(maxSeq + 1).padStart(4, "0");
+}
+
+/** Goi Anthropic Messages API (khong them SDK moi, dung axios cho dong bo voi phan con lai cua file). */
+async function callClaude(promptText, maxTokens) {
+	const response = await axios.post(
+		"https://api.anthropic.com/v1/messages",
+		{
+			model: "claude-sonnet-5",
+			max_tokens: maxTokens || 800,
+			messages: [{ role: "user", content: promptText }]
+		},
+		{
+			headers: {
+				"x-api-key": process.env.ANTHROPIC_API_KEY,
+				"anthropic-version": "2023-06-01",
+				"Content-Type": "application/json"
+			},
+			timeout: 30000
+		}
+	);
+	const content = response.data && response.data.content;
+	return (Array.isArray(content) && content[0] && content[0].text) || "";
+}
+
+// 0) Danh sach RFQ (cho man RFQ-02 chon RFQ dang xu ly) — doc thang tu RfqSet
+app.get("/api/rfq", async (req, res) => {
+	if (!process.env.SAP_HOST) {
+		return res.status(503).json({ success: false, message: "He thong SAP chua duoc cau hinh (thieu SAP_HOST)." });
+	}
+	try {
+		const response = await sapRead("RfqSet");
+		let results = (response.data && response.data.d && response.data.d.results) || [];
+
+		const statusFilter = String(req.query.status || "").toUpperCase();
+		if (statusFilter) {
+			results = results.filter((r) => String(r.Status || "").toUpperCase() === statusFilter);
+		}
+
+		// Moi nhat len dau — CreatedAt la chuoi YYYYMMDDHHMMSS nen so sanh chuoi la du
+		results.sort((a, b) => String(b.CreatedAt || "").localeCompare(String(a.CreatedAt || "")));
+
+		return res.json({ success: true, data: results });
+	} catch (error) {
+		const message = extractSapErrorMessage(error);
+		console.error("[GET /api/rfq] THAT BAI:", message);
+		return res.status(502).json({ success: false, message });
+	}
+});
+
+// 1) Tao RFQ tu 1 PR + danh sach NCC duoc moi
+app.post("/api/rfq/create", async (req, res) => {
+	const { prId, sapPrNumber, vendorIds, createdBy, currency } = req.body || {};
+
+	if (!process.env.SAP_HOST) {
+		return res.status(503).json({ success: false, message: "He thong SAP chua duoc cau hinh (thieu SAP_HOST)." });
+	}
+	if (!prId) {
+		return res.status(400).json({ success: false, message: "Thieu prId." });
+	}
+	if (!Array.isArray(vendorIds) || vendorIds.length < 1) {
+		return res.status(400).json({ success: false, message: "Phai chon it nhat 1 nha cung cap de gui RFQ." });
+	}
+
+	// Máy trạng thái: chỉ được mở RFQ khi PR đang chờ Purchasing xem xét lần đầu.
+	// Tránh tạo RFQ trùng lặp cho 1 PR đã ở giai đoạn RFQ khác hoặc đã qua Purchasing.
+	const prRecord = approvalStore.find(function (item) {
+		return item.PRId === prId || item.InternalId === prId || item.SapPRId === prId;
+	});
+	if (!prRecord) {
+		return res.status(404).json({ success: false, message: "Khong tim thay PR " + prId + " trong approvalStore." });
+	}
+	if (prRecord.Status !== "PENDING_PURCHASING") {
+		return res.status(400).json({
+			success: false,
+			message: "PR " + prId + " dang o trang thai " + prRecord.Status
+				+ ", chi duoc tao RFQ khi PR dang o trang thai PENDING_PURCHASING."
+		});
+	}
+
+	try {
+		const rfqId = await generateNextRfqId();
+		const session = await sapFetchCsrfToken();
+
+		await sapWrite("POST", "RfqSet", {
+			RfqId: rfqId,
+			PrId: String(prId),
+			SapPrNumber: sapPrNumber ? String(sapPrNumber) : "",
+			CreatedBy: createdBy || "",
+			CreatedAt: sapTimestamp(),
+			SentAt: "",
+			Deadline: "",
+			Status: "DRAFT",
+			AwardedVendor: "",
+			AwardReason: "",
+			AwardedBy: "",
+			AwardedAt: "",
+			FinalValue: "0",
+			Currency: currency || "VND"
+		}, session);
+
+		const allVendors = await fetchAllVendorsFromSAP();
+		const vendorMap = {};
+		allVendors.forEach(function (v) { vendorMap[String(v.VendorNo)] = v; });
+
+		for (const vendorId of vendorIds) {
+			const vendorInfo = vendorMap[String(vendorId)] || {};
+			await sapWrite("POST", "QuotationSet", {
+				RfqId: rfqId,
+				VendorNo: String(vendorId),
+				VendorName: vendorInfo.VendorName || "",
+				VendorEmail: vendorInfo.Email || vendorInfo.VendorEmail || "",
+				QuotedPrice: "0",
+				Currency: currency || "VND",
+				LeadTimeDays: 0,
+				PaymentTerms: "",
+				WarrantyMonths: 0,
+				LegalDocsOk: "",
+				QuoteStatus: "PENDING",
+				EnteredBy: "",
+				EnteredAt: "",
+				SourceNote: ""
+			}, session);
+		}
+
+		// RFQ da tao thanh cong tren SAP -> chuyen PR sang PENDING_RFQ trong approvalStore.
+		prRecord.Status = "PENDING_RFQ";
+		prRecord.RfqId = rfqId;
+		prRecord.UpdatedAt = new Date().toISOString();
+		saveApprovals();
+
+		notifyRequester(
+			prRecord,
+			"Đề nghị " + prRecord.PRId + " đang được Purchasing gửi yêu cầu báo giá (RFQ " + rfqId + ") tới nhà cung cấp."
+		);
+
+		return res.status(201).json({ success: true, rfqId, status: "DRAFT" });
+	} catch (error) {
+		const message = extractSapErrorMessage(error);
+		console.error("[POST /api/rfq/create] THAT BAI:", message);
+		return res.status(502).json({ success: false, message });
+	}
+});
+
+// 2) Gui email RFQ toi cac NCC da moi + chuyen trang thai sang SENT
+app.post("/api/rfq/:id/send", async (req, res) => {
+	const { id } = req.params;
+	const { deadline } = req.body || {};
+
+	if (!process.env.SAP_HOST) {
+		return res.status(503).json({ success: false, message: "He thong SAP chua duoc cau hinh (thieu SAP_HOST)." });
+	}
+
+	try {
+		const rfqResp = await sapRead(`RfqSet('${odataEscape(id)}')`);
+		const rfq = rfqResp.data && rfqResp.data.d;
+		if (!rfq) {
+			return res.status(404).json({ success: false, message: "Khong tim thay RFQ " + id + "." });
+		}
+
+		const quotationsResp = await sapRead(`RfqSet('${odataEscape(id)}')/RfqToQuotations`);
+		const quotations = (quotationsResp.data && quotationsResp.data.d && quotationsResp.data.d.results) || [];
+
+		const transporter = getMailTransporter();
+		let sentCount = 0;
+		if (transporter) {
+			for (const q of quotations) {
+				if (!q.VendorEmail) { continue; }
+				try {
+					await transporter.sendMail({
+						from: process.env.EMAIL_USER,
+						to: q.VendorEmail,
+						subject: `Yeu cau bao gia ${id}`,
+						html: `
+							<p>Kinh gui ${q.VendorName || q.VendorNo},</p>
+							<p>Chung toi de nghi Quy vi gui bao gia cho yeu cau mua sam lien quan:</p>
+							<table border="1" cellpadding="6" cellspacing="0">
+								<tr><td><b>Ma RFQ</b></td><td>${id}</td></tr>
+								<tr><td><b>PR lien quan</b></td><td>${rfq.SapPrNumber || rfq.PrId || ""}</td></tr>
+								<tr><td><b>Han nop bao gia</b></td><td>${deadline || "(chua xac dinh)"}</td></tr>
+							</table>
+							<p>Vui long phan hoi truoc han neu co the.</p>
+							<p>Tran trong,<br>Purchasing Department</p>
+						`
+					});
+					sentCount++;
+				} catch (mailError) {
+					console.error(`[POST /api/rfq/${id}/send] Gui mail that bai cho ${q.VendorEmail}:`, mailError.message);
+				}
+			}
+		} else {
+			console.error(`[POST /api/rfq/${id}/send] Bo qua gui email (nodemailer khong san sang).`);
+		}
+
+		const normalizedDeadline = normalizeSapDeadline(deadline);
+		const mergeData = {
+			Status: "SENT",
+			SentAt: sapTimestamp()
+		};
+		if (normalizedDeadline) { mergeData.Deadline = normalizedDeadline; }
+
+		await sapWrite("MERGE", `RfqSet('${odataEscape(id)}')`, mergeData);
+
+		// Chuyen PR goc sang RFQ_SENT (khong ha cap neu vi ly do nao do da qua giai doan sau).
+		const prRecordForSend = approvalStore.find(function (item) {
+			return item.PRId === rfq.SapPrNumber || item.InternalId === rfq.PrId || item.SapPRId === rfq.SapPrNumber;
+		});
+		if (prRecordForSend && prRecordForSend.Status === "PENDING_RFQ") {
+			prRecordForSend.Status = "RFQ_SENT";
+			prRecordForSend.UpdatedAt = new Date().toISOString();
+			saveApprovals();
+		}
+
+		return res.json({ success: true, emailsSent: sentCount, totalVendors: quotations.length });
+	} catch (error) {
+		const message = extractSapErrorMessage(error);
+		console.error(`[POST /api/rfq/${id}/send] THAT BAI:`, message);
+		return res.status(502).json({ success: false, message });
+	}
+});
+
+// 3) Nhap tay 1 bao gia cho 1 NCC (bat buoc ghi ai nhap/luc nao/can cu gi — audit trail)
+app.post("/api/rfq/:id/quotation", async (req, res) => {
+	const { id } = req.params;
+	const {
+		vendorNo, quotedPrice, currency, leadTimeDays,
+		paymentTerms, warrantyMonths, legalDocsOk, sourceNote, enteredBy
+	} = req.body || {};
+
+	if (!process.env.SAP_HOST) {
+		return res.status(503).json({ success: false, message: "He thong SAP chua duoc cau hinh (thieu SAP_HOST)." });
+	}
+	if (!vendorNo) {
+		return res.status(400).json({ success: false, message: "Thieu vendorNo." });
+	}
+	if (quotedPrice == null || quotedPrice === "" || Number(quotedPrice) <= 0) {
+		return res.status(400).json({ success: false, message: "Gia bao gia (quotedPrice) khong hop le." });
+	}
+	if (!sourceNote || !String(sourceNote).trim()) {
+		return res.status(400).json({ success: false, message: "Bat buoc nhap sourceNote (can cu nhap bao gia, vd email NCC ngay nao)." });
+	}
+
+	try {
+		const session = await sapFetchCsrfToken();
+
+		await sapWrite(
+			"MERGE",
+			`QuotationSet(RfqId='${odataEscape(id)}',VendorNo='${odataEscape(vendorNo)}')`,
+			{
+				QuotedPrice: String(quotedPrice),
+				Currency: currency || "VND",
+				LeadTimeDays: Number(leadTimeDays) || 0,
+				PaymentTerms: paymentTerms || "",
+				WarrantyMonths: Number(warrantyMonths) || 0,
+				LegalDocsOk: legalDocsOk ? "X" : "",
+				QuoteStatus: "RECEIVED",
+				EnteredBy: enteredBy || "",
+				EnteredAt: sapTimestamp(),
+				SourceNote: String(sourceNote).trim()
+			},
+			session
+		);
+
+		// Neu RFQ dang DRAFT/SENT thi nang len QUOTATIONS_RECEIVED — khong ha cap neu da AWARDED
+		const rfqResp = await sapRead(`RfqSet('${odataEscape(id)}')`);
+		const rfq = rfqResp.data && rfqResp.data.d;
+		if (rfq && (rfq.Status === "DRAFT" || rfq.Status === "SENT")) {
+			await sapWrite("MERGE", `RfqSet('${odataEscape(id)}')`, { Status: "QUOTATIONS_RECEIVED" }, session);
+
+			// Phan anh cung trang thai nay len PR goc trong approvalStore.
+			const prRecordForQuote = approvalStore.find(function (item) {
+				return item.PRId === rfq.SapPrNumber || item.InternalId === rfq.PrId || item.SapPRId === rfq.SapPrNumber;
+			});
+			if (prRecordForQuote && (prRecordForQuote.Status === "PENDING_RFQ" || prRecordForQuote.Status === "RFQ_SENT")) {
+				prRecordForQuote.Status = "QUOTATIONS_RECEIVED";
+				prRecordForQuote.UpdatedAt = new Date().toISOString();
+				saveApprovals();
+			}
+		}
+
+		return res.json({ success: true });
+	} catch (error) {
+		const message = extractSapErrorMessage(error);
+		console.error(`[POST /api/rfq/${id}/quotation] THAT BAI:`, message);
+		return res.status(502).json({ success: false, message });
+	}
+});
+
+// 4) Bang so sanh bao gia cho 1 RFQ
+app.get("/api/rfq/:id/compare", async (req, res) => {
+	const { id } = req.params;
+
+	if (!process.env.SAP_HOST) {
+		return res.status(503).json({ success: false, message: "He thong SAP chua duoc cau hinh (thieu SAP_HOST)." });
+	}
+
+	try {
+		const rfqResp = await sapRead(`RfqSet('${odataEscape(id)}')`);
+		const rfq = rfqResp.data && rfqResp.data.d;
+		if (!rfq) {
+			return res.status(404).json({ success: false, message: "Khong tim thay RFQ " + id + "." });
+		}
+
+		const quotationsResp = await sapRead(`RfqSet('${odataEscape(id)}')/RfqToQuotations`);
+		const allQuotations = (quotationsResp.data && quotationsResp.data.d && quotationsResp.data.d.results) || [];
+
+		const received = allQuotations.filter((q) => q.QuoteStatus === "RECEIVED" || q.QuoteStatus === "AWARDED");
+		const pending = allQuotations.filter((q) => q.QuoteStatus === "PENDING");
+
+		return res.json({
+			success: true,
+			rfq,
+			quotations: received,
+			pendingVendors: pending.map((q) => ({ VendorNo: q.VendorNo, VendorName: q.VendorName }))
+		});
+	} catch (error) {
+		const message = extractSapErrorMessage(error);
+		console.error(`[GET /api/rfq/${id}/compare] THAT BAI:`, message);
+		return res.status(502).json({ success: false, message });
+	}
+});
+
+// 5) Chot NCC thang — bat buoc >=2 bao gia RECEIVED + ly do, chuyen PR goc sang PENDING_CFO
+app.post("/api/rfq/:id/award", async (req, res) => {
+	const { id } = req.params;
+	const { vendorNo, awardReason, awardedBy, soleSourceReason } = req.body || {};
+
+	if (!process.env.SAP_HOST) {
+		return res.status(503).json({ success: false, message: "He thong SAP chua duoc cau hinh (thieu SAP_HOST)." });
+	}
+	if (!vendorNo) {
+		return res.status(400).json({ success: false, message: "Thieu vendorNo." });
+	}
+	if (!awardReason || !String(awardReason).trim()) {
+		return res.status(400).json({ success: false, message: "Bat buoc nhap ly do chon nha cung cap (awardReason)." });
+	}
+
+	try {
+		const quotationsResp = await sapRead(`RfqSet('${odataEscape(id)}')/RfqToQuotations`);
+		const quotations = (quotationsResp.data && quotationsResp.data.d && quotationsResp.data.d.results) || [];
+		const receivedCount = quotations.filter((q) => q.QuoteStatus === "RECEIVED" || q.QuoteStatus === "AWARDED").length;
+
+		if (receivedCount < 1) {
+			return res.status(400).json({ success: false, message: "Chua co bao gia nao duoc nhan." });
+		}
+		if (receivedCount === 1 && (!soleSourceReason || !String(soleSourceReason).trim())) {
+			return res.status(400).json({ success: false, message: "Chi co 1 bao gia — bat buoc nhap ly do chi dinh 1 nha cung cap (sole source)." });
+		}
+
+		const winner = quotations.find((q) => String(q.VendorNo) === String(vendorNo));
+		if (!winner) {
+			return res.status(404).json({ success: false, message: "Khong tim thay bao gia cua nha cung cap " + vendorNo + " trong RFQ nay." });
+		}
+		if (winner.QuoteStatus !== "RECEIVED" && winner.QuoteStatus !== "AWARDED") {
+			return res.status(400).json({ success: false, message: "Nha cung cap " + vendorNo + " chua co bao gia RECEIVED." });
+		}
+
+		const finalValue = winner.QuotedPrice;
+		const finalCurrency = winner.Currency || "VND";
+		const session = await sapFetchCsrfToken();
+
+		const finalAwardReason = receivedCount === 1
+			? "[SOLE SOURCE] " + String(soleSourceReason).trim() + " | " + String(awardReason).trim()
+			: String(awardReason).trim();
+
+		await sapWrite("MERGE", `RfqSet('${odataEscape(id)}')`, {
+			Status: "AWARDED",
+			AwardedVendor: String(vendorNo),
+			AwardReason: finalAwardReason,
+			AwardedBy: awardedBy || "",
+			AwardedAt: sapTimestamp(),
+			FinalValue: String(finalValue),
+			Currency: finalCurrency
+		}, session);
+
+		await sapWrite(
+			"MERGE",
+			`QuotationSet(RfqId='${odataEscape(id)}',VendorNo='${odataEscape(vendorNo)}')`,
+			{ QuoteStatus: "AWARDED" },
+			session
+		);
+
+		// Cap nhat trang thai PR goc sang PENDING_CFO, dung lai co che approvalStore hien co
+		const rfqResp = await sapRead(`RfqSet('${odataEscape(id)}')`);
+		const rfq = rfqResp.data && rfqResp.data.d;
+		const prRecord = rfq && approvalStore.find(function (item) {
+			return item.PRId === rfq.SapPrNumber || item.InternalId === rfq.PrId || item.SapPRId === rfq.SapPrNumber;
+		});
+		if (prRecord) {
+			// Tinh lai co/khong vuot nguong CEO tren GIA THAT tu bao gia thang, khong dung
+			// gia uoc tinh luc tao PR nua — gia uoc tinh va gia thuong luong co the lech nhau
+			// đủ để đổi kết quả escalation. Giữ lại giá ước tính ban đầu để audit trail.
+			const recalculatedFlags = buildApprovalFlags(finalValue, prRecord.items);
+
+			if (prRecord.EstimatedTotalValue == null) {
+				prRecord.EstimatedTotalValue = prRecord.TotalValue;
+			}
+			prRecord.TotalValue = finalValue;
+			prRecord.Currency = finalCurrency;
+			prRecord.needsProcurementHeadReview = recalculatedFlags.needsProcurementHeadReview;
+			prRecord.needsLegalReview = recalculatedFlags.needsLegalReview;
+			prRecord.ioThreshold = recalculatedFlags.ioThreshold;
+			prRecord.escalationIO = recalculatedFlags.escalationIO;
+
+			prRecord.Status = "PENDING_CFO";
+			prRecord.UpdatedAt = new Date().toISOString();
+			prRecord.RfqId = id;
+			prRecord.RfqAwardedVendor = String(vendorNo);
+			prRecord.RfqFinalValue = finalValue;
+			saveApprovals();
+
+			notifyRequester(
+				prRecord,
+				"RFQ " + id + " da chon nha cung cap " + vendorNo + ". De nghi " + prRecord.PRId + " chuyen sang cho CFO xem xet."
+			);
+			await notifyCfo(
+				prRecord.PRId,
+				"RFQ " + id + " da chon NCC " + vendorNo + " — gia tri bao gia "
+				+ Number(finalValue).toLocaleString("vi-VN") + " " + finalCurrency + ". Cho CFO duyet."
+			);
+		} else {
+			console.error(`[POST /api/rfq/${id}/award] Khong tim thay PR tuong ung trong approvalStore de cap nhat trang thai.`);
+		}
+
+		return res.json({ success: true, finalValue, awardedVendor: String(vendorNo) });
+	} catch (error) {
+		const message = extractSapErrorMessage(error);
+		console.error(`[POST /api/rfq/${id}/award] THAT BAI:`, message);
+		return res.status(502).json({ success: false, message });
+	}
+});
+
+// 6) AI ho tro so sanh bao gia SAU KHI da co gia that (tach khoi /api/ai/recommend-vendor
+// dung TRUOC khi gui RFQ). An danh hoa VendorNo -> V1/V2/... truoc khi gui cho AI,
+// dich nguoc lai truoc khi tra ve FE — khong gui ten/email NCC that ra ngoai.
+app.post("/api/ai/compare-quotations", async (req, res) => {
+	const { rfqId } = req.body || {};
+
+	if (!rfqId) {
+		return res.status(400).json({ success: false, message: "Thieu rfqId." });
+	}
+	if (!process.env.SAP_HOST) {
+		return res.status(503).json({ success: false, message: "He thong SAP chua duoc cau hinh (thieu SAP_HOST)." });
+	}
+	if (!process.env.ANTHROPIC_API_KEY) {
+		return res.status(500).json({ success: false, message: "Thieu ANTHROPIC_API_KEY." });
+	}
+
+	try {
+		const quotationsResp = await sapRead(`RfqSet('${odataEscape(rfqId)}')/RfqToQuotations`);
+		const allQuotations = (quotationsResp.data && quotationsResp.data.d && quotationsResp.data.d.results) || [];
+		const received = allQuotations.filter((q) => q.QuoteStatus === "RECEIVED" || q.QuoteStatus === "AWARDED");
+
+		if (received.length === 0) {
+			return res.status(400).json({ success: false, message: "Chua co bao gia nao RECEIVED de so sanh." });
+		}
+
+		// An danh hoa: VendorNo that -> ma tam V1/V2/..., giu bang map o server de dich nguoc sau
+		const anonMap = {};
+		const anonymized = received.map(function (q, idx) {
+			const code = "V" + (idx + 1);
+			anonMap[code] = String(q.VendorNo);
+			return {
+				vendorCode: code,
+				quotedPrice: Number(q.QuotedPrice) || 0,
+				currency: q.Currency || "VND",
+				leadTimeDays: Number(q.LeadTimeDays) || 0,
+				paymentTerms: q.PaymentTerms || "",
+				warrantyMonths: Number(q.WarrantyMonths) || 0,
+				legalDocsOk: q.LegalDocsOk === "X"
+			};
+		});
+
+		const prompt = `Ban la chuyen gia mua hang. Duoi day la cac bao gia da an danh hoa `
+			+ `(khong co ten/email NCC that) cho RFQ ${rfqId}:\n${JSON.stringify(anonymized, null, 2)}\n\n`
+			+ `Hay de xuat 1 ma NCC (vendorCode) nen chon, giai thich ngan gon (3-5 cau) dua tren `
+			+ `gia, thoi gian giao hang, bao hanh, dieu khoan thanh toan va tinh hop le ho so phap ly. `
+			+ `Tra loi bang tieng Viet, dong dau tien chi ghi dung ma vendorCode duoc chon (vi du: "V2"), `
+			+ `cac dong sau la giai thich.`;
+
+		const aiText = await callClaude(prompt, 500);
+
+		// Dich nguoc ma an danh (V1/V2/...) trong cau tra loi ve VendorNo that, dung word boundary
+		// de tranh the V1 khop nham vao trong V10 khi co >=10 NCC.
+		let translatedText = aiText;
+		Object.keys(anonMap).forEach(function (code) {
+			translatedText = translatedText.replace(new RegExp("\\b" + code + "\\b", "g"), anonMap[code]);
+		});
+
+		console.log(
+			"[AI compare-quotations] " + new Date().toISOString()
+			+ " rfqId=" + rfqId + " soNCCGuiVaoAI=" + anonymized.length
+		);
+
+		return res.json({ success: true, rfqId, recommendation: translatedText, vendorCount: anonymized.length });
+	} catch (error) {
+		const message = extractSapErrorMessage(error);
+		console.error("[POST /api/ai/compare-quotations] THAT BAI:", message);
+		return res.status(502).json({ success: false, message });
+	}
+});
+
 if (require.main === module) {
 	app.listen(PORT, () => {
 		console.log(`QDAVY Procurement API: http://localhost:${PORT}`);

@@ -11,6 +11,9 @@ sap.ui.define([
 
 	var STATUS_LABELS = {
 		PENDING_PURCHASING: "Đang chờ Purchasing duyệt",
+		PENDING_RFQ: "Purchasing đang lập yêu cầu báo giá (RFQ)",
+		RFQ_SENT: "Đã gửi RFQ tới nhà cung cấp, chờ báo giá",
+		QUOTATIONS_RECEIVED: "Đã nhận báo giá, chờ Purchasing chốt nhà cung cấp",
 		PENDING_CFO: "Đang chờ CFO duyệt",
 		PENDING_CEO: "Đang chờ CEO duyệt (đã leo thang)",
 		APPROVED: "Đã phê duyệt",
@@ -21,6 +24,9 @@ sap.ui.define([
 
 	var STATUS_STATES = {
 		PENDING_PURCHASING: "Warning",
+		PENDING_RFQ: "Warning",
+		RFQ_SENT: "Warning",
+		QUOTATIONS_RECEIVED: "Warning",
 		PENDING_CFO: "Warning",
 		PENDING_CEO: "Warning",
 		APPROVED: "Success",
@@ -86,7 +92,39 @@ sap.ui.define([
 
 		var skipRest = pr.PurchasingAction === "REJECTED";
 
-		// 3. CFO
+		// 3. RFQ — chỉ hiện với PR thực sự đi qua luồng hỏi giá (không phải PR nào cũng cần).
+		// Nhận biết bằng RfqId đã gắn, hoặc PR đang đứng ở 1 trong 3 trạng thái RFQ.
+		var RFQ_STATUSES = ["PENDING_RFQ", "RFQ_SENT", "QUOTATIONS_RECEIVED"];
+		var rfqActive = RFQ_STATUSES.indexOf(status) !== -1;
+		var hasRfq = !!pr.RfqId || rfqActive || !!pr.RfqAwardedVendor;
+
+		if (!skipRest && hasRfq) {
+			var rfqDone = !!pr.RfqAwardedVendor;
+			var rfqSub = "";
+
+			if (rfqDone) {
+				rfqSub = "Đã chốt NCC " + pr.RfqAwardedVendor;
+			} else if (status === "PENDING_RFQ") {
+				rfqSub = "Đang lập yêu cầu báo giá";
+			} else if (status === "RFQ_SENT") {
+				rfqSub = "Đã gửi NCC, chờ báo giá";
+			} else if (status === "QUOTATIONS_RECEIVED") {
+				rfqSub = "Đã nhận báo giá, chờ chốt NCC";
+			}
+
+			// Các route RFQ chỉ cập nhật UpdatedAt chứ chưa ghi mốc thời gian riêng cho
+			// từng bước RFQ, nên chỉ hiện giờ khi bước này đang/đã diễn ra — không bịa mốc.
+			steps.push({
+				title: "RFQ",
+				icon: rfqDone ? "sap-icon://accept" : "sap-icon://email",
+				timeText: (rfqDone || rfqActive) ? formatViTime(pr.UpdatedAt) : "",
+				sub: rfqSub,
+				done: rfqDone,
+				active: rfqActive
+			});
+		}
+
+		// 4. CFO
 		if (!skipRest) {
 			var cfoDone = !!(pr.CfoAction || pr.CfoProcessedBy);
 			var cfoActive = status === "PENDING_CFO";
@@ -116,7 +154,7 @@ sap.ui.define([
 			});
 		}
 
-		// 4. CEO (khi cần)
+		// 5. CEO (khi cần)
 		var needCeo = !skipRest && pr.CfoAction !== "REJECTED" && (
 			pr.needsProcurementHeadReview
 			|| pr.CfoAction === "ESCALATED"
@@ -148,7 +186,7 @@ sap.ui.define([
 			});
 		}
 
-		// 5. Kết thúc
+		// 6. Kết thúc
 		var isApproved = status === "APPROVED" || status === "OPENED" || status === "OPEN";
 		var isRejected = status === "REJECTED";
 		var finalDone = isApproved || isRejected;
@@ -183,6 +221,15 @@ sap.ui.define([
 		var st = String((pr && pr.Status) || "").toUpperCase();
 		if (st === "PENDING_PURCHASING") {
 			return { text: "Đang chờ Bộ phận mua sắm (Purchasing) xem xét.", type: "Warning" };
+		}
+		if (st === "PENDING_RFQ") {
+			return { text: "Purchasing đang lập yêu cầu báo giá (RFQ) cho đề nghị này.", type: "Warning" };
+		}
+		if (st === "RFQ_SENT") {
+			return { text: "RFQ đã được gửi tới nhà cung cấp, đang chờ báo giá.", type: "Warning" };
+		}
+		if (st === "QUOTATIONS_RECEIVED") {
+			return { text: "Đã nhận được báo giá, đang chờ Purchasing chốt nhà cung cấp.", type: "Warning" };
 		}
 		if (st === "PENDING_CFO") {
 			return { text: "Đã qua Purchasing — đang chờ CFO phê duyệt.", type: "Warning" };

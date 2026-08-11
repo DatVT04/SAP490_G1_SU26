@@ -1,86 +1,151 @@
 sap.ui.define([
-    "sap/ui/core/mvc/Controller",
-    "sap/ui/model/json/JSONModel",
-    "sap/m/MessageBox",
-    "sap/m/MessageToast",
-    "sap/ui/core/format/NumberFormat" // Thêm thư viện để format số trong JS
-], function (Controller, JSONModel, MessageBox, MessageToast, NumberFormat) {
-    "use strict";
+	"sap/ui/core/mvc/Controller",
+	"sap/ui/model/json/JSONModel",
+	"sap/m/MessageBox",
+	"sap/m/MessageToast",
+	"com/qdavy/procurement/model/Config"
+], function (Controller, JSONModel, MessageBox, MessageToast, Config) {
+	"use strict";
 
-    return Controller.extend("com.qdavy.procurement.controller.ThresholdConfig", {
-        
-        // Tạo bộ format riêng cho tiền tệ để tái sử dụng nhanh trong JS
-        _oPriceFormatter: NumberFormat.getIntegerInstance({
-            groupingEnabled: true,
-            groupingSeparator: "."
-        }),
+	var BACKEND = Config.BACKEND;
 
-        // Khai báo formatter để View XML gọi trực tiếp
-        formatter: {
-            formatThresholdDesc: function (fValue) {
-                if (!fValue) { return ""; }
-                // Lấy instance format dấu chấm của Controller
-                var oController = this.getView().getController();
-                var sFormatted = oController._oPriceFormatter.format(fValue);
-                
-                return "Nếu PR có giá trị dưới " + sFormatted + " VND, hệ thống sẽ tự động chuyển tiếp tới CFO duyệt. " +
-                       "Ngược lại, nếu từ " + sFormatted + " VND trở lên, PR bắt buộc phải có sự phê duyệt trực tiếp từ Tổng Giám Đốc (CEO).";
-            }
-        },
+	return Controller.extend("com.qdavy.procurement.controller.ThresholdConfig", {
 
-        onInit: function () {
-            var oData = {
-                prThreshold: 300000000, 
-                isActive: true,
-                history: [
-                    { date: "13/07/2026", updatedBy: "CEO - Tran Thi Lan", oldValue: 200000000, newValue: 300000000, note: "Điều chỉnh theo biên bản họp Đồ án tuần 8" },
-                    { date: "30/06/2026", updatedBy: "CEO - Tran Thi Lan", oldValue: 150000000, newValue: 200000000, note: "Tăng định mức chi tiêu phòng ban sản xuất" }
-                ]
-            };
+		onInit: function () {
+			this.getView().setModel(new JSONModel({ rows: [] }), "thresholdModel");
 
-            var oModel = new JSONModel(oData);
-            this.getView().setModel(oModel, "thresholdModel");
-        },
+			this.getOwnerComponent().getRouter()
+				.getRoute("thresholdConfig")
+				.attachPatternMatched(this._onRouteMatched, this);
+		},
 
-        onNavBack: function () {
-            this.getOwnerComponent().getRouter().navTo("dashboard");
-        },
+		_onRouteMatched: function () {
+			var sRole = String(this.getOwnerComponent().getModel("user").getProperty("/role") || "").toUpperCase();
+			if (sRole !== "CEO") {
+				MessageBox.error("Chỉ CEO mới được cấu hình ngưỡng phê duyệt.");
+				this.getOwnerComponent().getRouter().navTo("dashboard");
+				return;
+			}
+			this._load();
+		},
 
-        onSaveThreshold: function () {
-            var oView = this.getView();
-            var oModel = oView.getModel("thresholdModel");
-            var fNewThreshold = oModel.getProperty("/prThreshold");
-            var bIsActive = oModel.getProperty("/isActive");
+		onRefreshPress: function () {
+			this._load();
+		},
 
-            oView.setBusy(true);
+		/**
+		 * Ghép 2 nguồn: danh sách Internal Order thật từ SAP (/api/internal-orders) và
+		 * ngưỡng đang lưu (/api/thresholds). Phải lấy cả 2 vì thresholds chỉ chứa những IO
+		 * đã từng đặt ngưỡng — muốn CEO đặt ngưỡng cho IO mới thì phải liệt kê đủ IO.
+		 */
+		_load: function () {
+			var oView = this.getView();
+			var oModel = oView.getModel("thresholdModel");
+			oView.setBusy(true);
 
-            setTimeout(function () {
-                oView.setBusy(false);
+			Promise.all([
+				fetch(BACKEND + "/api/internal-orders").then(function (r) { return r.json(); }),
+				fetch(BACKEND + "/api/thresholds").then(function (r) { return r.json(); })
+			])
+				.then(function (aResults) {
+					oView.setBusy(false);
 
-                var aHistory = oModel.getProperty("/history");
-                var oCurrentUser = oView.getModel("user") ? oView.getModel("user").getProperty("/fullName") : "CEO - Tran Thi Lan";
+					var oIoRes = aResults[0] || {};
+					var oThRes = aResults[1] || {};
 
-                var oNewRecord = {
-                    date: new Date().toLocaleDateString("vi-VN"),
-                    updatedBy: oCurrentUser,
-                    oldValue: aHistory.length > 0 ? aHistory[0].newValue : 300000000,
-                    newValue: fNewThreshold,
-                    note: bIsActive ? "Cập nhật định mức ngưỡng tự động từ Web App" : "Tạm ngắt áp dụng ngưỡng"
-                };
+					if (!oIoRes.success) {
+						MessageBox.error(oIoRes.message || "Không tải được danh sách Internal Order từ SAP.");
+						return;
+					}
 
-                aHistory.unshift(oNewRecord); 
-                oModel.setProperty("/history", aHistory);
+					var oByIO = (oThRes && oThRes.byIO) || {};
+					var aRows = (oIoRes.data || []).map(function (io) {
+						var sIO = io.InternalOrder || "";
+						return {
+							internalOrder: sIO,
+							description: io.Description || sIO,
+							costCenter: io.CostCenter || "",
+							// null (không phải 0) khi chưa đặt ngưỡng — 0 sẽ bị hiểu là
+							// "ngưỡng bằng 0" nghĩa là mọi PR đều leo thang CEO.
+							threshold: oByIO[sIO] != null ? Number(oByIO[sIO]) : null
+						};
+					});
 
-                // Dùng bộ format _oPriceFormatter đã định nghĩa ở trên để hiển thị hộp thoại chuẩn xác nhất
-                var sFormattedValue = this._oPriceFormatter.format(fNewThreshold);
+					oModel.setProperty("/rows", aRows);
+				})
+				.catch(function () {
+					oView.setBusy(false);
+					MessageBox.error("Không thể kết nối tới máy chủ.");
+				});
+		},
 
-                MessageBox.success(
-                    "Hệ thống đã cập nhật ngưỡng duyệt mới thành công!\n\n" +
-                    "Giá trị ngưỡng mới: " + sFormattedValue + " VND.\n" +
-                    "Kể từ bây giờ, tất cả các đơn PR gửi lên sẽ tự động áp dụng quy tắc định tuyến này.",
-                    { title: "Cập Nhật Thành Công" }
-                );
-            }.bind(this), 1200);
-        }
-    });
+		onClearRow: function (oEvent) {
+			var oCtx = oEvent.getSource().getBindingContext("thresholdModel");
+			if (!oCtx) { return; }
+			this.getView().getModel("thresholdModel")
+				.setProperty(oCtx.getPath() + "/threshold", null);
+		},
+
+		onSaveThreshold: function () {
+			var oView = this.getView();
+			var oModel = oView.getModel("thresholdModel");
+			var aRows = oModel.getProperty("/rows") || [];
+
+			// byIO: chuỗi rỗng = xoá ngưỡng (backend hiểu null/"" là delete key)
+			var oByIO = {};
+			var iSet = 0;
+			var bInvalid = false;
+
+			aRows.forEach(function (row) {
+				var v = row.threshold;
+				if (v === null || v === undefined || v === "") {
+					oByIO[row.internalOrder] = "";
+					return;
+				}
+				var n = Number(v);
+				if (isNaN(n) || n < 0) {
+					bInvalid = true;
+					return;
+				}
+				oByIO[row.internalOrder] = n;
+				iSet += 1;
+			});
+
+			if (bInvalid) {
+				MessageBox.error("Ngưỡng phải là số không âm. Vui lòng kiểm tra lại các dòng đã nhập.");
+				return;
+			}
+
+			oView.setBusy(true);
+
+			fetch(BACKEND + "/api/thresholds", {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ byIO: oByIO })
+			})
+				.then(function (r) { return r.json(); })
+				.then(function (res) {
+					oView.setBusy(false);
+					if (!res || !res.success) {
+						MessageBox.error((res && res.message) || "Không lưu được cấu hình ngưỡng.");
+						return;
+					}
+					MessageBox.success(
+						"Đã lưu cấu hình ngưỡng.\n\n"
+						+ iSet + " Internal Order đang có ngưỡng, "
+						+ (aRows.length - iSet) + " IO không đặt ngưỡng.\n"
+						+ "Các PR gửi lên từ bây giờ sẽ áp dụng ngay.",
+						{ title: "Cập nhật thành công" }
+					);
+				})
+				.catch(function () {
+					oView.setBusy(false);
+					MessageBox.error("Không thể kết nối tới máy chủ.");
+				});
+		},
+
+		onNavBack: function () {
+			this.getOwnerComponent().getRouter().navTo("dashboard");
+		}
+	});
 });

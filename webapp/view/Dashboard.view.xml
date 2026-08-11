@@ -152,6 +152,50 @@
 						/>
 					</VBox>
 
+					<!-- RFQ-01 -->
+					<VBox
+						class="qdActionCard qdAccentAmber"
+						visible="{= ${user>/role} === 'PURCHASING' }"
+					>
+						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
+							<VBox class="qdActionIconBox">
+								<core:Icon src="sap-icon://letter" class="qdActionIcon"/>
+							</VBox>
+							<Text text="RFQ-01" class="qdActionCode"/>
+						</HBox>
+						<Title text="Lập &amp; Gửi Yêu cầu báo giá" level="H3" class="qdActionTitle"/>
+						<Text text="Chọn PR, mời nhà cung cấp báo giá qua email (AI gợi ý NCC)" class="qdActionDesc"/>
+						<Button
+							text="{i18n>dashTileOpen}"
+							icon="sap-icon://arrow-right"
+							iconFirst="false"
+							press=".onNavToRFQ01"
+							class="qdActionBtn"
+						/>
+					</VBox>
+
+					<!-- RFQ-02 -->
+					<VBox
+						class="qdActionCard qdAccentAmber"
+						visible="{= ${user>/role} === 'PURCHASING' }"
+					>
+						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
+							<VBox class="qdActionIconBox">
+								<core:Icon src="sap-icon://compare-2" class="qdActionIcon"/>
+							</VBox>
+							<Text text="RFQ-02" class="qdActionCode"/>
+						</HBox>
+						<Title text="Nhập báo giá &amp; Chốt NCC" level="H3" class="qdActionTitle"/>
+						<Text text="So sánh báo giá cạnh nhau, chốt NCC thắng và trình CFO" class="qdActionDesc"/>
+						<Button
+							text="{i18n>dashTileOpen}"
+							icon="sap-icon://arrow-right"
+							iconFirst="false"
+							press=".onNavToRFQ02"
+							class="qdActionBtn"
+						/>
+					</VBox>
+
 					<!-- PO-01 -->
 					<VBox
 						class="qdActionCard qdAccentPurple"

@@ -1,0 +1,106 @@
+<mvc:View
+    controllerName="com.qdavy.procurement.controller.ThresholdConfig"
+    xmlns="sap.m"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns:core="sap.ui.core"
+>
+    <Page showHeader="false" class="qdInnerPage">
+        <content>
+
+            <!-- ============ HERO ============ -->
+            <VBox class="qdPageHero">
+                <HBox alignItems="Center" justifyContent="SpaceBetween" wrap="Wrap">
+                    <HBox alignItems="Center">
+                        <Button icon="sap-icon://nav-back" press=".onNavBack" class="qdHeroBackBtn"/>
+                        <VBox>
+                            <Text text="Quản trị hệ thống · CEO" class="qdPageEyebrow"/>
+                            <Title text="Cấu hình ngưỡng phê duyệt" level="H1" class="qdPageTitle"/>
+                            <Text text="Đặt ngân sách cho từng Internal Order — PR vượt ngưỡng của IO nào thì sau CFO sẽ leo thang lên CEO" class="qdPageSub"/>
+                        </VBox>
+                    </HBox>
+                    <Button icon="sap-icon://refresh" text="Tải lại" press=".onRefreshPress" class="qdHeroBtn"/>
+                </HBox>
+            </VBox>
+
+            <VBox>
+
+                <!-- NGƯỠNG THEO TỪNG INTERNAL ORDER -->
+                <VBox class="qdContentCard qdCardTight">
+                    <HBox alignItems="Center" class="sapUiSmallMargin">
+                        <core:Icon src="sap-icon://settings" class="qdCardIcon sapUiTinyMarginEnd"/>
+                        <Title text="Ngưỡng ngân sách theo Internal Order ({= ${thresholdModel>/rows}.length })" level="H3" class="qdCardTitle"/>
+                    </HBox>
+
+                    <MessageStrip
+                        text="Bỏ trống một dòng nghĩa là Internal Order đó không đặt ngưỡng — PR gắn IO đó sẽ không bao giờ tự leo thang lên CEO vì lý do vượt ngân sách."
+                        type="Information"
+                        showIcon="true"
+                        class="sapUiSmallMarginBeginEnd sapUiSmallMarginBottom"
+                    />
+
+                    <Table
+                        id="thresholdTable"
+                        items="{thresholdModel>/rows}"
+                        mode="None"
+                        noDataText="Không đọc được danh sách Internal Order từ SAP."
+                    >
+                        <columns>
+                            <Column width="10rem"><Text text="Internal Order"/></Column>
+                            <Column><Text text="Tên / Mô tả"/></Column>
+                            <Column width="9rem"><Text text="Cost Center"/></Column>
+                            <Column width="16rem" hAlign="End"><Text text="Ngưỡng ngân sách (VND)"/></Column>
+                            <Column width="7rem" hAlign="Center"><Text text="Xoá ngưỡng"/></Column>
+                        </columns>
+                        <items>
+                            <ColumnListItem>
+                                <cells>
+                                    <ObjectIdentifier title="{thresholdModel>internalOrder}"/>
+                                    <Text text="{thresholdModel>description}"/>
+                                    <Text text="{= ${thresholdModel>costCenter} || '—' }"/>
+                                    <Input
+                                        value="{thresholdModel>threshold}"
+                                        type="Number"
+                                        textAlign="End"
+                                        placeholder="Không đặt ngưỡng"
+                                        width="100%"
+                                    />
+                                    <Button
+                                        icon="sap-icon://decline"
+                                        type="Transparent"
+                                        tooltip="Xoá ngưỡng của Internal Order này"
+                                        press=".onClearRow"
+                                    />
+                                </cells>
+                            </ColumnListItem>
+                        </items>
+                    </Table>
+                </VBox>
+
+                <!-- GIẢI THÍCH QUY TẮC -->
+                <VBox class="qdContentCard">
+                    <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+                        <core:Icon src="sap-icon://hint" class="qdCardIcon sapUiTinyMarginEnd"/>
+                        <Title text="Quy tắc leo thang đang áp dụng" level="H3" class="qdCardTitle"/>
+                    </HBox>
+                    <Text
+                        text="Khi Purchasing duyệt xong, PR chuyển sang CFO. Tại bước CFO, hệ thống so tổng giá trị PR với ngưỡng của các Internal Order gắn trên từng dòng vật tư: chỉ cần vượt ngưỡng của một IO bất kỳ thì PR bắt buộc phải qua CEO phê duyệt, ngược lại CFO duyệt là ghi thẳng lên SAP."
+                        class="qdCellHint"
+                    />
+                    <Text
+                        text="Nếu PR đi qua luồng hỏi giá (RFQ), ngưỡng sẽ được tính lại trên giá thật của báo giá thắng thay vì giá ước tính lúc lập PR."
+                        class="qdCellHint sapUiSmallMarginTop"
+                    />
+                </VBox>
+
+                <!-- KHU VỰC NÚT LƯU CẤU HÌNH -->
+                <HBox justifyContent="End" class="sapUiMediumMarginBottom sapUiMediumMarginEnd">
+                    <Button text="Lưu cấu hình"
+                            type="Emphasized"
+                            icon="sap-icon://save"
+                            press=".onSaveThreshold" />
+                </HBox>
+
+            </VBox>
+        </content>
+    </Page>
+</mvc:View>

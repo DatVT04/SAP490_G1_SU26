@@ -199,6 +199,19 @@
 								</VBox>
 							</HBox>
 
+							<!-- Báo cho người mua biết vendor + giá bên dưới được lấy tự động từ
+							     báo giá đã chốt ở RFQ-02, không phải họ tự gõ. Đặt NGOÀI SimpleForm
+							     vì SimpleForm chỉ nhận Label + field, nhét MessageStrip vào sẽ ném
+							     "not a valid Form content" và chặn render cả thẻ này. -->
+							<MessageStrip
+								id="msRfqInherited"
+								text=""
+								type="Success"
+								showIcon="true"
+								visible="false"
+								class="sapUiSmallMarginBottom"
+							/>
+
 							<f:SimpleForm
 								editable="true"
 								layout="ColumnLayout"
