@@ -1762,7 +1762,20 @@ async function callClaude(promptText, maxTokens) {
 		}
 	);
 	const content = response.data && response.data.content;
-	return (Array.isArray(content) && content[0] && content[0].text) || "";
+	// Truoc day lay thang content[0].text — neu block dau tien khong phai type "text" (vi du
+	// bi chen block khac truoc no) thi se ra chuoi rong ma khong bao loi gi ca, FE nhan
+	// success:true nhung khong hien thi duoc gi. Doi sang tim dung block type "text".
+	const textBlock = Array.isArray(content) && content.find((c) => c && c.type === "text" && c.text);
+	if (!textBlock) {
+		console.error(
+			"[callClaude] Khong tim thay text block trong phan hoi Claude. stop_reason="
+			+ (response.data && response.data.stop_reason) + " content=" + JSON.stringify(content)
+		);
+		throw new Error(
+			"Claude khong tra ve noi dung text (stop_reason=" + (response.data && response.data.stop_reason) + ")."
+		);
+	}
+	return textBlock.text;
 }
 
 // 0) Danh sach RFQ (cho man RFQ-02 chon RFQ dang xu ly) — doc thang tu RfqSet
