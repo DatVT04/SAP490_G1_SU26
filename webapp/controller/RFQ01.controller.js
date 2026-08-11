@@ -19,6 +19,12 @@ sap.ui.define([
 				busyAi: false
 			}));
 
+			// Khong cho chon Deadline trong qua khu — truoc day DatePicker khong co minDate
+			// nen chon duoc ca ngay da qua, chi bi bo lo (khong bao gio ai kiem tra ca FE lan BE).
+			var oToday = new Date();
+			oToday.setHours(0, 0, 0, 0);
+			this.getView().byId("dpDeadline").setMinDate(oToday);
+
 			this._loadPendingPRs();
 			this._loadVendors();
 
@@ -157,9 +163,18 @@ sap.ui.define([
 				return;
 			}
 
-			var sDeadline = oView.byId("dpDeadline").getValue();
+			var oDeadlinePicker = oView.byId("dpDeadline");
+			var sDeadline = oDeadlinePicker.getValue();
 			if (!sDeadline) {
 				MessageBox.warning("Hãy chọn hạn nộp báo giá (Deadline).");
+				return;
+			}
+			// Phong truong hop go tay/paste ngay qua khu (minDate chi chan luc bam vao lich).
+			var oDeadlineDate = oDeadlinePicker.getDateValue();
+			var oToday = new Date();
+			oToday.setHours(0, 0, 0, 0);
+			if (oDeadlineDate && oDeadlineDate < oToday) {
+				MessageBox.warning("Hạn nộp báo giá không được ở quá khứ. Vui lòng chọn lại.");
 				return;
 			}
 

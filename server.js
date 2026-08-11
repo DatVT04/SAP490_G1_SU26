@@ -1909,6 +1909,12 @@ app.post("/api/rfq/:id/send", async (req, res) => {
 		return res.status(503).json({ success: false, message: "He thong SAP chua duoc cau hinh (thieu SAP_HOST)." });
 	}
 
+	// Khong tin FE: du DatePicker da chan minDate, request van co the bi sua tay (Postman, DevTools...).
+	const normalizedDeadlineCheck = normalizeSapDeadline(deadline);
+	if (normalizedDeadlineCheck && normalizedDeadlineCheck < sapDateOnly()) {
+		return res.status(400).json({ success: false, message: "Han nop bao gia khong duoc o qua khu." });
+	}
+
 	try {
 		const rfqResp = await sapRead(`RfqSet('${odataEscape(id)}')`);
 		const rfq = rfqResp.data && rfqResp.data.d;
