@@ -141,8 +141,8 @@
 							<HBox justifyContent="SpaceBetween" alignItems="Center" wrap="Wrap">
 								<ObjectIdentifier title="{Description}" text="{MaterialNo}"/>
 								<ObjectStatus
-									text="{= ${MaterialType} === 'ZAST' ? 'Tài sản (Cat.A)' : 'Vật tư/DV (Cat.K)' }"
-									state="{= ${MaterialType} === 'ZAST' ? 'Warning' : 'Success' }"
+									text="{= ${AcctAssignCat} === 'A' ? 'Tài sản (Cat.A)' : (${AcctAssignCat} === 'F' ? 'Internal Order (Cat.F)' : 'Cost Center (Cat.K)') }"
+									state="{= ${AcctAssignCat} === 'A' ? 'Warning' : 'Success' }"
 								/>
 							</HBox>
 							<HBox wrap="Wrap" class="qdItemFieldsRow sapUiTinyMarginTop">
@@ -156,17 +156,17 @@
 								</VBox>
 								<VBox class="qdInfoCell">
 									<Label text="GL Account" class="qdInfoLabel"/>
-									<Text text="{= ${GLAccount} || '(chưa có)' }" class="qdInfoValue"/>
+									<Text text="{= ${GLAccount} || '(tự động theo SAP)' }" class="qdInfoValue"/>
 								</VBox>
-								<VBox class="qdInfoCell">
+								<VBox class="qdInfoCell" visible="{= ${AcctAssignCat} === 'K' }">
 									<Label text="Cost Center" class="qdInfoLabel"/>
 									<Text text="{= ${CostCenter} || '(chưa có)' }" class="qdInfoValue"/>
 								</VBox>
-								<VBox class="qdInfoCell">
+								<VBox class="qdInfoCell" visible="{= ${AcctAssignCat} === 'F' }">
 									<Label text="Internal Order" class="qdInfoLabel"/>
 									<Text text="{= ${InternalOrder} || '(chưa có)' }" class="qdInfoValue"/>
 								</VBox>
-								<VBox class="qdInfoCell" visible="{= ${MaterialType} === 'ZAST' }">
+								<VBox class="qdInfoCell" visible="{= ${AcctAssignCat} === 'A' }">
 									<Label text="Asset No" class="qdInfoLabel"/>
 									<Text text="{= ${AssetNo} || '(chưa có)' }" class="qdInfoValue"/>
 								</VBox>

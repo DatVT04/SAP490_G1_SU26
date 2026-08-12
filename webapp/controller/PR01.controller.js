@@ -19,14 +19,16 @@ sap.ui.define([
 			isFreeText: false,
 			materialNo: "",
 			materialType: "",
+			// Account assignment: K = Cost Center, F = Internal Order, A = Asset (khoa tu dong khi vat tu la ZAST).
+			// Chi 1 trong 3 duoc dung that tren SAP - khong con bat CC+IO+GL cung luc nhu truoc.
+			acctAssignCat: "K",
 			description: "",
 			uom: "",
 			quantity: null,
 			estimatedValue: null,
 			costCenter: defaults.costCenter || "",
 			internalOrder: defaults.internalOrder || "",
-			assetNo: "",
-			glAccount: defaults.glAccount || ""
+			assetNo: ""
 		};
 	}
 
@@ -46,7 +48,6 @@ sap.ui.define([
 			var oModel = new JSONModel({
 				materials: [],
 				materialsLoading: true,
-				glAccounts: [],
 				costCenters: [],
 				internalOrders: [],
 				header: { currency: "VND" },
@@ -62,7 +63,6 @@ sap.ui.define([
 			this._costCenterToIOs = {};
 			this._defaultIO = "";
 			this._defaultCC = "";
-			this._defaultGL = "";
 
 			this._loadMaterials();
 			this._loadAccountingLists();
@@ -104,14 +104,14 @@ sap.ui.define([
 					isFreeText: !!it.isFreeText,
 					materialNo: it.MaterialNo || "",
 					materialType: it.MaterialType || "",
+					acctAssignCat: it.AcctAssignCat || (it.MaterialType === "ZAST" ? "A" : "K"),
 					description: it.Description || "",
 					uom: it.UoM || "",
 					quantity: Number(it.Quantity) || null,
 					estimatedValue: Number(it.EstimatedValue) || null,
 					costCenter: it.CostCenter || "",
 					internalOrder: it.InternalOrder || "",
-					assetNo: it.AssetNo || "",
-					glAccount: it.GLAccount || ""
+					assetNo: it.AssetNo || ""
 				};
 			});
 			if (aOldItems.length === 0) {
@@ -133,8 +133,7 @@ sap.ui.define([
 		_getDefaults: function () {
 			return {
 				internalOrder: this._defaultIO || "",
-				costCenter: this._defaultCC || "",
-				glAccount: this._defaultGL || ""
+				costCenter: this._defaultCC || ""
 			};
 		},
 
@@ -144,7 +143,6 @@ sap.ui.define([
 			var bChanged = false;
 			var sIO = this._defaultIO;
 			var sCC = this._defaultCC;
-			var sGL = this._defaultGL;
 
 			aItems.forEach(function (item) {
 				if (!item.internalOrder && sIO) {
@@ -153,10 +151,6 @@ sap.ui.define([
 				}
 				if (!item.costCenter && sCC) {
 					item.costCenter = sCC;
-					bChanged = true;
-				}
-				if (!item.glAccount && sGL) {
-					item.glAccount = sGL;
 					bChanged = true;
 				}
 			});
@@ -217,22 +211,12 @@ sap.ui.define([
 			}).catch(function () { /* im lang */ });
 		},
 
+		// GL Account KHONG con la input cua user - tu server tinh theo Account Assignment
+		// Category + Material Type (xem defaultGLAccount() trong server.js), nen bo fetch
+		// /api/gl-accounts o day.
 		_loadAccountingLists: function () {
 			var oModel = this.getView().getModel();
 			var that = this;
-
-			this._fetchWithTimeout(BACKEND + "/api/gl-accounts")
-				.then(function (oResult) {
-					if (oResult.success) {
-						var aGL = oResult.data || [];
-						oModel.setProperty("/glAccounts", aGL);
-						if (aGL.length >= 1) {
-							that._defaultGL = aGL[0].GLAccount || "";
-						}
-						that._applyDefaultsToEmptyItems();
-					}
-				})
-				.catch(function () { /* im lang */ });
 
 			this._fetchWithTimeout(BACKEND + "/api/cost-centers")
 				.then(function (oResult) {
@@ -253,7 +237,6 @@ sap.ui.define([
 						var aIO = oResult.data || [];
 						oModel.setProperty("/internalOrders", aIO);
 						that._ioToCostCenter = oResult.ioToCostCenter || {};
-						that._costCenterToIOs = oResult.costCenterToIOs || {};
 
 						// Budget từ SAP (nếu API trả kèm trên từng IO)
 						var oTh = oModel.getProperty("/ioThresholds") || {};
@@ -277,49 +260,31 @@ sap.ui.define([
 				.catch(function () { /* im lang */ });
 		},
 
-		onInternalOrderSelect: function (oEvent) {
-			var oItem = oEvent.getParameter("selectedItem");
-			if (!oItem) { return; }
-
-			var sIO = oItem.getKey();
-			var oCtx = oEvent.getSource().getBindingContext();
-			if (!oCtx) { return; }
-
-			var sPath = oCtx.getPath();
-			var oModel = this.getView().getModel();
-			var sMappedCC = this._ioToCostCenter[sIO];
-
-			if (sMappedCC) {
-				oModel.setProperty(sPath + "/costCenter", sMappedCC);
-			}
+		// Cost Center va Internal Order gio la 2 lua chon LOAI TRU NHAU theo acctAssignCat
+		// (K hoac F) - khong con tu dien cheo sang nhau nhu truoc, vi tren SAP that chi 1
+		// trong 2 duoc dung lam account assignment that su.
+		onInternalOrderSelect: function () {
 			this._recalcTotal();
 		},
 
-		onCostCenterSelect: function (oEvent) {
-			var oItem = oEvent.getParameter("selectedItem");
-			if (!oItem) { return; }
+		onCostCenterSelect: function () {
+			this._recalcTotal();
+		},
 
-			var sCC = oItem.getKey();
+		// User doi giua "Cost Center" / "Internal Order" cho 1 dong - xoa gia tri cua truong
+		// vua bi an di de khong gui nham len SAP mot gia tri khong con hien thi tren UI.
+		onAcctAssignCatChange: function (oEvent) {
 			var oCtx = oEvent.getSource().getBindingContext();
 			if (!oCtx) { return; }
 
 			var sPath = oCtx.getPath();
 			var oModel = this.getView().getModel();
-			var aMappedIOs = this._costCenterToIOs[sCC] || [];
+			var sCat = oModel.getProperty(sPath + "/acctAssignCat");
 
-			if (aMappedIOs.length === 1) {
-				oModel.setProperty(sPath + "/internalOrder", aMappedIOs[0]);
-			} else if (aMappedIOs.length > 1) {
-				var sCurrentIO = oModel.getProperty(sPath + "/internalOrder");
-				if (aMappedIOs.indexOf(sCurrentIO) === -1) {
-					oModel.setProperty(sPath + "/internalOrder", aMappedIOs[0]);
-				}
-				MessageToast.show(
-					"Cost Center gắn " + aMappedIOs.length + " Internal Order — đã chọn "
-					+ (oModel.getProperty(sPath + "/internalOrder") || aMappedIOs[0])
-				);
-			} else {
+			if (sCat === "K") {
 				oModel.setProperty(sPath + "/internalOrder", "");
+			} else if (sCat === "F") {
+				oModel.setProperty(sPath + "/costCenter", "");
 			}
 			this._recalcTotal();
 		},
@@ -343,6 +308,9 @@ sap.ui.define([
 			var nHitTh = null;
 
 			aItems.forEach(function (it) {
+				// Chi tinh nguong khi dong nay THAT SU dung Internal Order lam account
+				// assignment (Cat 'F') - Cost Center (K) va Asset (A) khong lien quan IO.
+				if (it.acctAssignCat !== "F") { return; }
 				var sIO = String(it.internalOrder || "").trim();
 				if (!sIO) { return; }
 				var nTh = oTh[sIO];
@@ -364,7 +332,7 @@ sap.ui.define([
 			} else if (fTotal > LEGAL_WARN_THRESHOLD) {
 				sWarn = "Giá trị lớn (> 100 triệu VND) — CFO sẽ xem xét kỹ. "
 					+ "Số PR SAP chỉ có sau khi phê duyệt.";
-			} else if (aItems.some(function (it) { return !!(it.internalOrder && String(it.internalOrder).trim()); })) {
+			} else if (aItems.some(function (it) { return it.acctAssignCat === "F" && !!String(it.internalOrder || "").trim(); })) {
 				sWarn = "Đề nghị gắn Internal Order. Leo CEO chỉ khi vượt ngưỡng ngân sách IO trên SAP.";
 			}
 
@@ -457,7 +425,19 @@ sap.ui.define([
 				oModel.setProperty(sPath + "/materialType", oMaterial.MaterialType || "");
 				oModel.setProperty(sPath + "/description", oMaterial.Description || "");
 				oModel.setProperty(sPath + "/uom", oMaterial.BaseUoM || "PC");
-				// Asset không bắt buộc — không xóa / không khóa theo ZAST
+
+				if (oMaterial.MaterialType === "ZAST") {
+					// Vật tư Tài sản → account assignment luôn là Asset (Cat A), khóa Cost Center/Internal Order.
+					oModel.setProperty(sPath + "/acctAssignCat", "A");
+					oModel.setProperty(sPath + "/costCenter", "");
+					oModel.setProperty(sPath + "/internalOrder", "");
+				} else {
+					var sCurrentCat = oModel.getProperty(sPath + "/acctAssignCat");
+					if (sCurrentCat === "A" || !sCurrentCat) {
+						oModel.setProperty(sPath + "/acctAssignCat", "K");
+					}
+					oModel.setProperty(sPath + "/assetNo", "");
+				}
 			}
 			this._recalcTotal();
 		},
@@ -512,20 +492,24 @@ sap.ui.define([
 					MessageBox.warning("Dòng " + idx + ": Vui lòng nhập giá trị ước tính hợp lệ.");
 					return;
 				}
-				if (!item.glAccount) {
-					MessageBox.warning("Dòng " + idx + ": Vui lòng chọn GL Account.");
-					return;
+				// Account assignment: chỉ 1 trong 3 áp dụng theo dòng, không còn bắt điền cả CC+IO+GL cùng lúc.
+				// GL Account không còn là input của user — server tự tính theo category (xem defaultGLAccount()).
+				if (item.materialType === "ZAST") {
+					if (!String(item.assetNo || "").trim()) {
+						MessageBox.warning("Dòng " + idx + ": Vật tư loại Tài sản (ZAST) bắt buộc nhập Asset No.");
+						return;
+					}
+				} else if (item.acctAssignCat === "F") {
+					if (!String(item.internalOrder || "").trim()) {
+						MessageBox.warning("Dòng " + idx + ": Vui lòng chọn Internal Order.");
+						return;
+					}
+				} else {
+					if (!item.costCenter) {
+						MessageBox.warning("Dòng " + idx + ": Vui lòng chọn Cost Center.");
+						return;
+					}
 				}
-				// Luôn cần Internal Order
-				if (!String(item.internalOrder || "").trim()) {
-					MessageBox.warning("Dòng " + idx + ": Vui lòng chọn Internal Order.");
-					return;
-				}
-				if (!item.costCenter) {
-					MessageBox.warning("Dòng " + idx + ": Vui lòng chọn Cost Center.");
-					return;
-				}
-				// Asset No: KHÔNG bắt buộc (kể cả ZAST)
 			}
 
 			var nTotalPRValue = sumItems(aItems);

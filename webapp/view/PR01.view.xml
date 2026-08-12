@@ -96,7 +96,7 @@
 							<Column width="4.5rem"><Text text="ĐVT"/></Column>
 							<Column width="5.5rem" hAlign="End"><Text text="Số lượng"/></Column>
 							<Column width="7.5rem" hAlign="End"><Text text="Giá trị ước tính"/></Column>
-							<Column width="9rem"><Text text="GL Account *"/></Column>
+							<Column width="9rem"><Text text="Đối tượng chi phí *"/></Column>
 							<Column width="9rem"><Text text="Cost Center"/></Column>
 							<Column width="9rem"><Text text="Internal Order"/></Column>
 							<Column width="7rem"><Text text="Asset"/></Column>
@@ -135,24 +135,31 @@
 										width="100%"
 									/>
 
-									<ComboBox
-										selectedKey="{glAccount}"
-										items="{path: '/glAccounts', templateShareable: false}"
-										placeholder="GL *"
-										width="100%"
-									>
-										<core:Item
-											key="{GLAccount}"
-											text="{= ${Description} &amp;&amp; ${Description} !== ${GLAccount} ? ${GLAccount} + ' - ' + ${Description} : ${GLAccount} }"
+									<VBox>
+										<!-- ZAST → account assignment luôn là Asset (Cat A), khóa lựa chọn -->
+										<Select
+											selectedKey="{acctAssignCat}"
+											change=".onAcctAssignCatChange"
+											width="100%"
+											visible="{= ${materialType} !== 'ZAST' }"
+										>
+											<core:Item key="K" text="Cost Center"/>
+											<core:Item key="F" text="Internal Order"/>
+										</Select>
+										<Text
+											text="Tài sản (Asset)"
+											class="qdInfoValue"
+											visible="{= ${materialType} === 'ZAST' }"
 										/>
-									</ComboBox>
+									</VBox>
 
 									<ComboBox
 										selectedKey="{costCenter}"
 										items="{path: '/costCenters', templateShareable: false}"
-										placeholder="CC"
+										placeholder="CC *"
 										selectionChange=".onCostCenterSelect"
 										width="100%"
+										visible="{= ${materialType} !== 'ZAST' &amp;&amp; ${acctAssignCat} !== 'F' }"
 									>
 										<core:Item
 											key="{CostCenter}"
@@ -163,9 +170,10 @@
 									<ComboBox
 										selectedKey="{internalOrder}"
 										items="{path: '/internalOrders', templateShareable: false}"
-										placeholder="IO"
+										placeholder="IO *"
 										selectionChange=".onInternalOrderSelect"
 										width="100%"
+										visible="{= ${materialType} !== 'ZAST' &amp;&amp; ${acctAssignCat} === 'F' }"
 									>
 										<core:Item
 											key="{InternalOrder}"
@@ -176,7 +184,7 @@
 									<Input
 										value="{assetNo}"
 										enabled="{= ${materialType} === 'ZAST' }"
-										placeholder="{= ${materialType} === 'ZAST' ? 'Mã tài sản' : '—' }"
+										placeholder="{= ${materialType} === 'ZAST' ? 'Mã tài sản *' : '—' }"
 										width="100%"
 									/>
 
@@ -191,6 +199,11 @@
 						</items>
 					</Table>
 				</ScrollContainer>
+
+				<Text
+					text="Mỗi dòng chỉ dùng 1 đối tượng chi phí (Cost Center, Internal Order hoặc Asset). GL Account được hệ thống tự xác định theo loại vật tư khi tạo Purchase Requisition trên SAP."
+					class="qdInfoHint sapUiTinyMarginTop"
+				/>
 
 				<HBox
 					class="qdTotalBar"

@@ -470,6 +470,10 @@ async function createPRInSAP(record) {
 	// Da verify thuc te qua Gateway Client (HTTP 201) — xem CLAUDE.md muc "Loi da biet" #1.
 	const prToItems = record.items.map(function (item, idx) {
 		const preqItem = String(idx + 1).padStart(5, "0");
+		// AcctAssignCat da duoc luu tren draft luc submit (mapClientItemToSapDeep) - doc lai, khong doan lai
+		// tu CostCenter nhu code cu (bug cu: CostCenter luon co gia tri nen luon roi vao Cat 'K', InternalOrder
+		// khong bao gio duoc dung that du UI bat buoc nhap).
+		const sCat = item.AcctAssignCat || (item.MaterialType === "ZAST" ? "A" : (item.InternalOrder ? "F" : "K"));
 		return {
 			PreqItem: preqItem,
 			MaterialNo: item.isFreeText ? "" : (item.MaterialNo || ""),
@@ -478,9 +482,11 @@ async function createPRInSAP(record) {
 			Quantity: String(item.Quantity || 0),
 			UoM: item.UoM || "PC",
 			EstimatedValue: String(item.EstimatedValue || 0),
-			CostCenter: item.CostCenter || "",
-			InternalOrder: item.InternalOrder || "",
-			AssetNo: item.AssetNo || ""
+			AcctAssignCat: sCat,
+			CostCenter: sCat === "K" ? (item.CostCenter || "") : "",
+			InternalOrder: sCat === "F" ? (item.InternalOrder || "") : "",
+			AssetNo: sCat === "A" ? (item.AssetNo || "") : "",
+			GLAccount: sCat === "A" ? "" : (item.GLAccount || defaultGLAccount(item.MaterialType))
 		};
 	});
 
@@ -670,23 +676,32 @@ function mapSapItemToClient(sapItem) {
 		InternalOrder: sapItem.InternalOrder || "",
 		AssetNo: sapItem.AssetNo || "",
 		GLAccount: sapItem.GLAccount || "",
+		AcctAssignCat: sapItem.AcctAssignCat || "",
 		isFreeText: sapXToBool(sapItem.IsFreeText)
 	};
 }
 
-/** 1 dong item FE gui len (submit PR moi) -> shape PrDraftToItems cho deep-entity POST. */
+/**
+ * 1 dong item FE gui len (submit PR moi) -> shape PrDraftToItems cho deep-entity POST.
+ * AcctAssignCat + GLAccount KHONG lay tu client nua ma tu tinh o day (xem defaultGLAccount()):
+ * ZAST -> Cat 'A' (Asset, khong gui GL - SAP tu lay tu Asset Master); con lai theo item.AcctAssignCat
+ * FE gui len (K/F), moi Cat chi giu dung 1 truong CostCenter/InternalOrder tuong ung.
+ */
 function mapClientItemToSapDeep(item) {
+	const sMaterialType = item.MaterialType || "ZSRV";
+	const sCat = sMaterialType === "ZAST" ? "A" : (item.AcctAssignCat === "F" ? "F" : "K");
 	return {
 		MaterialNo: item.isFreeText ? "" : (item.MaterialNo || ""),
-		MaterialType: item.MaterialType || "ZSRV",
+		MaterialType: sMaterialType,
 		Description: item.Description || "",
 		Quantity: String(item.Quantity || 0),
 		UoM: item.UoM || "PC",
 		EstimatedValue: String(item.EstimatedValue || 0),
-		CostCenter: item.CostCenter || "",
-		InternalOrder: item.InternalOrder || "",
-		AssetNo: item.AssetNo || "",
-		GLAccount: item.GLAccount || "",
+		AcctAssignCat: sCat,
+		CostCenter: sCat === "K" ? (item.CostCenter || "") : "",
+		InternalOrder: sCat === "F" ? (item.InternalOrder || "") : "",
+		AssetNo: sCat === "A" ? (item.AssetNo || "") : "",
+		GLAccount: sCat === "A" ? "" : defaultGLAccount(sMaterialType),
 		IsFreeText: boolToSapX(item.isFreeText)
 	};
 }
@@ -1052,8 +1067,20 @@ app.post("/api/approval/submit", async (req, res) => {
 		if (!it.quantity || Number(it.quantity) <= 0) {
 			return res.status(400).json({ success: false, message: "Dong " + (i + 1) + ": So luong khong hop le." });
 		}
-		if (!String(it.internalOrder || "").trim()) {
-			return res.status(400).json({ success: false, message: "Dong " + (i + 1) + ": Bat buoc chon Internal Order." });
+		// Account assignment: ZAST -> bat buoc AssetNo; con lai theo acctAssignCat (K=CostCenter, F=InternalOrder).
+		// Khong con bat buoc dong thoi ca CostCenter lan InternalOrder nhu truoc (chi 1 trong 2 duoc dung that tren SAP).
+		if (it.materialType === "ZAST") {
+			if (!String(it.assetNo || "").trim()) {
+				return res.status(400).json({ success: false, message: "Dong " + (i + 1) + ": Vat tu Tai san (ZAST) bat buoc nhap Asset No." });
+			}
+		} else if (it.acctAssignCat === "F") {
+			if (!String(it.internalOrder || "").trim()) {
+				return res.status(400).json({ success: false, message: "Dong " + (i + 1) + ": Bat buoc chon Internal Order." });
+			}
+		} else {
+			if (!String(it.costCenter || "").trim()) {
+				return res.status(400).json({ success: false, message: "Dong " + (i + 1) + ": Bat buoc chon Cost Center." });
+			}
 		}
 	}
 
@@ -1062,18 +1089,20 @@ app.post("/api/approval/submit", async (req, res) => {
 	}
 
 	const mappedItems = items.map(function (item, idx) {
+		var sMaterialType = item.materialType || "ZSRV";
+		var sCat = sMaterialType === "ZAST" ? "A" : (item.acctAssignCat === "F" ? "F" : "K");
 		return {
 			LineNo: String(idx + 1).padStart(5, "0"),
 			MaterialNo: item.materialNo || "",
-			MaterialType: item.materialType || "ZSRV",
+			MaterialType: sMaterialType,
 			Description: item.description || "",
 			Quantity: Number(item.quantity),
 			UoM: item.uom || "PC",
 			EstimatedValue: Number(item.estimatedValue) || 0,
-			CostCenter: item.costCenter || "",
-			InternalOrder: normalizeOrderNo(item.internalOrder) || String(item.internalOrder || "").trim(),
-			AssetNo: item.assetNo || "",
-			GLAccount: item.glAccount || "",
+			AcctAssignCat: sCat,
+			CostCenter: sCat === "K" ? (item.costCenter || "") : "",
+			InternalOrder: sCat === "F" ? (normalizeOrderNo(item.internalOrder) || String(item.internalOrder || "").trim()) : "",
+			AssetNo: sCat === "A" ? (item.assetNo || "") : "",
 			isFreeText: item.isFreeText || false
 		};
 	});
