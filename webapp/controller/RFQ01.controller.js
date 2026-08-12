@@ -40,17 +40,23 @@ sap.ui.define([
 			this._loadPendingPRs();
 		},
 
-		// ── 1. PR DANG CHO PURCHASING XU LY (chi trang thai nay moi duoc mo RFQ) ──
+		// ── 1. PR DA DUOC PURCHASING DUYET HOP LE (PENDING_RFQ) — chi trang thai nay
+		// moi duoc mo RFQ. (Truoc day lay PENDING_PURCHASING, da doi theo quy trinh moi:
+		// Purchasing phai bam Duyet tren PR-02 truoc, PR moi xuat hien o day.) ──
 		_loadPendingPRs: function () {
 			var oView = this.getView();
 			oView.setBusy(true);
 
-			fetch(BACKEND + "/api/approval/pending?role=PURCHASING")
+			fetch(BACKEND + "/api/approval/pending?role=PURCHASING&status=PENDING_RFQ")
 				.then(function (r) { return r.json(); })
 				.then(function (res) {
 					oView.setBusy(false);
 					if (res && res.success) {
-						var aMapped = (res.data || []).map(function (pr) {
+						// PR da gan RfqId nghia la RFQ da duoc tao roi (dang o buoc gui/nhap
+						// bao gia ben RFQ-02) -> khong hien o man tao RFQ nua, tranh tao trung.
+						var aMapped = (res.data || []).filter(function (pr) {
+							return !pr.RfqId;
+						}).map(function (pr) {
 							var aItems = pr.items || [];
 							var firstItem = aItems[0] || {};
 							var sDesc = aItems.length > 1

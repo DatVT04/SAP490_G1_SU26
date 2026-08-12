@@ -110,6 +110,16 @@
 						class="qdCellHint sapUiTinyMarginTop"
 					/>
 				</VBox>
+
+				<!-- PR bị Purchasing trả lại → người tạo sửa & gửi lại (PR-01 điền sẵn dữ liệu) -->
+				<Button
+					text="Sửa &amp; gửi lại đề nghị"
+					type="Emphasized"
+					icon="sap-icon://edit"
+					press="onResubmitPress"
+					class="sapUiSmallMarginTop"
+					visible="{= !!${/canResubmit} }"
+				/>
 			</VBox>
 
 			<!-- ============ DANH SACH VAT TU ============ -->

@@ -75,12 +75,59 @@ sap.ui.define([
 
 		_onRouteMatched: function () {
 			this._loadNotifications();
+			this._applyResubmitIfAny();
 			var oModel = this.getView().getModel();
 			var aItems = oModel.getProperty("/items") || [];
 			if (aItems.length === 0) {
 				oModel.setProperty("/items", [emptyCatalogItem(this._getDefaults())]);
 				this._recalcTotal();
 			}
+		},
+
+		// PR bị Purchasing trả lại → PRDetail đẩy dữ liệu qua model "resubmit" cấp
+		// Component. Điền sẵn toàn bộ dòng vật tư cũ để người tạo chỉ sửa chỗ cần sửa.
+		// Model bị xóa ngay sau khi dùng (one-shot) để lần vào PR-01 sau không dính lại.
+		_applyResubmitIfAny: function () {
+			var oComp = this.getOwnerComponent();
+			var oResubmitModel = oComp.getModel("resubmit");
+			if (!oResubmitModel) { return; }
+
+			var oData = oResubmitModel.getData() || {};
+			oComp.setModel(null, "resubmit");
+			if (!oData.internalId) { return; }
+
+			this._resubmitOf = oData.internalId;
+
+			var oModel = this.getView().getModel();
+			var aOldItems = (oData.items || []).map(function (it) {
+				return {
+					isFreeText: !!it.isFreeText,
+					materialNo: it.MaterialNo || "",
+					materialType: it.MaterialType || "",
+					description: it.Description || "",
+					uom: it.UoM || "",
+					quantity: Number(it.Quantity) || null,
+					estimatedValue: Number(it.EstimatedValue) || null,
+					costCenter: it.CostCenter || "",
+					internalOrder: it.InternalOrder || "",
+					assetNo: it.AssetNo || "",
+					glAccount: it.GLAccount || ""
+				};
+			});
+			if (aOldItems.length === 0) {
+				aOldItems = [emptyCatalogItem(this._getDefaults())];
+			}
+
+			oModel.setProperty("/header/currency", oData.currency || "VND");
+			oModel.setProperty("/items", aOldItems);
+			this._recalcTotal();
+
+			MessageBox.information(
+				"Bạn đang sửa lại đề nghị " + oData.prId + " bị Purchasing trả lại."
+				+ (oData.returnReason ? ("\n\nLý do trả lại: " + oData.returnReason) : "")
+				+ "\n\nDữ liệu cũ đã được điền sẵn — sửa xong bấm Gửi, hệ thống sẽ tạo đề nghị mới và tự đóng bản cũ.",
+				{ title: "Sửa & gửi lại đề nghị" }
+			);
 		},
 
 		_getDefaults: function () {
@@ -485,6 +532,8 @@ sap.ui.define([
 
 			oView.setBusy(true);
 
+			var bIsResubmit = !!this._resubmitOf;
+
 			this._fetchWithTimeout(BACKEND + "/api/approval/submit", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
@@ -492,7 +541,8 @@ sap.ui.define([
 					requesterEmail: oUser.email,
 					currency: sCurrency,
 					totalPRValue: nTotalPRValue,
-					items: aItems
+					items: aItems,
+					resubmitOf: this._resubmitOf || undefined
 				})
 			})
 				.then(function (oResult) {
@@ -521,7 +571,8 @@ sap.ui.define([
 						aWarnings.push("Giá trị lớn — CFO sẽ xem xét kỹ.");
 					}
 
-					var sMsg = "✓ Đã gửi đề nghị " + sPrNumber + "\n\n"
+					var sMsg = "✓ Đã gửi đề nghị " + sPrNumber
+						+ (bIsResubmit ? " (bản gửi lại — đề nghị cũ đã tự đóng)" : "") + "\n\n"
 						+ "Gồm " + iItemCount + " dòng vật tư, tổng "
 						+ nTotalPRValue.toLocaleString("vi-VN") + " " + sCurrency + ".\n"
 						+ "Đang chờ Purchasing xem xét.\n"
@@ -530,6 +581,8 @@ sap.ui.define([
 					if (aWarnings.length) {
 						sMsg += "\n\nLưu ý: " + aWarnings.join(" ");
 					}
+
+					this._resubmitOf = null;
 
 					MessageBox.success(sMsg, {
 						title: "Đã gửi đề nghị — " + sPrNumber,

@@ -11,13 +11,16 @@ sap.ui.define([
 
 	var STATUS_LABELS = {
 		PENDING_PURCHASING: "Đang chờ Purchasing duyệt",
-		PENDING_RFQ: "Purchasing đang lập yêu cầu báo giá (RFQ)",
+		PENDING_RFQ: "Đã duyệt hợp lệ — đang ở bước hỏi giá (RFQ)",
 		RFQ_SENT: "Đã gửi RFQ tới nhà cung cấp, chờ báo giá",
 		QUOTATIONS_RECEIVED: "Đã nhận báo giá, chờ Purchasing chốt nhà cung cấp",
 		PENDING_CFO: "Đang chờ CFO duyệt",
 		PENDING_CEO: "Đang chờ CEO duyệt (đã leo thang)",
 		APPROVED: "Đã phê duyệt",
 		REJECTED: "Đã từ chối",
+		RETURNED: "Bị Purchasing trả lại — có thể sửa và gửi lại",
+		CANCELLED: "Đã hủy (đã được gửi lại bằng đề nghị mới)",
+		PO_CREATED: "Đã tạo Purchase Order",
 		OPENED: "Đã mở",
 		OPEN: "Đã mở"
 	};
@@ -31,6 +34,9 @@ sap.ui.define([
 		PENDING_CEO: "Warning",
 		APPROVED: "Success",
 		REJECTED: "Error",
+		RETURNED: "Error",
+		CANCELLED: "None",
+		PO_CREATED: "Success",
 		OPENED: "Success",
 		OPEN: "Success"
 	};
@@ -76,7 +82,9 @@ sap.ui.define([
 		if (pr.PurchasingAction === "APPROVED") {
 			purchasingSub = "Đã duyệt" + (pr.PurchasingApprovedBy ? " · " + pr.PurchasingApprovedBy : "");
 		} else if (pr.PurchasingAction === "REJECTED") {
-			purchasingSub = "Từ chối" + (pr.PurchasingApprovedBy ? " · " + pr.PurchasingApprovedBy : "");
+			// Purchasing từ chối = TRẢ LẠI để sửa (khác CFO/CEO từ chối là kết thúc hẳn)
+			purchasingSub = (String(pr.Status || "").toUpperCase() === "RETURNED" ? "Trả lại để sửa" : "Từ chối")
+				+ (pr.PurchasingApprovedBy ? " · " + pr.PurchasingApprovedBy : "");
 		} else if (purchasingActive) {
 			purchasingSub = "Đang chờ";
 		}
@@ -251,6 +259,26 @@ sap.ui.define([
 				type: "Error"
 			};
 		}
+		if (st === "RETURNED") {
+			return {
+				text: "Đề nghị bị Purchasing trả lại" + (pr.Comment ? (": " + pr.Comment) : ".")
+					+ " Bạn có thể sửa và gửi lại bằng nút bên dưới.",
+				type: "Error"
+			};
+		}
+		if (st === "CANCELLED") {
+			return {
+				text: "Đề nghị đã hủy" + (pr.Comment ? (" — " + pr.Comment) : " (đã được gửi lại bằng đề nghị mới)."),
+				type: "Information"
+			};
+		}
+		if (st === "PO_CREATED") {
+			return {
+				text: "Đã tạo Purchase Order từ đề nghị này"
+					+ (pr.SapPRId ? (" (PR SAP: " + pr.SapPRId + ")") : "") + ".",
+				type: "Success"
+			};
+		}
 		return { text: "", type: "Information" };
 	}
 
@@ -299,8 +327,16 @@ sap.ui.define([
 					pr.timeline = buildTimeline(pr);
 					pr.statusHint = hint.text;
 					pr.statusStripType = hint.type;
+
+					// Chỉ chính người tạo mới được sửa & gửi lại, và chỉ khi PR đang RETURNED
+					var sUserEmail = String(
+						this.getOwnerComponent().getModel("user").getProperty("/email") || ""
+					).toLowerCase();
+					pr.canResubmit = String(pr.Status || "").toUpperCase() === "RETURNED"
+						&& String(pr.RequesterEmail || "").toLowerCase() === sUserEmail;
+
 					oModel.setData(pr);
-				})
+				}.bind(this))
 				.catch(function (oError) {
 					oView.setBusy(false);
 					MessageBox.error(oError.message);
@@ -330,6 +366,20 @@ sap.ui.define([
 				s += " lúc " + formatViTime(sUpdatedAt);
 			}
 			return s;
+		},
+
+		// PR bị trả lại (RETURNED) → mang toàn bộ dữ liệu sang PR-01 để sửa & gửi lại.
+		// Truyền qua model "resubmit" cấp Component (không cần thêm route param mới).
+		onResubmitPress: function () {
+			var pr = this.getView().getModel().getData() || {};
+			this.getOwnerComponent().setModel(new JSONModel({
+				internalId: pr.InternalId,
+				prId: pr.PRId,
+				returnReason: pr.Comment || "",
+				currency: pr.Currency || "VND",
+				items: pr.items || []
+			}), "resubmit");
+			this.getOwnerComponent().getRouter().navTo("pr01");
 		},
 
 		onNavBack: function () {

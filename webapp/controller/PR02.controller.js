@@ -139,39 +139,46 @@ sap.ui.define([
 			var that = this;
 			var bIsApprove = sStatus === "APPROVED";
 			var sRole = String(this.getOwnerComponent().getModel("user").getProperty("/role") || "").toUpperCase();
+			// Purchasing từ chối = TRẢ LẠI cho người tạo sửa & gửi lại (không phải kết thúc
+			// hẳn như CFO/CEO) — đổi toàn bộ wording cho khớp quy trình.
+			var bIsReturn = !bIsApprove && sRole === "PURCHASING";
 
 			var sRoleHint = "";
 			if (bIsApprove && sRole === "PURCHASING") {
-				sRoleHint = "\n\nSau khi bạn duyệt, đề nghị sẽ chuyển sang CFO (chưa ghi SAP).";
+				sRoleHint = "\n\nSau khi bạn duyệt, đề nghị chuyển sang bước hỏi giá nhà cung cấp (tạo RFQ trên màn RFQ-01).";
 			} else if (bIsApprove && sRole === "CFO") {
 				sRoleHint = "\n\n≤ ngưỡng Internal Order: ghi SAP ngay. Vượt ngưỡng IO: chuyển CEO.";
 			} else if (bIsApprove && sRole === "CEO") {
 				sRoleHint = "\n\nDuyệt cuối → hệ thống ghi PR lên SAP và cấp số PR thật.";
+			} else if (bIsReturn) {
+				sRoleHint = "\n\nĐề nghị sẽ bị TRẢ LẠI — người tạo nhận thông báo kèm lý do, có thể sửa và gửi lại.";
 			}
 
+			var sAction = bIsApprove ? "PHÊ DUYỆT" : (bIsReturn ? "TRẢ LẠI" : "TỪ CHỐI");
 			var sSummary = "PR: " + sPRId
 				+ "\nGiá trị: " + Number(nTotalValue).toLocaleString("vi-VN") + " " + (sCurrency || "VND")
-				+ "\nHành động: " + (bIsApprove ? "PHÊ DUYỆT" : "TỪ CHỐI")
+				+ "\nHành động: " + sAction
 				+ sRoleHint;
 
+			var sReasonLabel = bIsReturn ? "Lý do trả lại (bắt buộc)" : "Lý do từ chối (bắt buộc)";
 			var oTextArea = new TextArea({
 				width: "100%",
 				rows: 3,
 				maxLength: 255,
 				placeholder: bIsApprove
 					? "Ghi chú phê duyệt (tùy chọn)"
-					: "Lý do từ chối (bắt buộc)"
+					: sReasonLabel
 			});
 
 			var oDialog = new Dialog({
 				type: DialogType.Message,
-				title: bIsApprove ? "Xác nhận phê duyệt" : "Xác nhận từ chối",
+				title: bIsApprove ? "Xác nhận phê duyệt" : (bIsReturn ? "Xác nhận trả lại" : "Xác nhận từ chối"),
 				content: [
 					new VBox({
 						items: [
 							new Text({ text: sSummary, wrapping: true }).addStyleClass("sapUiSmallMarginBottom"),
 							new Label({
-								text: bIsApprove ? "Ghi chú (tùy chọn):" : "Lý do từ chối (bắt buộc):",
+								text: bIsApprove ? "Ghi chú (tùy chọn):" : sReasonLabel + ":",
 								required: !bIsApprove
 							}),
 							oTextArea
@@ -179,13 +186,13 @@ sap.ui.define([
 					})
 				],
 				beginButton: new Button({
-					text: bIsApprove ? "Phê duyệt" : "Từ chối",
+					text: bIsApprove ? "Phê duyệt" : (bIsReturn ? "Trả lại" : "Từ chối"),
 					type: bIsApprove ? ButtonType.Accept : ButtonType.Reject,
 					press: function () {
 						var sComment = oTextArea.getValue().trim();
 						if (!bIsApprove && !sComment) {
 							oTextArea.setValueState("Error");
-							oTextArea.setValueStateText("Vui lòng nhập lý do từ chối.");
+							oTextArea.setValueStateText(bIsReturn ? "Vui lòng nhập lý do trả lại." : "Vui lòng nhập lý do từ chối.");
 							return;
 						}
 						oDialog.close();
@@ -234,7 +241,13 @@ sap.ui.define([
 					}
 
 					var sMsg;
-					if (oResult.forwarded === "CFO") {
+					if (oResult.forwarded === "RFQ") {
+						sMsg = sPRId + " đã duyệt hợp lệ.\nTiếp theo: tạo RFQ hỏi giá nhà cung cấp trên màn RFQ-01. Chưa ghi SAP.";
+						MessageBox.information(sMsg, { title: "Đã duyệt — chuyển bước RFQ" });
+					} else if (oResult.returned) {
+						sMsg = sPRId + " đã bị trả lại.\nNgười tạo đã được thông báo kèm lý do, có thể sửa và gửi lại.";
+						MessageBox.warning(sMsg, { title: "Đã trả lại" });
+					} else if (oResult.forwarded === "CFO") {
 						sMsg = sPRId + " đã chuyển sang CFO.\nNgười tạo và CFO đã được thông báo. Chưa ghi SAP.";
 						MessageBox.information(sMsg, { title: "Đã chuyển CFO" });
 					} else if (oResult.escalated) {

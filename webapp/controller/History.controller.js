@@ -151,13 +151,16 @@ sap.ui.define([
 			s = String(s || "").toUpperCase();
 			var map = {
 				PENDING_PURCHASING: "Chờ Purchasing",
-				PENDING_RFQ: "Đang lập RFQ",
+				PENDING_RFQ: "Đã duyệt hợp lệ — chờ hỏi giá (RFQ)",
 				RFQ_SENT: "Đã gửi RFQ, chờ báo giá",
 				QUOTATIONS_RECEIVED: "Đã có báo giá",
 				PENDING_CFO: "Chờ CFO",
 				PENDING_CEO: "Chờ CEO",
 				APPROVED: "Đã duyệt",
 				REJECTED: "Từ chối",
+				RETURNED: "Bị trả lại — cần sửa & gửi lại",
+				CANCELLED: "Đã hủy (đã gửi lại bản mới)",
+				PO_CREATED: "Đã tạo PO",
 				OPENED: "Đã mở",
 				OPEN: "Mở"
 			};
@@ -166,8 +169,10 @@ sap.ui.define([
 
 		formatStatusState: function (s) {
 			s = String(s || "").toUpperCase();
-			if (s === "APPROVED" || s === "OPENED" || s === "OPEN") { return "Success"; }
+			if (s === "APPROVED" || s === "OPENED" || s === "OPEN" || s === "PO_CREATED") { return "Success"; }
 			if (s === "REJECTED") { return "Error"; }
+			if (s === "RETURNED") { return "Error"; }
+			if (s === "CANCELLED") { return "None"; }
 			if (s === "RFQ_SENT" || s === "QUOTATIONS_RECEIVED") { return "Warning"; }
 			if (s.indexOf("PENDING") === 0) { return "Warning"; }
 			return "None";
