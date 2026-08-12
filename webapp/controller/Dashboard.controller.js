@@ -11,11 +11,11 @@ sap.ui.define([
 	var BACKEND = Config.BACKEND;
 
 	var TILES_BY_ROLE = {
-		REQUESTER:  ["pr01", "report", "history", "profile"],
-		PURCHASING: ["pr02", "po01", "report", "history", "profile"],
-		CFO:        ["pr02", "report", "history", "profile"],
-		CEO:        ["pr02", "report", "config", "history", "profile"],
-		ACC:        ["report", "history", "profile"]
+		REQUESTER: ["pr01", "report", "history", "profile"],
+		PURCHASING: ["materialCreate", "pr02", "po01", "report", "history", "profile"],
+		CFO: ["pr02", "report", "history", "profile"],
+		CEO: ["pr02", "report", "config", "history", "profile"],
+		ACC: ["report", "history", "profile"]
 	};
 
 	var oValueFormat = NumberFormat.getIntegerInstance({
@@ -73,7 +73,7 @@ sap.ui.define([
 				fetch(BACKEND + "/api/approval/approved").then(function (r) { return r.json(); })
 			])
 				.then(function (aResults) {
-					var aPending  = (aResults[0] && aResults[0].data) || [];
+					var aPending = (aResults[0] && aResults[0].data) || [];
 					var aApproved = (aResults[1] && aResults[1].data) || [];
 
 					var fTotal = aPending.reduce(function (sum, pr) {
@@ -225,6 +225,9 @@ sap.ui.define([
 
 		onNavToProfile: function () {
 			this.getOwnerComponent().getRouter().navTo("profile");
+		},
+		onNavToMaterialCreate: function () {
+			this.getOwnerComponent().getRouter().navTo("materialCreate");
 		},
 
 		onLogoutPress: function () {

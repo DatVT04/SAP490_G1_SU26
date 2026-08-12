@@ -131,6 +131,11 @@
           "name": "profile",
           "pattern": "profile",
           "target": ["targetProfile"]
+        },
+        {
+          "name": "materialCreate",
+          "pattern": "material-create",
+          "target": "materialCreate"
         }
       ],
       "targets": {
@@ -186,6 +191,11 @@
           "transition": "slide",
           "clearControlAggregation": true,
           "viewName": "Profile"
+        },
+        "materialCreate": {
+          "viewName": "MaterialCreate",
+          "viewId": "materialCreate",
+          "viewLevel": 2
         }
       }
     }

@@ -43,6 +43,22 @@ const DATA_DIR = IS_SERVERLESS
 const APPROVAL_FILE = path.join(DATA_DIR, "approvals.json");
 const NOTIF_FILE = path.join(DATA_DIR, "notifications.json");
 
+// material create
+const MATERIAL_MASTER_CONFIG = Object.freeze({
+	ZAST: {
+		materialType: "ZAST",
+		industrySector: "S",
+		plant: "QDPL",
+		storageLocation: "QDSL"
+	},
+	ZSRV: {
+		materialType: "ZSRV",
+		industrySector: "S",
+		plant: "QDPL",
+		storageLocation: ""
+	}
+});
+
 function ensureDataDir() {
 	try {
 		if (!fs.existsSync(DATA_DIR)) {
@@ -124,6 +140,9 @@ let nextNotificationId = _loadedNotifs.nextId;
 console.log("[DATA] Loaded PR:", approvalStore.length, "| nextSeq:", nextApprovalSeq);
 console.log("[DATA] Loaded notif:", notificationStore.length);
 
+
+
+
 function pushNotification(toEmail, prId, message) {
 	if (!toEmail) { return; }
 	notificationStore.push({
@@ -168,6 +187,24 @@ function notifyCeos(prId, message) {
 	findCeoEmails().forEach(function (email) {
 		pushNotification(email, prId, message);
 	});
+}
+
+// material create
+function mockMaterialValueHelp(type) {
+	return {
+		uoms: [
+			{ code: "PC", description: "Piece" },
+			{ code: "EA", description: "Each" },
+			{ code: "MON", description: "Month" },
+			{ code: "YR", description: "Year" },
+			{ code: "H", description: "Hour" },
+			{ code: "DAY", description: "Day" }
+		],
+		materialGroups: type === "ZSRV"
+			? [{ code: "Z20V", description: "QDAVY Service Group" }]
+			: [{ code: "Z10V", description: "QDAVY Asset/Material Group" }],
+		purchasingGroups: []
+	};
 }
 
 async function fetchInternalOrderMaster() {
@@ -325,6 +362,56 @@ async function fetchGLAccountsFromHistory() {
 	}
 }
 
+// material create
+async function fetchMaterialValueHelpFromSAP(type) {
+	const response = await axios.get(
+		`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/MaterialSet`,
+		{
+			params: { "$format": "json" },
+			auth: sapAuth(),
+			timeout: 20000
+		}
+	);
+
+	const results = (response.data && response.data.d && response.data.d.results) || [];
+	const filtered = results.filter(function (row) {
+		const rowType = String(
+			row.MaterialType || row.MatType || row.Mtart || row.MTART || ""
+		).trim();
+		return !rowType || rowType === type;
+	});
+
+	const source = filtered.length ? filtered : results;
+
+	const uoms = uniqueCodeDescription(source.map(function (row) {
+		return {
+			code: row.BaseUnit || row.UoM || row.Uom || row.Meins || row.MEINS,
+			description: row.BaseUnitText || row.UoMText || row.UomText || row.UnitDescription
+		};
+	}));
+
+	const materialGroups = uniqueCodeDescription(source.map(function (row) {
+		return {
+			code: row.MaterialGroup || row.MatGroup || row.Matkl || row.MATKL,
+			description: row.MaterialGroupText || row.MatGroupText || row.MaterialGroupDescription
+		};
+	}));
+
+	const purchasingGroups = uniqueCodeDescription(source.map(function (row) {
+		return {
+			code: row.PurchasingGroup || row.PurchGroup || row.Ekgrp || row.EKGRP,
+			description: row.PurchasingGroupText || row.PurchGroupText || row.PurchasingGroupDescription
+		};
+	}));
+
+	const fallback = mockMaterialValueHelp(type);
+	return {
+		uoms: uoms.length ? uoms : fallback.uoms,
+		materialGroups: materialGroups.length ? materialGroups : fallback.materialGroups,
+		purchasingGroups: purchasingGroups
+	};
+}
+
 app.get("/api/gl-accounts", async (req, res) => {
 	return res.json({ success: true, data: await fetchGLAccountsFromHistory() });
 });
@@ -342,6 +429,40 @@ app.get("/api/internal-orders", async (req, res) => {
 		ioToCostCenter: master.ioToCostCenter,
 		costCenterToIOs: master.costCenterToIOs
 	});
+});
+//material create
+app.get("/api/material-master/value-help", async function (req, res) {
+	const type = String(req.query.type || "ZAST").toUpperCase();
+	if (!MATERIAL_MASTER_CONFIG[type]) {
+		return res.status(400).json({
+			success: false,
+			message: "Material Type chỉ nhận ZAST hoặc ZSRV."
+		});
+	}
+
+	if (!process.env.SAP_HOST) {
+		return res.json({
+			success: true,
+			sapIntegration: "mock",
+			data: mockMaterialValueHelp(type)
+		});
+	}
+
+	try {
+		return res.json({
+			success: true,
+			sapIntegration: "fetched",
+			data: await fetchMaterialValueHelpFromSAP(type)
+		});
+	} catch (error) {
+		console.error("[material-master/value-help] SAP error:", error.response?.status || error.message);
+		return res.json({
+			success: true,
+			sapIntegration: "fallback",
+			sapError: true,
+			data: mockMaterialValueHelp(type)
+		});
+	}
 });
 
 function defaultGLAccount(materialType) {
@@ -415,6 +536,24 @@ async function createPRInSAP(record) {
 		console.error("[createPRInSAP] THAT BAI:", sapErrorMessage);
 		return { sapIntegration: "failed", sapPrNumber: null, sapErrorMessage };
 	}
+}
+// Material create
+function buildMaterialCreatePayload(body, fixed) {
+	// TODO: Đối chiếu tên property với $metadata của ZG1_PROC_SRV_SRV.
+	// Đây là mapping nghiệp vụ đã chốt từ MM01/MM03.
+	return {
+		MaterialNo: String(body.materialNo || "").trim(),
+		MaterialType: fixed.materialType,
+		IndustrySector: fixed.industrySector,
+		Description: String(body.description || "").trim().substring(0, 40),
+		BaseUnit: String(body.baseUnit || "").trim(),
+		MaterialGroup: String(body.materialGroup || "").trim(),
+		PurchasingGroup: String(body.purchasingGroup || "").trim(),
+		Plant: fixed.plant,
+		StorageLocation: fixed.storageLocation,
+		PurchaseOrderText: String(body.purchaseOrderText || "").trim(),
+		Language: String(body.language || "EN").trim().toUpperCase()
+	};
 }
 
 // --- Login ---
@@ -1354,6 +1493,110 @@ app.get("/api/po/report", async (req, res) => {
 			success: false,
 			sapError: true,
 			message: "Node.js không thể kết nối tới SAP Gateway!"
+		});
+	}
+});
+
+//Material create
+app.post("/api/material-master/create", async function (req, res) {
+	const body = req.body || {};
+	const type = String(body.materialType || "").toUpperCase();
+	const fixed = MATERIAL_MASTER_CONFIG[type];
+
+	if (!fixed) {
+		return res.status(400).json({ success: false, message: "Material Type không hợp lệ." });
+	}
+	if (!String(body.materialNo || "").trim()) {
+		return res.status(400).json({
+			success: false,
+			message: "Thiếu mã Material."
+		});
+	}
+	if (!String(body.description || "").trim()) {
+		return res.status(400).json({ success: false, message: "Thiếu tên vật tư/dịch vụ." });
+	}
+	if (!String(body.baseUnit || "").trim()) {
+		return res.status(400).json({ success: false, message: "Thiếu đơn vị tính cơ bản." });
+	}
+	if (!String(body.materialGroup || "").trim()) {
+		return res.status(400).json({ success: false, message: "Thiếu nhóm vật tư/dịch vụ." });
+	}
+	if (type === "ZSRV" && !String(body.purchaseOrderText || "").trim()) {
+		return res.status(400).json({
+			success: false,
+			message: "Dịch vụ cần có mô tả chi tiết/phạm vi dịch vụ."
+		});
+	}
+
+	const sapPayload = buildMaterialCreatePayload(body, fixed);
+
+	if (!process.env.SAP_HOST) {
+		const mockMaterialNumber = String(Date.now()).slice(-8);
+		return res.status(201).json({
+			success: true,
+			sapIntegration: "mock",
+			materialNumber: mockMaterialNumber,
+			data: {
+				materialNumber: mockMaterialNumber,
+				payload: sapPayload
+			}
+		});
+	}
+
+	const entitySet = process.env.SAP_MATERIAL_CREATE_ENTITY_SET || "MaterialSet";
+
+	try {
+		const tokenResponse = await axios.get(
+			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}`,
+			{
+				auth: sapAuth(),
+				headers: {
+					"X-CSRF-Token": "Fetch",
+					"sap-language": sapPayload.Language || "EN"
+				},
+				timeout: 20000
+			}
+		);
+
+		const csrfToken = tokenResponse.headers["x-csrf-token"];
+		const cookies = tokenResponse.headers["set-cookie"];
+
+		const sapResponse = await axios.post(
+			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/${entitySet}`,
+			sapPayload,
+			{
+				auth: sapAuth(),
+				headers: {
+					"Content-Type": "application/json",
+					"Accept": "application/json",
+					"X-CSRF-Token": csrfToken,
+					"Cookie": cookies ? cookies.join("; ") : "",
+					"sap-language": sapPayload.Language || "EN"
+				},
+				timeout: 30000
+			}
+		);
+
+		const created = (sapResponse.data && sapResponse.data.d) || sapResponse.data || {};
+		const materialNumber = created.MaterialNo
+			|| created.MaterialNumber
+			|| created.Matnr
+			|| created.MATNR
+			|| "";
+
+		return res.status(201).json({
+			success: true,
+			sapIntegration: "created",
+			materialNumber: String(materialNumber || ""),
+			data: created
+		});
+	} catch (error) {
+		const message = getSapBusinessError(error);
+		console.error("[material-master/create] THAT BAI:", message);
+		return res.status(502).json({
+			success: false,
+			message: "Không tạo được danh mục trên SAP: " + message,
+			sapError: true
 		});
 	}
 });
