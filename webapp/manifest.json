@@ -136,6 +136,11 @@
           "name": "poReport",
           "pattern": "po-report",
           "target": ["targetPOReport"]
+        },
+        {
+          "name": "materialCreate",
+          "pattern": "material-create",
+          "target": "materialCreate"
         }
       ],
       "targets": {
@@ -195,6 +200,11 @@
           "transition": "slide",
           "clearControlAggregation": true,
           "viewName": "POReport"
+        },
+        "materialCreate": {
+          "viewName": "MaterialCreate",
+          "viewId": "materialCreate",
+          "viewLevel": 2
         }
       }
     }

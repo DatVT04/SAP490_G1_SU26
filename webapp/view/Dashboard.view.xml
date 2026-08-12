@@ -218,6 +218,28 @@
 						/>
 					</VBox>
 
+					<!-- MM-01: MATERIAL / SERVICE MASTER (khoi phuc tu nhanh An, PR #11) -->
+					<VBox
+						class="qdActionCard qdAccentBlue"
+						visible="{= ${user>/role} === 'PURCHASING' }"
+					>
+						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
+							<VBox class="qdActionIconBox">
+								<core:Icon src="sap-icon://product" class="qdActionIcon"/>
+							</VBox>
+							<Text text="MM-01" class="qdActionCode"/>
+						</HBox>
+						<Title text="Tạo mới vật tư / dịch vụ" level="H3" class="qdActionTitle"/>
+						<Text text="Tạo mã ZAST hoặc ZSRV trên SAP trước khi Requester lập PR." class="qdActionDesc"/>
+						<Button
+							text="{i18n>dashTileOpen}"
+							icon="sap-icon://arrow-right"
+							iconFirst="false"
+							press=".onNavToMaterialCreate"
+							class="qdActionBtn"
+						/>
+					</VBox>
+
 					<!-- HISTORY -->
 					<VBox
 						class="qdActionCard qdAccentSlate"
