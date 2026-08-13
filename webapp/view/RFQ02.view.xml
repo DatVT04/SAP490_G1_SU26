@@ -72,6 +72,54 @@
 							<l:SplitterLayoutData size="68%" minSize="450"/>
 						</layoutData>
 
+						<!-- CARD BOI CANH: NOI DUNG PR GOC (da yeu cau bao gia cai gi) -->
+						<VBox class="qdContentCard qdPrContextCard" visible="{= !!${/pr} }">
+							<HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
+								<HBox alignItems="Center">
+									<core:Icon src="sap-icon://request" class="sapUiSmallMarginEnd qdPrContextIcon"/>
+									<VBox>
+										<Title text="Nội dung yêu cầu — PR {= ${/pr/SapPRId} || ${/pr/PRId} }" level="H3" class="qdCardTitle"/>
+										<Text text="Người yêu cầu: {/pr/RequesterEmail} · Đây chính là những gì đã gửi NCC báo giá" class="qdCellHint"/>
+									</VBox>
+								</HBox>
+								<ObjectNumber
+									number="{path: '/pr/TotalValue', formatter: '.formatCurrency'}"
+									unit="{/pr/Currency}"
+									emphasized="true"
+								/>
+							</HBox>
+
+							<Table items="{/pr/items}" noDataText="Không đọc được dòng vật tư của PR gốc.">
+								<columns>
+									<Column width="4rem" hAlign="Center"><Text text="Dòng"/></Column>
+									<Column><Text text="Vật tư / Dịch vụ"/></Column>
+									<Column hAlign="End" width="8rem"><Text text="Số lượng"/></Column>
+									<Column hAlign="End" width="11rem"><Text text="Giá trị ước tính"/></Column>
+									<Column width="12rem"><Text text="Hạch toán"/></Column>
+								</columns>
+								<items>
+									<ColumnListItem>
+										<cells>
+											<Text text="{LineNo}"/>
+											<VBox>
+												<Text text="{Description}"/>
+												<Text
+													text="{= ${MaterialNo} ? ${MaterialNo} + ' · ' + ${MaterialType} : 'Nhập tay (free-text) · ' + ${MaterialType} }"
+													class="qdCellHint"
+												/>
+											</VBox>
+											<Text text="{Quantity} {UoM}"/>
+											<ObjectNumber
+												number="{path: 'EstimatedValue', formatter: '.formatCurrency'}"
+												unit="{/pr/Currency}"
+											/>
+											<Text text="{parts: ['AcctAssignCat', 'CostCenter', 'InternalOrder', 'AssetNo'], formatter: '.formatAcctAssign'}"/>
+										</cells>
+									</ColumnListItem>
+								</items>
+							</Table>
+						</VBox>
+
 						<!-- CARD 2: BANG SO SANH BAO GIA -->
 						<VBox class="qdContentCard">
 							<HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
@@ -171,7 +219,12 @@
 								</VBox>
 								<VBox class="sapUiSmallMarginEnd sapUiTinyMarginBottom">
 									<Label text="Điều khoản thanh toán"/>
-									<Input id="inQuotePayment" width="11rem" placeholder="VD: NET30"/>
+									<Input
+										id="inQuotePayment"
+										width="11rem"
+										placeholder="VD: NET30"
+										tooltip="Sau khi nhận hàng/hoá đơn thì bao lâu phải trả tiền. NET30 = trả trong vòng 30 ngày. Ghi đúng như NCC nêu trong email báo giá."
+									/>
 								</VBox>
 								<VBox class="sapUiSmallMarginEnd sapUiTinyMarginBottom">
 									<Label text="Bảo hành (tháng)"/>
@@ -179,7 +232,11 @@
 								</VBox>
 								<VBox class="sapUiSmallMarginEnd sapUiTinyMarginBottom">
 									<Label text="Đủ hồ sơ pháp lý"/>
-									<CheckBox id="cbQuoteLegal"/>
+									<CheckBox
+										id="cbQuoteLegal"
+										text="Đã có đủ"
+										tooltip="Tick khi NCC đã gửi kèm đủ giấy tờ pháp lý: giấy phép kinh doanh, mã số thuế, và các chứng nhận/giấy uỷ quyền cần thiết cho mặt hàng này."
+									/>
 								</VBox>
 							</HBox>
 							<HBox wrap="Wrap" alignItems="End">

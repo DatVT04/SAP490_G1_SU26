@@ -1617,3 +1617,16 @@ DASHBOARD PO
 	background: var(--qd-border) !important;
 	opacity: 0.7;
 }
+
+/* ==========================================================================
+   RFQ02 — thẻ bối cảnh "Nội dung yêu cầu" (PR gốc) đứng trên bảng so sánh
+   ========================================================================== */
+.qdPrContextCard {
+	background: linear-gradient(180deg, rgba(124, 58, 237, 0.05) 0%, #FFFFFF 55%);
+	border-left: 3px solid var(--qd-accent-purple);
+}
+
+.qdPrContextIcon {
+	color: var(--qd-accent-purple) !important;
+	font-size: 1.25rem !important;
+}

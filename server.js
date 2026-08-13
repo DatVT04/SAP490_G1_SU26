@@ -2634,9 +2634,21 @@ app.get("/api/rfq/:id/compare", async (req, res) => {
 		const received = allQuotations.filter((q) => q.QuoteStatus === "RECEIVED" || q.QuoteStatus === "AWARDED");
 		const pending = allQuotations.filter((q) => q.QuoteStatus === "PENDING");
 
+		// Kem theo PR goc (header + tung dong item) de man RFQ-02 hien duoc "da yeu cau
+		// bao gia cai gi" — truoc day chi tra ve moi ma RFQ, nguoi nhap bao gia khong
+		// biet minh dang doi bao gia cho vat tu nao, so luong bao nhieu.
+		// Doc PR loi thi van tra bang so sanh (pr = null), khong chan ca man hinh.
+		let pr = null;
+		try {
+			pr = await fetchPrDraftByRfq(rfq);
+		} catch (error) {
+			console.error(`[GET /api/rfq/${id}/compare] Doc PR goc that bai:`, extractSapErrorMessage(error));
+		}
+
 		return res.json({
 			success: true,
 			rfq,
+			pr,
 			quotations: received,
 			pendingVendors: pending.map((q) => ({ VendorNo: q.VendorNo, VendorName: q.VendorName }))
 		});

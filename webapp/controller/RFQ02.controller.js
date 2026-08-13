@@ -22,12 +22,19 @@ sap.ui.define([
 			this.getView().setModel(new JSONModel({
 				Rfqs: [],
 				rfq: null,
+				pr: null,
 				quotations: [],
 				pendingVendors: [],
 				vendorChoices: [],
 				aiText: "",
 				busyAi: false
 			}));
+
+			// Khong de UI5 tre 1 giay moi ve spinner: trong 1 giay do man hinh trong
+			// nhu binh thuong nhung da bi khoa, nguoi dung bam gi cung khong an
+			// (dung bug da gap o RFQ-01 — "phai F5 moi bam duoc").
+			this.getView().setBusyIndicatorDelay(0);
+			this.getView().byId("rfqTable").setBusyIndicatorDelay(0);
 
 			this._loadRfqList();
 
@@ -46,12 +53,15 @@ sap.ui.define([
 		// ── 1. DANH SACH RFQ TU SAP (RfqSet) ──
 		_loadRfqList: function () {
 			var oView = this.getView();
-			oView.setBusy(true);
+			// Chi khoa rieng bang danh sach RFQ, khong khoa ca view — neu khoa ca view
+			// thi form nhap bao gia (checkbox/o nhap) ben phai cung bi khoa theo.
+			var oTable = oView.byId("rfqTable");
+			oTable.setBusy(true);
 
 			fetch(BACKEND + "/api/rfq")
 				.then(function (r) { return r.json(); })
 				.then(function (res) {
-					oView.setBusy(false);
+					oTable.setBusy(false);
 					if (res && res.success) {
 						oView.getModel().setProperty("/Rfqs", res.data || []);
 					} else {
@@ -59,7 +69,7 @@ sap.ui.define([
 					}
 				})
 				.catch(function () {
-					oView.setBusy(false);
+					oTable.setBusy(false);
 					MessageToast.show("Không thể kết nối máy chủ để lấy danh sách RFQ.");
 				});
 		},
@@ -83,17 +93,20 @@ sap.ui.define([
 			var sRfqId = this._currentRfqId;
 			if (!sRfqId) { return; }
 
-			oView.setBusy(true);
+			var oWorkArea = oView.byId("rfqWorkArea");
+			oWorkArea.setBusyIndicatorDelay(0);
+			oWorkArea.setBusy(true);
 
 			fetch(BACKEND + "/api/rfq/" + encodeURIComponent(sRfqId) + "/compare")
 				.then(function (r) { return r.json(); })
 				.then(function (res) {
-					oView.setBusy(false);
+					oWorkArea.setBusy(false);
 					if (!res || !res.success) {
 						MessageToast.show((res && res.message) || "Không tải được dữ liệu RFQ " + sRfqId + ".");
 						return;
 					}
 					oModel.setProperty("/rfq", res.rfq || null);
+					oModel.setProperty("/pr", res.pr || null);
 					oModel.setProperty("/quotations", res.quotations || []);
 					oModel.setProperty("/pendingVendors", res.pendingVendors || []);
 
@@ -105,10 +118,10 @@ sap.ui.define([
 					);
 					oModel.setProperty("/vendorChoices", aChoices);
 
-					oView.byId("rfqWorkArea").setVisible(true);
+					oWorkArea.setVisible(true);
 				})
 				.catch(function () {
-					oView.setBusy(false);
+					oWorkArea.setBusy(false);
 					MessageToast.show("Không thể kết nối máy chủ.");
 				});
 		},
@@ -289,6 +302,16 @@ sap.ui.define([
 		formatCurrency: function (fValue) {
 			if (fValue === undefined || fValue === null || fValue === "") { return "0"; }
 			return Number(fValue).toLocaleString("vi-VN");
+		},
+
+		// K = Cost Center, F = Internal Order, A = Asset — kem doi tuong hach toan tuong ung
+		formatAcctAssign: function (sCat, sCostCenter, sInternalOrder, sAssetNo) {
+			switch (String(sCat || "").toUpperCase()) {
+				case "K": return "K · Cost Center " + (sCostCenter || "—");
+				case "F": return "F · Internal Order " + (sInternalOrder || "—");
+				case "A": return "A · Tài sản " + (sAssetNo || "—");
+				default: return sCat || "—";
+			}
 		},
 
 		formatRfqStatus: function (s) {
