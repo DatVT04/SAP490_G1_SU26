@@ -2402,6 +2402,38 @@ app.post("/api/rfq/create", async (req, res) => {
 		const rfqId = await generateNextRfqId();
 		const session = await sapFetchCsrfToken();
 
+		const allVendors = await fetchAllVendorsFromSAP();
+		const vendorMap = {};
+		allVendors.forEach(function (v) { vendorMap[String(v.VendorNo)] = v; });
+
+		// Gui 1 deep-entity POST duy nhat (RFQ header + mang RfqToQuotations long ben
+		// trong) thay vi POST RfqSet roi loop POST QuotationSet rieng. Ly do: simple
+		// <EntitySet>_CREATE_ENTITY tren SAP bi Gateway framework tu choi khi goi qua
+		// Basic Auth (user ky thuat DEV-261) voi loi "Property 'RfqId' ... invalid
+		// value" — da xac nhan qua nhieu vong test (SEGW creatable flag, generate lai
+		// runtime objects, xoa cache /IWBEP/CACHE_CLEANUP deu khong het), trong khi goi
+		// qua session trinh duyet/SAP GUI thi luon thanh cong. CREATE_DEEP_ENTITY (nhu
+		// PrDraftSet/PurchaseRequisitionHeaderSet dang dung) khong bi loi nay. Xem
+		// memory: SAP490_G1 RFQ deep entity fix.
+		const rfqToQuotations = vendorIds.map(function (vendorId) {
+			const vendorInfo = vendorMap[String(vendorId)] || {};
+			return {
+				VendorNo: String(vendorId),
+				VendorName: vendorInfo.VendorName || "",
+				VendorEmail: vendorInfo.Email || vendorInfo.VendorEmail || "",
+				QuotedPrice: "0",
+				Currency: currency || "VND",
+				LeadTimeDays: 0,
+				PaymentTerms: "",
+				WarrantyMonths: 0,
+				LegalDocsOk: "",
+				QuoteStatus: "PENDING",
+				EnteredBy: "",
+				EnteredAt: "",
+				SourceNote: ""
+			};
+		});
+
 		await sapWrite("POST", "RfqSet", {
 			RfqId: rfqId,
 			PrId: String(prId),
@@ -2416,32 +2448,9 @@ app.post("/api/rfq/create", async (req, res) => {
 			AwardedBy: "",
 			AwardedAt: "",
 			FinalValue: "0",
-			Currency: currency || "VND"
+			Currency: currency || "VND",
+			RfqToQuotations: rfqToQuotations
 		}, session);
-
-		const allVendors = await fetchAllVendorsFromSAP();
-		const vendorMap = {};
-		allVendors.forEach(function (v) { vendorMap[String(v.VendorNo)] = v; });
-
-		for (const vendorId of vendorIds) {
-			const vendorInfo = vendorMap[String(vendorId)] || {};
-			await sapWrite("POST", "QuotationSet", {
-				RfqId: rfqId,
-				VendorNo: String(vendorId),
-				VendorName: vendorInfo.VendorName || "",
-				VendorEmail: vendorInfo.Email || vendorInfo.VendorEmail || "",
-				QuotedPrice: "0",
-				Currency: currency || "VND",
-				LeadTimeDays: 0,
-				PaymentTerms: "",
-				WarrantyMonths: 0,
-				LegalDocsOk: "",
-				QuoteStatus: "PENDING",
-				EnteredBy: "",
-				EnteredAt: "",
-				SourceNote: ""
-			}, session);
-		}
 
 		// RFQ da tao thanh cong tren SAP -> gan RfqId vao PR (Status van PENDING_RFQ,
 		// RfqId != rong la dau hieu "da co RFQ, dang o buoc gui/nhap bao gia").
