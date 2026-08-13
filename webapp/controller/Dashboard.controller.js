@@ -10,12 +10,15 @@ sap.ui.define([
 
 	var BACKEND = Config.BACKEND;
 
+	// Tile "report" (Bao cao tien do) da go khoi tat ca vai tro: tien trinh cua PR gio
+	// nam trong "Lich su de nghi" (man History + PRDetail timeline) nen tile nay trung
+	// lap va gay nhieu. View/route poReport van giu nguyen, chi khong hien tren dashboard.
 	var TILES_BY_ROLE = {
-		REQUESTER:  ["pr01", "report", "history"],
-		PURCHASING: ["materialCreate", "pr02", "rfq01", "rfq02", "po01", "report", "history"],
-		CFO:        ["pr02", "report", "history"],
-		CEO:        ["pr02", "report", "config", "history"],
-		ACC:        ["report", "history"]
+		REQUESTER:  ["pr01", "history"],
+		PURCHASING: ["materialCreate", "pr02", "rfq01", "rfq02", "po01", "history"],
+		CFO:        ["pr02", "history"],
+		CEO:        ["pr02", "config", "history"],
+		ACC:        ["history"]
 	};
 
 	var oValueFormat = NumberFormat.getIntegerInstance({

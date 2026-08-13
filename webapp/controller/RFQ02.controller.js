@@ -26,9 +26,12 @@ sap.ui.define([
 				quotations: [],
 				pendingVendors: [],
 				vendorChoices: [],
+				paymentTerms: [],
 				aiText: "",
 				busyAi: false
 			}));
+
+			this._loadPaymentTerms();
 
 			// Khong de UI5 tre 1 giay moi ve spinner: trong 1 giay do man hinh trong
 			// nhu binh thuong nhung da bi khoa, nguoi dung bam gi cung khong an
@@ -48,6 +51,30 @@ sap.ui.define([
 			this._currentRfqId = null;
 			this.getView().getModel().setProperty("/aiText", "");
 			this._loadRfqList();
+		},
+
+		// ── 0. DANH MUC DIEU KHOAN THANH TOAN ──
+		// Lay tu /api/config thay vi hardcode trong view: backend dung chinh danh muc nay
+		// de dich ma sang nhan tieng Viet khi gui cho AI, hardcode 2 noi la se lech.
+		_loadPaymentTerms: function () {
+			var oModel = this.getView().getModel();
+			var that = this;
+
+			fetch(BACKEND + "/api/config")
+				.then(function (r) { return r.json(); })
+				.then(function (res) {
+					var aTerms = (res && res.paymentTerms) || [];
+					oModel.setProperty("/paymentTerms", aTerms);
+					that._paymentTermLabels = {};
+					aTerms.forEach(function (t) {
+						that._paymentTermLabels[String(t.code).toUpperCase()] = t.label;
+					});
+				})
+				.catch(function () {
+					// Khong chan man hinh: thieu danh muc thi Select rong, van nhap duoc
+					// cac truong khac. Bao giá cu van hien nguyen van ma da luu.
+					MessageToast.show("Không tải được danh mục điều khoản thanh toán.");
+				});
 		},
 
 		// ── 1. DANH SACH RFQ TU SAP (RfqSet) ──
@@ -110,10 +137,23 @@ sap.ui.define([
 					oModel.setProperty("/quotations", res.quotations || []);
 					oModel.setProperty("/pendingVendors", res.pendingVendors || []);
 
-					// NCC duoc phep nhap bao gia: ca cho (PENDING) lan da nhap (sua lai)
-					var aChoices = (res.pendingVendors || []).concat(
+					// NCC duoc phep nhap bao gia: ca NCC chua nop (PENDING) lan NCC da nop
+					// (de sua lai bao gia nhap nham). Truoc day 2 nhom nay tron lan nhau
+					// khong phan biet gi, nhin vao tuong he thong cho nhap trung -> gan
+					// nhan ro rang va xep NCC chua nop len truoc.
+					var aChoices = (res.pendingVendors || []).map(function (v) {
+						return {
+							VendorNo: v.VendorNo,
+							VendorName: v.VendorName,
+							ChoiceLabel: v.VendorNo + " — " + (v.VendorName || "") + "  ·  chưa nộp báo giá"
+						};
+					}).concat(
 						(res.quotations || []).map(function (q) {
-							return { VendorNo: q.VendorNo, VendorName: q.VendorName };
+							return {
+								VendorNo: q.VendorNo,
+								VendorName: q.VendorName,
+								ChoiceLabel: q.VendorNo + " — " + (q.VendorName || "") + "  ·  đã nhập, chọn để sửa lại"
+							};
 						})
 					);
 					oModel.setProperty("/vendorChoices", aChoices);
@@ -159,7 +199,7 @@ sap.ui.define([
 					quotedPrice: Number(sPrice),
 					currency: "VND",
 					leadTimeDays: Number(oView.byId("inQuoteLeadTime").getValue()) || 0,
-					paymentTerms: oView.byId("inQuotePayment").getValue() || "",
+					paymentTerms: oView.byId("inQuotePayment").getSelectedKey() || "",
 					warrantyMonths: Number(oView.byId("inQuoteWarranty").getValue()) || 0,
 					legalDocsOk: oView.byId("cbQuoteLegal").getSelected(),
 					sourceNote: sSource.trim(),
@@ -188,9 +228,13 @@ sap.ui.define([
 
 		_clearQuotationForm: function () {
 			var oView = this.getView();
+			// Bo chon NCC sau khi luu: Select mac dinh forceSelection=true nen neu khong
+			// clear, o chon van dinh NCC vua nhap va lan nhap tiep theo rat de ghi de
+			// nham vao dung NCC do.
+			oView.byId("selQuoteVendor").setSelectedKey("");
 			oView.byId("inQuotePrice").setValue("");
 			oView.byId("inQuoteLeadTime").setValue("");
-			oView.byId("inQuotePayment").setValue("");
+			oView.byId("inQuotePayment").setSelectedKey("");
 			oView.byId("inQuoteWarranty").setValue("");
 			oView.byId("cbQuoteLegal").setSelected(false);
 			oView.byId("inQuoteSource").setValue("");
@@ -299,6 +343,16 @@ sap.ui.define([
 		},
 
 		// ── FORMATTERS ──
+
+		// Ma dieu khoan thanh toan -> nhan tieng Viet. Bao gia cu nhap tay ("net5",
+		// "net10") khong khop danh muc thi hien nguyen van, khong nuot mat du lieu.
+		formatPaymentTerms: function (sCode) {
+			var sRaw = String(sCode || "").trim();
+			if (!sRaw) { return "—"; }
+			var mLabels = this._paymentTermLabels || {};
+			return mLabels[sRaw.toUpperCase()] || sRaw;
+		},
+
 		formatCurrency: function (fValue) {
 			if (fValue === undefined || fValue === null || fValue === "") { return "0"; }
 			return Number(fValue).toLocaleString("vi-VN");

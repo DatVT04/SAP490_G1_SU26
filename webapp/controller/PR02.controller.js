@@ -114,6 +114,15 @@ sap.ui.define([
 			return Number(fValue).toLocaleString("vi-VN") + " " + (sCurrency || "VND");
 		},
 
+		// Chu thich gia uoc tinh ban dau, chi hien voi PR da qua RFQ. Sau khi chot NCC
+		// thi TotalValue = gia bao that, con EstimatedTotalValue giu gia luc lap PR —
+		// CFO can thay ca hai de biet chenh lech bao nhieu so voi du toan.
+		formatEstimateNote: function (fEstimated, sCurrency) {
+			if (fEstimated === undefined || fEstimated === null || fEstimated === "") { return ""; }
+			return "(ước tính ban đầu: "
+				+ Number(fEstimated).toLocaleString("vi-VN") + " " + (sCurrency || "VND") + ")";
+		},
+
 		onDetailPress: function (oEvent) {
 			var oPR = oEvent.getSource().getBindingContext().getObject();
 			if (!oPR || !oPR.PRId) {

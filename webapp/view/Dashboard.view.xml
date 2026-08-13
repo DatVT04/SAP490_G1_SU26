@@ -262,10 +262,14 @@
 						/>
 					</VBox>
 
-					<!-- REPORT -->
+					<!-- REPORT — DA AN VOI MOI VAI TRO.
+					     Tien trinh cua PR gio nam trong "Lich su de nghi" (man History +
+					     timeline o PRDetail) nen tile nay trung lap. Giu nguyen ca khoi,
+					     view/route poReport va onNavToPOReport de bat lai bang cach doi
+					     visible ve bieu thuc cu neu hoi dong yeu cau. -->
 					<VBox
 						class="qdActionCard qdAccentGreen"
-						visible="{= ['REQUESTER','PURCHASING','CEO','CFO','ACC'].indexOf(${user>/role}) !== -1 }"
+						visible="false"
 					>
 						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
 							<VBox class="qdActionIconBox">
