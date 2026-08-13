@@ -721,9 +721,25 @@ app.put("/api/thresholds", (req, res) => {
 	return res.json({ success: true, byIO: thresholdStore.byIO });
 });
 
+/**
+ * Tai khoan so cai mac dinh cho account assignment K (Cost Center) va F (Internal Order).
+ *
+ * Gia tri cu ("211100" cho ZAST, "641000" cho con lai) la so bia theo chart of accounts
+ * kieu IDES, KHONG ton tai trong chart of accounts that cua nhom la QCOA -> BAPI_PR_CREATE
+ * bao "Account 641000 does not exist in chart of accounts QCOA" va PR khong ghi duoc len SAP.
+ *
+ * QCOA (kiem tra SE16N bang SKA1, KTOPL='QCOA') chi co dung 7 tai khoan:
+ *   610001, 610002, 610003, 611111, 650001, 650003  -> deu la tai khoan bang can doi (XBILK='X')
+ *   650002                                          -> tai khoan P&L DUY NHAT
+ * Cat.K/F bat buoc hach toan vao tai khoan chi phi P&L nen 650002 la lua chon duy nhat.
+ *
+ * Cat.A (tai san) KHONG di qua day: xem mapClientItemToSapDeep/createPRInSAP, ca hai deu
+ * gui GLAccount rong cho Cat.A de SAP tu suy tu Asset Master. Do la ly do 2 PR tai san dau
+ * tien ghi len SAP thanh cong trong khi PR Cat.K that bai.
+ */
 function defaultGLAccount(materialType) {
-	var GL_MAP = { ZAST: "211100", ZSRV: "641000", ZROH: "641000" };
-	return GL_MAP[materialType] || "641000";
+	var GL_MAP = { ZAST: "", ZSRV: "650002", ZROH: "650002" };
+	return GL_MAP[materialType] != null ? GL_MAP[materialType] : "650002";
 }
 
 async function createPRInSAP(record) {
