@@ -999,13 +999,24 @@ async function fetchPrDraftList(filterExpr) {
 
 /**
  * Tim 1 PrDraft theo id — id co the la InternalId (chua duyet) HOAC PRId/SapPRId
- * (sau khi CFO/CEO duyet, PRId doi thanh so PR that tren SAP). $filter OR ca 3.
+ * (sau khi CFO/CEO duyet, PRId doi thanh so PR that tren SAP).
+ *
+ * KHONG gui $filter dang "A eq x or B eq x or C eq x" len SAP nua. SAP Gateway chi
+ * chuyen duoc $filter thanh select-options theo tung property roi AND chung lai, nen
+ * bieu thuc OR tren nhieu property khong bao gio cho ket qua dung — te hon nua, khi
+ * PRDRAFTSET_GET_ENTITYSET chua ap select-options thi filter bi bo qua HOAN TOAN va
+ * ham nay tra ve dong dau tien cua ca bang (mot PR hoan toan khong lien quan). Bang
+ * ZPR_DRAFT nho nen doc het roi doi chieu o Node vua dung vua khong the sai.
  */
 async function fetchPrDraftById(id) {
-	const esc = odataEscape(id);
-	const filterExpr = `InternalId eq '${esc}' or PRId eq '${esc}' or SapPRId eq '${esc}'`;
-	const list = await fetchPrDraftList(filterExpr);
-	return list.length > 0 ? list[0] : null;
+	const target = String(id || "").trim();
+	if (!target) { return null; }
+	const list = await fetchPrDraftList();
+	return list.find((pr) =>
+		String(pr.InternalId || "").trim() === target
+		|| String(pr.PRId || "").trim() === target
+		|| String(pr.SapPRId || "").trim() === target
+	) || null;
 }
 
 /**
@@ -1014,11 +1025,34 @@ async function fetchPrDraftById(id) {
  */
 async function fetchPrDraftByRfq(rfq) {
 	if (!rfq) { return null; }
-	const sapNo = odataEscape(rfq.SapPrNumber || "");
-	const prId = odataEscape(rfq.PrId || "");
-	const filterExpr = `PRId eq '${sapNo}' or InternalId eq '${prId}' or SapPRId eq '${sapNo}'`;
-	const list = await fetchPrDraftList(filterExpr);
-	return list.length > 0 ? list[0] : null;
+
+	// Doi chieu o Node, KHONG gui $filter OR len SAP — xem giai thich o fetchPrDraftById().
+	// Ngoai ra phai bo qua cac ve RONG: RFQ tao truoc khi PR co so SAP that thi
+	// SapPrNumber rong, ghep vao filter se thanh "PRId eq ''" khop bua voi moi PR
+	// chua co so SAP, va cac route send/quotation/award se ghi de Status len PR vo can.
+	const sapNo = String(rfq.SapPrNumber || "").trim();
+	const prId = String(rfq.PrId || "").trim();
+	if (!sapNo && !prId) {
+		console.warn(`[fetchPrDraftByRfq] RFQ ${rfq.RfqId} khong co PrId lan SapPrNumber — bo qua, khong doan bua.`);
+		return null;
+	}
+
+	const list = await fetchPrDraftList();
+	const matched = list.filter(function (pr) {
+		const internalId = String(pr.InternalId || "").trim();
+		const prIdField = String(pr.PRId || "").trim();
+		const sapPrId = String(pr.SapPRId || "").trim();
+		if (sapNo && (prIdField === sapNo || sapPrId === sapNo)) { return true; }
+		if (prId && (internalId === prId || prIdField === prId)) { return true; }
+		return false;
+	});
+
+	if (matched.length === 0) { return null; }
+	if (matched.length > 1) {
+		console.warn(`[fetchPrDraftByRfq] RFQ ${rfq.RfqId} khop ${matched.length} PR — lay ban dau tien: `
+			+ matched.map((p) => p.InternalId).join(", "));
+	}
+	return matched[0];
 }
 
 /** Tao 1 PrDraft moi (deep-entity POST voi PrDraftToItems long ben trong). Tra ve record da map. */
@@ -1458,7 +1492,11 @@ app.get("/api/approval/pending", async (req, res) => {
 		statusFilter = String(req.query.status).toUpperCase();
 	}
 	try {
-		const pending = await fetchPrDraftList(`Status eq '${odataEscape(statusFilter)}'`);
+		// Loc lai o Node sau khi SAP tra ve: neu PRDRAFTSET_GET_ENTITYSET chua ap
+		// select-options thi $filter bi bo qua va SAP tra ve CA BANG — man hinh se
+		// hien ca nhung PR khong thuoc trang thai dang cho. Loc 2 lan cho chac.
+		const pending = (await fetchPrDraftList(`Status eq '${odataEscape(statusFilter)}'`))
+			.filter((pr) => String(pr.Status || "").toUpperCase() === statusFilter);
 		return res.json({ success: true, data: pending });
 	} catch (error) {
 		const message = extractSapErrorMessage(error);
@@ -1475,7 +1513,9 @@ app.get("/api/approval/approved", async (req, res) => {
 		// Khong con check !item.PoNumber — ZPR_DRAFT khong co field PoNumber (xem
 		// ghi chu tren /api/po/create). Status da tu chuyen sang PO_CREATED ngay
 		// sau khi tao PO nen filter Status='APPROVED' la du de loai PR da co PO.
-		const data = await fetchPrDraftList(`Status eq 'APPROVED'`);
+		// Loc lai o Node — xem ghi chu cung loai o /api/approval/pending.
+		const data = (await fetchPrDraftList(`Status eq 'APPROVED'`))
+			.filter((pr) => String(pr.Status || "").toUpperCase() === "APPROVED");
 		return res.json({ success: true, data });
 	} catch (error) {
 		const message = extractSapErrorMessage(error);
