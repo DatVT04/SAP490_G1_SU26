@@ -25,7 +25,7 @@
 				<l:contentAreas>
 
 					<!-- BẢNG PR ĐÃ DUYỆT (SAP ODATA DATA SOURCE) -->
-					<VBox width="100%">
+					<VBox width="100%" class="qdStickyLeftPane">
 						<layoutData>
 							<l:SplitterLayoutData size="35%" minSize="320"/>
 						</layoutData>
@@ -72,7 +72,7 @@
 					</VBox>
 
 					<!-- KHU VỰC THIẾT LẬP VÀ XÁC NHẬN TẠO PO -->
-					<VBox id="poCreationArea" width="100%" visible="false" class="qdStickyLeftPane">
+					<VBox id="poCreationArea" width="100%" visible="false">
 						<layoutData>
 							<l:SplitterLayoutData size="65%" minSize="450"/>
 						</layoutData>
