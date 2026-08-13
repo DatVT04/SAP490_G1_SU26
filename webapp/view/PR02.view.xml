@@ -102,14 +102,46 @@
 								</HBox>
 							</HBox>
 
-							<HBox class="qdApprovalValueRow sapUiTinyMarginTopBottom" alignItems="Baseline">
+							<HBox class="qdApprovalValueRow sapUiTinyMarginTopBottom" alignItems="Baseline" wrap="Wrap">
 								<Text text="Tổng giá trị: " class="qdInfoLabel"/>
 								<Title
 									text="{parts: ['TotalValue','Currency'], formatter: '.formatValue'}"
 									level="H3"
 									class="qdRowAmount sapUiTinyMarginBegin"
 								/>
+								<Text
+									text="{parts: ['EstimatedTotalValue','Currency'], formatter: '.formatEstimateNote'}"
+									visible="{= !!${RfqAwardedVendor} }"
+									class="qdCellHint sapUiSmallMarginBegin"
+								/>
 							</HBox>
+
+							<!-- KET QUA RFQ: NCC da chot + ly do. ZPR_DRAFT khong luu ten NCC va
+							     ly do chon nen backend (enrichWithRfqAward) doc them tu RfqSet
+							     va VendorSet roi ghep vao. Truoc day CFO chi thay con so tong
+							     tien, khong biet Purchasing chot ai va vi sao. -->
+							<VBox class="qdAwardBox sapUiTinyMarginTopBottom" visible="{= !!${RfqAwardedVendor} }">
+								<HBox alignItems="Center" class="sapUiTinyMarginBottom">
+									<core:Icon src="sap-icon://supplier" class="qdAwardIcon sapUiTinyMarginEnd"/>
+									<Text text="Nhà cung cấp đã chốt qua {RfqId}" class="qdInfoLabel"/>
+								</HBox>
+								<Text
+									text="{= (${RfqAwardedVendorName} || 'Nhà cung cấp') + ' (' + ${RfqAwardedVendor} + ')' }"
+									class="qdAwardVendor"
+								/>
+								<Text
+									text="{parts: ['RfqFinalValue','Currency'], formatter: '.formatValue'}"
+									class="qdAwardValue"
+								/>
+								<Text
+									text="Lý do chọn: {= ${RfqAwardReason} || '(Purchasing chưa ghi lý do)' }"
+									class="qdCellHint sapUiTinyMarginTop"
+								/>
+								<Text
+									text="Người chốt: {= ${RfqAwardedBy} || '—' }"
+									class="qdCellHint"
+								/>
+							</VBox>
 
 							<VBox class="qdNestedItems">
 								<Text text="Danh sách vật tư:" class="qdInfoLabel sapUiTinyMarginBottom"/>

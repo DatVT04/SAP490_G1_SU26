@@ -78,7 +78,7 @@ html, body {
 .qdLoginLeftInner {
 	position: relative;
 	z-index: 1;
-	max-width: 28rem;
+	max-width: 29rem;
 }
 
 .qdLoginBrandMark {
@@ -101,52 +101,48 @@ html, body {
 	filter: drop-shadow(0 0 12px rgba(125, 211, 252, 0.5));
 }
 
-.qdLoginTitle {
-	color: #fff !important;
-	font-size: 2rem !important;
+.qdLoginHeading.sapMTitle {
+	color: #FFFFFF !important;
+	font-size: 2.1rem !important;
 	font-weight: 700 !important;
-	line-height: 1.25 !important;
-	text-shadow: 0 2px 20px rgba(0, 0, 0, 0.25);
+	line-height: 1.2 !important;
 }
 
-.qdLoginTagline {
-	color: rgba(255, 255, 255, 0.85) !important;
-	font-size: 1.05rem !important;
+.qdLoginHeadingSub {
+	color: rgba(255, 255, 255, 0.82) !important;
+	font-size: 0.98rem !important;
 	line-height: 1.5 !important;
+	max-width: 27rem;
 }
 
-.qdFeatureList {
-	gap: 0.75rem;
+.qdLoginFeatureList {
+	gap: 0.85rem;
 }
 
-.qdFeatureItem {
-	padding: 0.65rem 0.9rem;
+.qdLoginFeatureItem {
+	padding: 0.85rem 1rem;
 	border-radius: 12px;
-	background: rgba(255, 255, 255, 0.08);
-	border: 1px solid rgba(255, 255, 255, 0.12);
-	backdrop-filter: blur(8px);
-	-webkit-backdrop-filter: blur(8px);
+	background: rgba(255, 255, 255, 0.07);
+	border: 1px solid rgba(255, 255, 255, 0.14);
 }
 
-.qdFeatureIconWrap {
-	width: 2.25rem;
-	height: 2.25rem;
-	border-radius: 10px;
-	background: rgba(125, 211, 252, 0.2);
+.qdLoginFeatureIcon {
+	display: flex;
 	align-items: center;
 	justify-content: center;
-	display: flex;
-	margin-right: 0.75rem;
+	width: 2.25rem;
+	height: 2.25rem;
+	border-radius: 8px;
+	background: rgba(255, 255, 255, 0.15);
+	color: #FFFFFF !important;
+	font-size: 1.05rem !important;
 	flex-shrink: 0;
 }
 
-.qdFeatureIcon {
-	color: #7dd3fc !important;
-}
-
-.qdFeatureText {
-	color: rgba(255, 255, 255, 0.95) !important;
-	font-size: 0.95rem !important;
+.qdLoginFeatureText {
+	color: #FFFFFF !important;
+	font-size: 0.92rem !important;
+	font-weight: 500 !important;
 }
 
 .qdLoginFooterHint {
@@ -201,22 +197,17 @@ html, body {
 	line-height: 1.45 !important;
 }
 
-.qdLoginLabel {
-	font-weight: 600 !important;
-	color: #334155 !important;
-	margin-bottom: 0.35rem !important;
+/* Nut "Dang nhap voi Google" (Google Identity Services tu ve vao trong) —
+   day gio la duong dang nhap duy nhat, khong con form email fallback. */
+.qdGoogleBtnHost {
+	width: 100%;
+	display: flex;
+	justify-content: center;
+	overflow: hidden;
 }
 
-.qdLoginInput .sapMInputBaseContentWrapper {
-	border-radius: 10px !important;
-	min-height: 2.75rem;
-}
-
-.qdLoginSubmit {
-	margin-top: 0.5rem;
-	height: 2.85rem !important;
-	border-radius: 10px !important;
-	font-weight: 600 !important;
+.qdLoginConfigWarning {
+	border-radius: 8px;
 }
 
 .qdLoginHint {
@@ -241,7 +232,11 @@ html, body {
 	.qdLoginCard {
 		max-width: 100%;
 	}
+	.qdLoginFeatureList {
+		display: none;
+	}
 }
+
 /* ==========================================================================
    Global button accent
    ========================================================================== */
@@ -543,6 +538,57 @@ html, body {
 	flex-wrap: wrap;
 	gap: 0.35rem;
 }
+/* ===== PR Detail Timeline ===== */
+.qdTimelineRow {
+	gap: 0.25rem;
+	padding: 1rem 0.25rem 0.5rem;
+	width: 100%;
+}
+.qdTimelineItem {
+	flex: 1 1 0;
+	min-width: 6.5rem;
+	max-width: 11rem;
+	padding: 0 0.25rem;
+}
+.qdTimelineIconDone {
+	color: #107e3e !important;
+	background: #e8f7ef;
+	border-radius: 50%;
+	padding: 0.55rem;
+}
+.qdTimelineIconActive {
+	color: #ffffff !important;
+	background: #107e3e;
+	border-radius: 50%;
+	padding: 0.55rem;
+	box-shadow: 0 0 0 3px rgba(16, 126, 62, 0.28);
+}
+.qdTimelineIconWait {
+	color: #a8a8a8 !important;
+	background: #f2f2f2;
+	border-radius: 50%;
+	padding: 0.55rem;
+}
+.qdTimelineTitle {
+	font-size: 0.8rem;
+	font-weight: 600;
+	margin-top: 0.5rem;
+	color: #32363a;
+	line-height: 1.25;
+}
+.qdTimelineTime {
+	font-size: 0.7rem;
+	color: #6a6d70;
+	margin-top: 0.2rem;
+	line-height: 1.2;
+}
+.qdTimelineSub {
+	font-size: 0.7rem;
+	color: #0a6ed1;
+	margin-top: 0.15rem;
+	line-height: 1.2;
+	word-break: break-word;
+}
 
 /* ==========================================================================
    PO-01 — splitter, AI panel
@@ -722,6 +768,56 @@ html, body {
 .qdHeroBtn .sapMBtnContent,
 .qdHeroBtn .sapUiIcon {
 	color: #FFFFFF !important;
+}
+
+/* Avatar tai khoan trong hero (thay cho nut Dang xuat cu) */
+.qdHeroAvatarBtn {
+	cursor: pointer;
+	border: 2px solid rgba(255, 255, 255, 0.4);
+	transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.qdHeroAvatarBtn:hover {
+	border-color: rgba(255, 255, 255, 0.85);
+	transform: translateY(-1px);
+}
+
+/* Popover tai khoan mo tu avatar */
+.qdUserMenuHeader {
+	padding: 1.25rem 1rem 1rem;
+	border-bottom: 1px solid var(--qd-border);
+}
+
+.qdUserMenuAvatar {
+	border: 2px solid var(--qd-border);
+}
+
+.qdUserMenuName.sapMTitle {
+	color: #0f172a !important;
+	font-size: 1rem !important;
+	font-weight: 700 !important;
+	text-align: center;
+}
+
+.qdUserMenuEmail {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.78rem !important;
+	text-align: center;
+}
+
+.qdRoleBadgeDark {
+	background: rgba(20, 41, 77, 0.08) !important;
+	border-color: rgba(20, 41, 77, 0.18) !important;
+	color: var(--qd-primary) !important;
+}
+
+.qdUserMenuPosition {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.78rem !important;
+}
+
+.qdUserMenuList .sapMLIB {
+	padding: 0.6rem 1rem !important;
 }
 
 /* ==========================================================================
@@ -988,6 +1084,34 @@ html, body {
 /* ==========================================================================
    PR01 / PR02 / PO01 — shared card & badge patterns
    ========================================================================== */
+  /* PR-01: vùng cuộn bảng + header cột cố định */
+.qdItemsScroll {
+	border: 1px solid #e5e5e5;
+	border-radius: 0.5rem;
+	background: #fff;
+}
+
+.qdItemsScroll .sapMScrollContScroll {
+	min-width: 100%;
+}
+
+/* Header cột luôn nổi trên dòng dữ liệu khi scroll trong ScrollContainer */
+.qdItemsTable .sapMListTblHeader,
+.qdItemsTable .sapMListTblHeaderCell {
+	position: sticky !important;
+	top: 0 !important;
+	z-index: 5 !important;
+	background: #f5f6f7 !important;
+}
+
+.qdItemsTable .sapMListTblHeader {
+	box-shadow: 0 1px 0 #d9d9d9;
+}
+
+.qdItemsTable .sapMListTblHeaderCell {
+	font-weight: 600;
+	color: #6a6d70;
+}
 .qdFormCard {
 	background: var(--qd-card-bg);
 	border-radius: var(--qd-radius-lg);
@@ -1243,7 +1367,7 @@ DASHBOARD PO
 /* Table Styling */
 .sapMListTbl {
     border-radius: 8px;
-}
+}}
 /* ==========================================================================
    PO01 — polish bổ sung (chỉ tinh chỉnh giao diện, không đổi logic/id)
    ========================================================================== */
@@ -1459,3 +1583,76 @@ DASHBOARD PO
     }
 }
 
+
+/* ==========================================================================
+   RFQ01 — polish giao diện (chỉ CSS, không đổi logic/id)
+   ========================================================================== */
+
+/* Dòng PR đang chọn ở bảng trái + dòng NCC đã tick: nổi bật rõ, đồng bộ tông tím Hero */
+#pendingPRTable .sapMLIBSelected,
+#vendorTable .sapMLIBSelected {
+	background: rgba(124, 58, 237, 0.06) !important;
+	border-left: 3px solid var(--qd-accent-purple) !important;
+}
+
+/* Card 3 (Hạn nộp & Gửi): nền nhạt để tách khỏi 2 card thao tác phía trên */
+.qdRfqSendCard {
+	background: linear-gradient(180deg, rgba(124, 58, 237, 0.04) 0%, #FFFFFF 60%);
+}
+
+/* Hàng DatePicker + nút gửi: canh đều, không dính sát nhau khi xuống dòng */
+.qdRfqSendRow {
+	gap: 0.75rem;
+	row-gap: 0.75rem;
+}
+
+/* Badge đếm số NCC đã chọn — to hơn mặc định cho dễ liếc thấy */
+.qdRfqVendorCount .sapMObjStatusText {
+	font-weight: 600;
+}
+
+/* Nút gửi khi bị khoá (chưa chọn NCC): làm mờ hẳn để thấy rõ là chưa bấm được,
+   tránh lặp lại cảm giác "bấm không ăn" như bug busy toàn view trước đây */
+.qdPrimarySubmitBtn.sapMBtnDisabled .sapMBtnInner {
+	background: var(--qd-border) !important;
+	opacity: 0.7;
+}
+
+/* ==========================================================================
+   RFQ02 — thẻ bối cảnh "Nội dung yêu cầu" (PR gốc) đứng trên bảng so sánh
+   ========================================================================== */
+.qdPrContextCard {
+	background: linear-gradient(180deg, rgba(124, 58, 237, 0.05) 0%, #FFFFFF 55%);
+	border-left: 3px solid var(--qd-accent-purple);
+}
+
+.qdPrContextIcon {
+	color: var(--qd-accent-purple) !important;
+	font-size: 1.25rem !important;
+}
+
+/* ==========================================================================
+   PR02 — khối "Nhà cung cấp đã chốt qua RFQ" trong thẻ phê duyệt
+   ========================================================================== */
+.qdAwardBox {
+	background: rgba(16, 185, 129, 0.06);
+	border-left: 3px solid #10B981;
+	border-radius: 6px;
+	padding: 0.75rem 1rem;
+}
+
+.qdAwardIcon {
+	color: #10B981 !important;
+	font-size: 1rem !important;
+}
+
+.qdAwardVendor {
+	font-weight: 600;
+	font-size: 0.95rem;
+}
+
+.qdAwardValue {
+	font-weight: 700;
+	color: #047857;
+	font-size: 1.05rem;
+}

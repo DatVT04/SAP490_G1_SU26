@@ -63,141 +63,147 @@
 						<Text text="2" class="qdStepBadge"/>
 						<Title text="Danh sách vật tư ({= ${/items}.length })" level="H3" class="qdCardTitle"/>
 					</HBox>
-					<HBox>
-						<Button
-							text="Vật tư trong danh mục"
-							icon="sap-icon://add"
-							press=".onAddItem"
-							enabled="{= !${/materialsLoading} }"
-							class="sapUiTinyMarginEnd"
-						/>
-						<Button
-							text="Vật tư tự do"
-							icon="sap-icon://add-document"
-							press=".onAddFreeTextItem"
-						/>
-					</HBox>
+					<Button
+						text="Thêm dòng"
+						icon="sap-icon://add"
+						press=".onAddItem"
+						enabled="{= !${/materialsLoading} }"
+					/>
 				</HBox>
 
-				<VBox
-					class="qdEmptyState"
-					alignItems="Center"
-					visible="{= ${/items}.length === 0 }"
+				<!-- ScrollContainer: header cột dính trong vùng cuộn này -->
+				<ScrollContainer
+					height="22rem"
+					width="100%"
+					vertical="true"
+					horizontal="true"
+					focusable="false"
+					class="qdItemsScroll"
 				>
-					<core:Icon src="sap-icon://add-product" class="qdEmptyIcon"/>
-					<Title text="Chưa có vật tư nào" level="H3" class="qdEmptyTitle"/>
-					<Text
-						text="Bấm &quot;Vật tư trong danh mục&quot; để chọn từ danh sách SAP, hoặc &quot;Vật tư tự do&quot; nếu vật tư chưa có mã."
-						class="qdEmptyText"
-						textAlign="Center"
-					/>
-				</VBox>
-
-				<List
-					id="itemsList"
-					items="{/items}"
-					mode="None"
-					visible="{= ${/items}.length > 0 }"
-					class="qdItemsList"
-					showSeparators="Inner"
-				>
-					<CustomListItem>
-						<VBox class="qdItemCard">
-							<HBox justifyContent="SpaceBetween" alignItems="Center" class="sapUiTinyMarginBottom">
-								<ObjectStatus
-									text="{= ${materialType} === 'ZAST' ? 'Tài sản (Acc.Assign A)' : ${materialType} ? 'Vật tư/DV (Acc.Assign K)' : 'Chưa chọn vật tư' }"
-									state="{= ${materialType} === 'ZAST' ? 'Warning' : ${materialType} ? 'Success' : 'None' }"
-								/>
-								<Button icon="sap-icon://delete" type="Transparent" press=".onDeleteItem" tooltip="Xóa dòng này"/>
-							</HBox>
-
-							<HBox wrap="Wrap" class="qdItemFieldsRow">
-								<VBox class="qdItemField sapUiTinyMarginEnd sapUiTinyMarginBottom" width="16rem">
-									<Label text="Vật tư" class="qdInfoLabel"/>
+					<Table
+						id="itemsTable"
+						items="{/items}"
+						mode="None"
+						growing="false"
+						fixedLayout="true"
+						sticky="ColumnHeaders"
+						class="qdItemsTable"
+						noDataText="Chưa có dòng vật tư"
+					>
+						<columns>
+							<Column width="13rem"><Text text="Vật tư"/></Column>
+							<Column width="11rem"><Text text="Mô tả *"/></Column>
+							<Column width="4.5rem"><Text text="ĐVT"/></Column>
+							<Column width="5.5rem" hAlign="End"><Text text="Số lượng"/></Column>
+							<Column width="7.5rem" hAlign="End"><Text text="Giá trị ước tính"/></Column>
+							<Column width="9rem"><Text text="Đối tượng chi phí *"/></Column>
+							<Column width="9rem"><Text text="Cost Center"/></Column>
+							<Column width="9rem"><Text text="Internal Order"/></Column>
+							<Column width="7rem"><Text text="Asset"/></Column>
+							<Column width="3rem" hAlign="Center"><Text text=""/></Column>
+						</columns>
+						<items>
+							<ColumnListItem>
+								<cells>
 									<ComboBox
-										visible="{= !${isFreeText} }"
 										selectedKey="{materialNo}"
 										items="{path: '/materials', templateShareable: false}"
 										selectionChange=".onMaterialChange"
-										placeholder="— Chọn vật tư —"
+										placeholder="— Chọn —"
 										width="100%"
 									>
 										<core:Item key="{MaterialNo}" text="{MaterialNo} - {Description}"/>
 									</ComboBox>
-									<Input value="{materialType}" visible="{isFreeText}" placeholder="Loại VT (VD: ZROH)" width="100%"/>
-								</VBox>
 
-								<VBox class="qdItemField sapUiTinyMarginEnd sapUiTinyMarginBottom" width="14rem">
-									<Label text="Mô tả *" class="qdInfoLabel"/>
 									<Input value="{description}" width="100%"/>
-								</VBox>
 
-								<VBox class="qdItemField sapUiTinyMarginEnd sapUiTinyMarginBottom" width="5rem">
-									<Label text="ĐVT" class="qdInfoLabel"/>
-									<Input value="{uom}" editable="{isFreeText}" width="100%"/>
-								</VBox>
+									<Input value="{uom}" width="100%"/>
 
-								<VBox class="qdItemField sapUiTinyMarginEnd sapUiTinyMarginBottom" width="6.5rem">
-									<Label text="Số lượng" class="qdInfoLabel"/>
-									<Input value="{quantity}" type="Number" textAlign="End" change=".onItemValueChange" width="100%"/>
-								</VBox>
-
-								<VBox class="qdItemField sapUiTinyMarginEnd sapUiTinyMarginBottom" width="9rem">
-									<Label text="Giá trị ước tính" class="qdInfoLabel"/>
-									<Input value="{estimatedValue}" type="Number" textAlign="End" change=".onItemValueChange" width="100%"/>
-								</VBox>
-
-								<VBox class="qdItemField sapUiTinyMarginBottom" width="12rem">
-									<Label text="Hạch toán chi phí" class="qdInfoLabel"/>
-									<ComboBox
-										selectedKey="{glAccount}"
-										items="{path: '/glAccounts', templateShareable: false}"
-										placeholder="GL Account *"
-										class="sapUiTinyMarginBottom"
+									<Input
+										value="{quantity}"
+										type="Number"
+										textAlign="End"
+										change=".onItemValueChange"
 										width="100%"
-									>
-										<core:Item
-											key="{GLAccount}"
-											text="{= ${Description} &amp;&amp; ${Description} !== ${GLAccount} ? ${GLAccount} + ' - ' + ${Description} : ${GLAccount} }"
+									/>
+
+									<Input
+										value="{estimatedValue}"
+										type="Number"
+										textAlign="End"
+										change=".onItemValueChange"
+										width="100%"
+									/>
+
+									<VBox>
+										<!-- ZAST → account assignment luôn là Asset (Cat A), khóa lựa chọn -->
+										<Select
+											selectedKey="{acctAssignCat}"
+											change=".onAcctAssignCatChange"
+											width="100%"
+											visible="{= ${materialType} !== 'ZAST' }"
+										>
+											<core:Item key="K" text="Cost Center"/>
+											<core:Item key="F" text="Internal Order"/>
+										</Select>
+										<Text
+											text="Tài sản (Asset)"
+											class="qdInfoValue"
+											visible="{= ${materialType} === 'ZAST' }"
 										/>
-									</ComboBox>
+									</VBox>
+
 									<ComboBox
 										selectedKey="{costCenter}"
 										items="{path: '/costCenters', templateShareable: false}"
-										placeholder="Cost Center"
+										placeholder="CC *"
 										selectionChange=".onCostCenterSelect"
-										class="sapUiTinyMarginBottom"
 										width="100%"
+										visible="{= ${materialType} !== 'ZAST' &amp;&amp; ${acctAssignCat} !== 'F' }"
 									>
 										<core:Item
 											key="{CostCenter}"
 											text="{= ${Description} &amp;&amp; ${Description} !== ${CostCenter} ? ${CostCenter} + ' - ' + ${Description} : ${CostCenter} }"
 										/>
 									</ComboBox>
+
 									<ComboBox
 										selectedKey="{internalOrder}"
 										items="{path: '/internalOrders', templateShareable: false}"
-										placeholder="Internal Order (nếu có)"
+										placeholder="IO *"
 										selectionChange=".onInternalOrderSelect"
-										class="sapUiTinyMarginBottom"
 										width="100%"
+										visible="{= ${materialType} !== 'ZAST' &amp;&amp; ${acctAssignCat} === 'F' }"
 									>
 										<core:Item
 											key="{InternalOrder}"
 											text="{= ${Description} &amp;&amp; ${Description} !== ${InternalOrder} ? ${InternalOrder} + ' - ' + ${Description} : ${InternalOrder} }"
 										/>
 									</ComboBox>
+
 									<Input
 										value="{assetNo}"
-										visible="{= ${materialType} === 'ZAST' }"
-										placeholder="VD: 100001 (mã tài sản đã tạo qua t-code AS01)"
+										enabled="{= ${materialType} === 'ZAST' }"
+										placeholder="{= ${materialType} === 'ZAST' ? 'Mã tài sản *' : '—' }"
 										width="100%"
 									/>
-								</VBox>
-							</HBox>
-						</VBox>
-					</CustomListItem>
-				</List>
+
+									<Button
+										icon="sap-icon://decline"
+										type="Transparent"
+										press=".onDeleteItem"
+										tooltip="Xóa dòng"
+									/>
+								</cells>
+							</ColumnListItem>
+						</items>
+					</Table>
+				</ScrollContainer>
+
+				<Text
+					text="Mỗi dòng chỉ dùng 1 đối tượng chi phí (Cost Center, Internal Order hoặc Asset). GL Account được hệ thống tự xác định theo loại vật tư khi tạo Purchase Requisition trên SAP."
+					class="qdInfoHint sapUiTinyMarginTop"
+				/>
 
 				<HBox
 					class="qdTotalBar"
@@ -228,9 +234,17 @@
 
 		<footer>
 			<OverflowToolbar class="qdPageFooter">
-				<Text text="{= ${/items}.length === 0 ? 'Thêm ít nhất 1 vật tư để gửi đề nghị' : 'Sẵn sàng gửi ' + ${/items}.length + ' dòng vật tư' }" class="qdFooterHint"/>
+				<Text
+					text="{= ${/items}.length === 0 ? 'Thêm ít nhất 1 vật tư để gửi đề nghị' : 'Sẵn sàng gửi ' + ${/items}.length + ' dòng vật tư' }"
+					class="qdFooterHint"
+				/>
 				<ToolbarSpacer/>
-				<Button text="{i18n>prResetButton}" icon="sap-icon://clear-all" press=".onResetPress" enabled="{= ${/items}.length > 0 }"/>
+				<Button
+					text="{i18n>prResetButton}"
+					icon="sap-icon://clear-all"
+					press=".onResetPress"
+					enabled="{= ${/items}.length > 0 }"
+				/>
 				<Button
 					text="{i18n>prSubmitButton}"
 					type="Emphasized"

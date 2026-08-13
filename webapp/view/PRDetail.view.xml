@@ -23,6 +23,51 @@
 				</HBox>
 			</VBox>
 
+			<!-- ============ TIMELINE TIẾN TRÌNH ============ -->
+			<VBox class="qdContentCard">
+				<Title text="Tiến trình phê duyệt" level="H3" class="qdCardTitle sapUiSmallMarginBottom"/>
+
+				<HBox
+					id="timelineBox"
+					items="{/timeline}"
+					justifyContent="SpaceBetween"
+					alignItems="Start"
+					wrap="Wrap"
+					class="qdTimelineRow"
+				>
+					<VBox class="qdTimelineItem" alignItems="Center">
+						<!-- Icon + vòng tròn trạng thái -->
+						<core:Icon
+							src="{icon}"
+							size="1.6rem"
+							class="{= ${done} ? 'qdTimelineIconDone' : (${active} ? 'qdTimelineIconActive' : 'qdTimelineIconWait') }"
+						/>
+						<!-- Đường nối (pseudo qua CSS) -->
+						<Text text="{title}" class="qdTimelineTitle" textAlign="Center"/>
+						<Text
+							text="{timeText}"
+							class="qdTimelineTime"
+							textAlign="Center"
+							visible="{= !!${timeText} }"
+						/>
+						<Text
+							text="{sub}"
+							class="qdTimelineSub"
+							textAlign="Center"
+							visible="{= !!${sub} }"
+						/>
+					</VBox>
+				</HBox>
+
+				<MessageStrip
+					text="{/statusHint}"
+					type="{/statusStripType}"
+					showIcon="true"
+					class="sapUiSmallMarginTop"
+					visible="{= !!${/statusHint} }"
+				/>
+			</VBox>
+
 			<!-- ============ TRANG THAI ============ -->
 			<VBox class="qdContentCard">
 				<HBox wrap="Wrap" class="qdInfoRow">
@@ -40,7 +85,7 @@
 					</VBox>
 					<VBox class="qdInfoCell">
 						<Label text="Ngày tạo" class="qdInfoLabel"/>
-						<Text text="{/CreatedAt}" class="qdInfoValue"/>
+						<Text text="{path: '/CreatedAt', formatter: '.formatDateTime'}" class="qdInfoValue"/>
 					</VBox>
 					<VBox class="qdInfoCell" visible="{= !!${/SapPRId} }">
 						<Label text="Số PR thật trên SAP" class="qdInfoLabel"/>
@@ -49,7 +94,6 @@
 					</VBox>
 				</HBox>
 
-				<!-- Canh bao leo thang -->
 				<MessageStrip
 					text="{/EscalationReason}"
 					type="Warning"
@@ -58,12 +102,24 @@
 					visible="{= !!${/EscalationReason} }"
 				/>
 
-				<!-- Ghi chu quyet dinh (neu da duyet/tu choi) -->
 				<VBox class="sapUiSmallMarginTop" visible="{= !!${/Comment} }">
 					<Label text="Ghi chú của {/DecidedByRole}" class="qdInfoLabel"/>
 					<Text text="{/Comment}" class="qdCommentText"/>
-					<Text text="Quyết định bởi: {/DecidedByEmail} lúc {/UpdatedAt}" class="qdCellHint sapUiTinyMarginTop"/>
+					<Text
+						text="{parts: ['/DecidedByEmail', '/UpdatedAt'], formatter: '.formatDecisionMeta'}"
+						class="qdCellHint sapUiTinyMarginTop"
+					/>
 				</VBox>
+
+				<!-- PR bị Purchasing trả lại → người tạo sửa & gửi lại (PR-01 điền sẵn dữ liệu) -->
+				<Button
+					text="Sửa &amp; gửi lại đề nghị"
+					type="Emphasized"
+					icon="sap-icon://edit"
+					press="onResubmitPress"
+					class="sapUiSmallMarginTop"
+					visible="{= !!${/canResubmit} }"
+				/>
 			</VBox>
 
 			<!-- ============ DANH SACH VAT TU ============ -->
@@ -85,8 +141,8 @@
 							<HBox justifyContent="SpaceBetween" alignItems="Center" wrap="Wrap">
 								<ObjectIdentifier title="{Description}" text="{MaterialNo}"/>
 								<ObjectStatus
-									text="{= ${MaterialType} === 'ZAST' ? 'Tài sản (Cat.A)' : 'Vật tư/DV (Cat.K)' }"
-									state="{= ${MaterialType} === 'ZAST' ? 'Warning' : 'Success' }"
+									text="{= ${AcctAssignCat} === 'A' ? 'Tài sản (Cat.A)' : (${AcctAssignCat} === 'F' ? 'Internal Order (Cat.F)' : 'Cost Center (Cat.K)') }"
+									state="{= ${AcctAssignCat} === 'A' ? 'Warning' : 'Success' }"
 								/>
 							</HBox>
 							<HBox wrap="Wrap" class="qdItemFieldsRow sapUiTinyMarginTop">
@@ -100,17 +156,17 @@
 								</VBox>
 								<VBox class="qdInfoCell">
 									<Label text="GL Account" class="qdInfoLabel"/>
-									<Text text="{= ${GLAccount} || '(chưa có)' }" class="qdInfoValue"/>
+									<Text text="{= ${GLAccount} || '(tự động theo SAP)' }" class="qdInfoValue"/>
 								</VBox>
-								<VBox class="qdInfoCell">
+								<VBox class="qdInfoCell" visible="{= ${AcctAssignCat} === 'K' }">
 									<Label text="Cost Center" class="qdInfoLabel"/>
 									<Text text="{= ${CostCenter} || '(chưa có)' }" class="qdInfoValue"/>
 								</VBox>
-								<VBox class="qdInfoCell">
+								<VBox class="qdInfoCell" visible="{= ${AcctAssignCat} === 'F' }">
 									<Label text="Internal Order" class="qdInfoLabel"/>
 									<Text text="{= ${InternalOrder} || '(chưa có)' }" class="qdInfoValue"/>
 								</VBox>
-								<VBox class="qdInfoCell" visible="{= ${MaterialType} === 'ZAST' }">
+								<VBox class="qdInfoCell" visible="{= ${AcctAssignCat} === 'A' }">
 									<Label text="Asset No" class="qdInfoLabel"/>
 									<Text text="{= ${AssetNo} || '(chưa có)' }" class="qdInfoValue"/>
 								</VBox>

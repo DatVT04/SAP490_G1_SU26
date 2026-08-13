@@ -10,12 +10,15 @@ sap.ui.define([
 
 	var BACKEND = Config.BACKEND;
 
+	// Tile "report" (Bao cao tien do) da go khoi tat ca vai tro: tien trinh cua PR gio
+	// nam trong "Lich su de nghi" (man History + PRDetail timeline) nen tile nay trung
+	// lap va gay nhieu. View/route poReport van giu nguyen, chi khong hien tren dashboard.
 	var TILES_BY_ROLE = {
-		REQUESTER: ["pr01", "report", "history", "profile"],
-		PURCHASING: ["materialCreate", "pr02", "po01", "report", "history", "profile"],
-		CFO: ["pr02", "report", "history", "profile"],
-		CEO: ["pr02", "report", "config", "history", "profile"],
-		ACC: ["report", "history", "profile"]
+		REQUESTER:  ["pr01", "history"],
+		PURCHASING: ["materialCreate", "pr02", "rfq01", "rfq02", "po01", "history"],
+		CFO:        ["pr02", "history"],
+		CEO:        ["pr02", "config", "history"],
+		ACC:        ["history"]
 	};
 
 	var oValueFormat = NumberFormat.getIntegerInstance({
@@ -40,6 +43,19 @@ sap.ui.define([
 			this.getOwnerComponent().getRouter()
 				.getRoute("dashboard")
 				.attachPatternMatched(this._onRouteMatched, this);
+
+			// Loi chao doi theo gio trong ngay — cap nhat lai moi 5 phut de
+			// khong bi "dinh" (VD mo tab tu sang, ngoi lam viec toi trua/chieu
+			// van thay "Chao buoi sang" vi khong ai bam lai vao Dashboard).
+			this._iGreetingInterval = setInterval(function () {
+				this.getView().getModel("dash").setProperty("/greeting", this._buildGreeting());
+			}.bind(this), 5 * 60 * 1000);
+		},
+
+		onExit: function () {
+			if (this._iGreetingInterval) {
+				clearInterval(this._iGreetingInterval);
+			}
 		},
 
 		_onRouteMatched: function () {
@@ -73,7 +89,7 @@ sap.ui.define([
 				fetch(BACKEND + "/api/approval/approved").then(function (r) { return r.json(); })
 			])
 				.then(function (aResults) {
-					var aPending = (aResults[0] && aResults[0].data) || [];
+					var aPending  = (aResults[0] && aResults[0].data) || [];
 					var aApproved = (aResults[1] && aResults[1].data) || [];
 
 					var fTotal = aPending.reduce(function (sum, pr) {
@@ -203,12 +219,24 @@ sap.ui.define([
 			this.getOwnerComponent().getRouter().navTo("pr01");
 		},
 
+		onNavToMaterialCreate: function () {
+			this.getOwnerComponent().getRouter().navTo("materialCreate");
+		},
+
 		onNavToPR02: function () {
 			this.getOwnerComponent().getRouter().navTo("pr02");
 		},
 
 		onNavToPO01: function () {
 			this.getOwnerComponent().getRouter().navTo("po01");
+		},
+
+		onNavToRFQ01: function () {
+			this.getOwnerComponent().getRouter().navTo("rfq01");
+		},
+
+		onNavToRFQ02: function () {
+			this.getOwnerComponent().getRouter().navTo("rfq02");
 		},
 
 		onNavToHistory: function () {
@@ -223,14 +251,17 @@ sap.ui.define([
 			this.getOwnerComponent().getRouter().navTo("poReport");
 		},
 
-		onNavToProfile: function () {
-			this.getOwnerComponent().getRouter().navTo("profile");
-		},
-		onNavToMaterialCreate: function () {
-			this.getOwnerComponent().getRouter().navTo("materialCreate");
+		onAvatarPress: function (oEvent) {
+			if (!this._oUserMenuPopover) {
+				this._oUserMenuPopover = this.byId("userMenuPopover");
+			}
+			this._oUserMenuPopover.openBy(oEvent.getSource());
 		},
 
 		onLogoutPress: function () {
+			if (this._oUserMenuPopover) {
+				this._oUserMenuPopover.close();
+			}
 			var oUserModel = this.getOwnerComponent().getModel("user");
 			oUserModel.setData({
 				email: "",
@@ -239,6 +270,8 @@ sap.ui.define([
 				role: "",
 				position: "",
 				costCenter: "",
+				avatarUrl: "",
+				avatarInitials: "",
 				firstName: "",
 				lastName: "",
 				phoneNumber: "",

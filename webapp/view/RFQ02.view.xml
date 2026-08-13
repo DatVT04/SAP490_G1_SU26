@@ -1,0 +1,328 @@
+<mvc:View
+	controllerName="com.qdavy.procurement.controller.RFQ02"
+	xmlns="sap.m"
+	xmlns:mvc="sap.ui.core.mvc"
+	xmlns:core="sap.ui.core"
+	xmlns:l="sap.ui.layout"
+>
+	<Page showHeader="false" class="qdInnerPage">
+		<content>
+
+			<!-- HERO HEADER -->
+			<VBox class="qdPageHero qdPageHeroPurple">
+				<HBox alignItems="Center">
+					<Button icon="sap-icon://nav-back" press=".onNavBack" class="qdHeroBackBtn"/>
+					<VBox>
+						<Text text="Quy trình Mua sắm · Bước 2b" class="qdPageEyebrow"/>
+						<Title text="RFQ-02 · Nhập báo giá &amp; Chốt Nhà cung cấp" level="H1" class="qdPageTitle"/>
+						<Text text="Nhập báo giá nhận được qua email, so sánh cạnh nhau và chốt NCC thắng — trình CFO duyệt" class="qdPageSub"/>
+					</VBox>
+				</HBox>
+			</VBox>
+
+			<l:Splitter height="100%" width="100%" class="qdSplitter">
+				<l:contentAreas>
+
+					<!-- CARD 1: DANH SACH RFQ -->
+					<VBox width="100%">
+						<layoutData>
+							<l:SplitterLayoutData size="32%" minSize="300"/>
+						</layoutData>
+
+						<VBox class="qdContentCard qdCardTight">
+							<HBox alignItems="Center" class="sapUiSmallMargin">
+								<Text text="1" class="qdStepBadge"/>
+								<VBox>
+									<Title text="Danh sách RFQ" level="H3" class="qdCardTitle"/>
+									<Text text="Chọn một RFQ để nhập báo giá / chốt kết quả" class="qdCellHint"/>
+								</VBox>
+							</HBox>
+
+							<Table
+								id="rfqTable"
+								items="{/Rfqs}"
+								mode="SingleSelectMaster"
+								selectionChange=".onRfqSelect"
+								noDataText="Chưa có RFQ nào. Hãy tạo ở màn RFQ-01."
+							>
+								<columns>
+									<Column width="10rem"><Text text="Mã RFQ"/></Column>
+									<Column><Text text="PR liên quan"/></Column>
+									<Column width="9rem"><Text text="Trạng thái"/></Column>
+								</columns>
+								<items>
+									<ColumnListItem type="Active">
+										<cells>
+											<ObjectIdentifier title="{RfqId}"/>
+											<Text text="{= ${SapPrNumber} || ${PrId} }"/>
+											<ObjectStatus
+												text="{path: 'Status', formatter: '.formatRfqStatus'}"
+												state="{path: 'Status', formatter: '.formatRfqStatusState'}"
+											/>
+										</cells>
+									</ColumnListItem>
+								</items>
+							</Table>
+						</VBox>
+					</VBox>
+
+					<!-- KHU VUC XU LY 1 RFQ -->
+					<VBox id="rfqWorkArea" width="100%" visible="false">
+						<layoutData>
+							<l:SplitterLayoutData size="68%" minSize="450"/>
+						</layoutData>
+
+						<!-- CARD BOI CANH: NOI DUNG PR GOC (da yeu cau bao gia cai gi) -->
+						<VBox class="qdContentCard qdPrContextCard" visible="{= !!${/pr} }">
+							<HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
+								<HBox alignItems="Center">
+									<core:Icon src="sap-icon://request" class="sapUiSmallMarginEnd qdPrContextIcon"/>
+									<VBox>
+										<Title text="Nội dung yêu cầu — PR {= ${/pr/SapPRId} || ${/pr/PRId} }" level="H3" class="qdCardTitle"/>
+										<Text text="Người yêu cầu: {/pr/RequesterEmail} · Đây chính là những gì đã gửi NCC báo giá" class="qdCellHint"/>
+									</VBox>
+								</HBox>
+								<ObjectNumber
+									number="{path: '/pr/TotalValue', formatter: '.formatCurrency'}"
+									unit="{/pr/Currency}"
+									emphasized="true"
+								/>
+							</HBox>
+
+							<Table items="{/pr/items}" noDataText="Không đọc được dòng vật tư của PR gốc.">
+								<columns>
+									<Column width="4rem" hAlign="Center"><Text text="Dòng"/></Column>
+									<Column><Text text="Vật tư / Dịch vụ"/></Column>
+									<Column hAlign="End" width="8rem"><Text text="Số lượng"/></Column>
+									<Column hAlign="End" width="11rem"><Text text="Giá trị ước tính"/></Column>
+									<Column width="12rem"><Text text="Hạch toán"/></Column>
+								</columns>
+								<items>
+									<ColumnListItem>
+										<cells>
+											<Text text="{LineNo}"/>
+											<VBox>
+												<Text text="{Description}"/>
+												<Text
+													text="{= ${MaterialNo} ? ${MaterialNo} + ' · ' + ${MaterialType} : 'Nhập tay (free-text) · ' + ${MaterialType} }"
+													class="qdCellHint"
+												/>
+											</VBox>
+											<Text text="{Quantity} {UoM}"/>
+											<ObjectNumber
+												number="{path: 'EstimatedValue', formatter: '.formatCurrency'}"
+												unit="{/pr/Currency}"
+											/>
+											<Text text="{parts: ['AcctAssignCat', 'CostCenter', 'InternalOrder', 'AssetNo'], formatter: '.formatAcctAssign'}"/>
+										</cells>
+									</ColumnListItem>
+								</items>
+							</Table>
+						</VBox>
+
+						<!-- CARD 2: BANG SO SANH BAO GIA -->
+						<VBox class="qdContentCard">
+							<HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
+								<HBox alignItems="Center">
+									<Text text="2" class="qdStepBadge"/>
+									<VBox>
+										<Title text="Bảng so sánh báo giá — {/rfq/RfqId}" level="H3" class="qdCardTitle"/>
+										<Text text="Hạn nộp: {path: '/rfq/Deadline', formatter: '.formatSapDate'} · Còn chờ: {= ${/pendingVendors}.length } NCC chưa nhập báo giá" class="qdCellHint"/>
+									</VBox>
+								</HBox>
+								<Button
+									text="AI so sánh báo giá"
+									icon="sap-icon://ai"
+									press=".onAiComparePress"
+									busy="{/busyAi}"
+									enabled="{= ${/quotations}.length >= 2 }"
+									class="qdActionBtn"
+								/>
+							</HBox>
+
+							<MessageStrip
+								text="{/aiText}"
+								type="Information"
+								showIcon="true"
+								visible="{= !!${/aiText} }"
+								class="sapUiSmallMarginBottom"
+							/>
+
+							<Table
+								items="{/quotations}"
+								noDataText="Chưa có báo giá nào được nhập cho RFQ này."
+							>
+								<columns>
+									<Column><Text text="Nhà cung cấp"/></Column>
+									<Column hAlign="End" width="10rem"><Text text="Giá báo"/></Column>
+									<Column hAlign="Center" width="7rem"><Text text="Giao hàng"/></Column>
+									<Column width="16rem"><Text text="Điều khoản thanh toán"/></Column>
+									<Column hAlign="Center" width="6rem"><Text text="BH (tháng)"/></Column>
+									<Column hAlign="Center" width="6rem"><Text text="Pháp lý"/></Column>
+									<Column><Text text="Căn cứ nhập (audit)"/></Column>
+								</columns>
+								<items>
+									<ColumnListItem
+										highlight="{= ${QuoteStatus} === 'AWARDED' ? 'Success' : 'None' }"
+									>
+										<cells>
+											<VBox>
+												<Text text="{VendorName}"/>
+												<Text text="{VendorNo}" class="qdCellHint"/>
+											</VBox>
+											<ObjectNumber
+												number="{path: 'QuotedPrice', formatter: '.formatCurrency'}"
+												unit="{Currency}"
+												state="{= ${QuoteStatus} === 'AWARDED' ? 'Success' : 'None' }"
+											/>
+											<Text text="{= ${LeadTimeDays} === 0 ? 'Giao ngay' : (${LeadTimeDays} ? ${LeadTimeDays} + ' ngày' : '—') }"/>
+											<Text text="{path: 'PaymentTerms', formatter: '.formatPaymentTerms'}"/>
+											<Text text="{WarrantyMonths}"/>
+											<core:Icon
+												src="{= ${LegalDocsOk} === 'X' ? 'sap-icon://accept' : 'sap-icon://decline' }"
+												color="{= ${LegalDocsOk} === 'X' ? 'Positive' : 'Negative' }"
+											/>
+											<VBox>
+												<Text text="{SourceNote}"/>
+												<Text text="{EnteredBy} · {path: 'EnteredAt', formatter: '.formatSapTimestamp'}" class="qdCellHint"/>
+											</VBox>
+										</cells>
+									</ColumnListItem>
+								</items>
+							</Table>
+						</VBox>
+
+						<!-- CARD 3: NHAP BAO GIA TAY (AUDIT TRAIL BAT BUOC) -->
+						<VBox class="qdContentCard" visible="{= ${/rfq/Status} !== 'AWARDED' }">
+							<HBox alignItems="Center" class="sapUiSmallMarginBottom">
+								<Text text="3" class="qdStepBadge"/>
+								<VBox>
+									<Title text="Nhập báo giá từ email NCC" level="H3" class="qdCardTitle"/>
+									<Text text="Bắt buộc ghi rõ căn cứ (email nào, ngày nào) — audit trail, không nhập vo" class="qdCellHint"/>
+								</VBox>
+							</HBox>
+
+							<HBox wrap="Wrap" alignItems="End" class="qdInfoRow">
+								<VBox class="sapUiSmallMarginEnd sapUiTinyMarginBottom">
+									<Label text="Nhà cung cấp" required="true"/>
+									<Select id="selQuoteVendor" width="22rem" items="{/vendorChoices}">
+										<core:Item key="{VendorNo}" text="{ChoiceLabel}"/>
+									</Select>
+								</VBox>
+								<VBox class="sapUiSmallMarginEnd sapUiTinyMarginBottom">
+									<Label text="Giá báo (VND)" required="true"/>
+									<Input id="inQuotePrice" type="Number" width="11rem" placeholder="VD: 42000000"/>
+								</VBox>
+								<VBox class="sapUiSmallMarginEnd sapUiTinyMarginBottom">
+									<Label text="Giao hàng (ngày)"/>
+									<Input id="inQuoteLeadTime" type="Number" width="7rem"/>
+								</VBox>
+								<VBox class="sapUiSmallMarginEnd sapUiTinyMarginBottom">
+									<Label text="Điều khoản thanh toán"/>
+									<Select
+										id="inQuotePayment"
+										width="17rem"
+										forceSelection="false"
+										items="{/paymentTerms}"
+										tooltip="Sau khi nhận hàng/hoá đơn thì bao lâu công ty phải trả tiền cho NCC. Được trả càng chậm thì càng có lợi cho dòng tiền. Chọn đúng như NCC nêu trong email báo giá."
+									>
+										<core:Item key="{code}" text="{label}"/>
+									</Select>
+								</VBox>
+								<VBox class="sapUiSmallMarginEnd sapUiTinyMarginBottom">
+									<Label text="Bảo hành (tháng)"/>
+									<Input id="inQuoteWarranty" type="Number" width="7rem"/>
+								</VBox>
+								<VBox class="sapUiSmallMarginEnd sapUiTinyMarginBottom">
+									<Label text="Đủ hồ sơ pháp lý"/>
+									<CheckBox
+										id="cbQuoteLegal"
+										text="Đã có đủ"
+										tooltip="Tick khi NCC đã gửi kèm đủ giấy tờ pháp lý: giấy phép kinh doanh, mã số thuế, và các chứng nhận/giấy uỷ quyền cần thiết cho mặt hàng này."
+									/>
+								</VBox>
+							</HBox>
+							<HBox wrap="Wrap" alignItems="End">
+								<VBox width="60%" class="sapUiSmallMarginEnd">
+									<Label text="Căn cứ nhập (SourceNote)" required="true"/>
+									<Input id="inQuoteSource" width="100%" placeholder="VD: Email báo giá của NCC ngày 10/08/2026, người gửi sales@ncc.vn"/>
+								</VBox>
+								<Button
+									text="Lưu báo giá"
+									type="Emphasized"
+									icon="sap-icon://save"
+									press=".onSaveQuotation"
+									class="qdActionBtn"
+								/>
+							</HBox>
+						</VBox>
+
+						<!-- CARD 4: CHOT NCC THANG -->
+						<VBox class="qdContentCard" visible="{= ${/rfq/Status} !== 'AWARDED' &amp;&amp; ${/quotations}.length >= 1 }">
+							<HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
+								<HBox alignItems="Center">
+									<Text text="4" class="qdStepBadge"/>
+									<VBox>
+										<Title text="Chốt Nhà cung cấp thắng — trình CFO" level="H3" class="qdCardTitle"/>
+										<Text text="Giá trị PR sẽ được cập nhật theo giá báo thật; nếu chỉ có 1 báo giá phải nhập lý do chỉ định" class="qdCellHint"/>
+									</VBox>
+								</HBox>
+								<ObjectStatus
+									icon="sap-icon://information"
+									text="{= ${/pendingVendors}.length > 0 ? 'Còn ' + ${/pendingVendors}.length + ' NCC chưa nộp báo giá' : 'Tất cả NCC đã nộp báo giá' }"
+									state="{= ${/pendingVendors}.length > 0 ? 'Warning' : 'Success' }"
+								/>
+							</HBox>
+
+							<MessageStrip
+								text="Chỉ chọn được Nhà cung cấp đã có báo giá ở bước 3. NCC chưa nộp báo giá sẽ không xuất hiện trong danh sách dưới đây."
+								type="Information"
+								showIcon="true"
+								class="sapUiSmallMarginBottom"
+							/>
+
+							<HBox wrap="Wrap" alignItems="End" class="qdInfoRow">
+								<VBox class="sapUiSmallMarginEnd sapUiTinyMarginBottom">
+									<Label text="NCC thắng (chọn trong số đã có báo giá)" required="true"/>
+									<Select id="selAwardVendor" width="24rem" items="{/quotations}">
+										<core:Item key="{VendorNo}" text="{VendorName} ({VendorNo}) — {path: 'QuotedPrice', formatter: '.formatCurrency'} VND"/>
+									</Select>
+								</VBox>
+								<VBox width="40%" class="sapUiSmallMarginEnd sapUiTinyMarginBottom">
+									<Label text="Lý do chọn (AwardReason)" required="true"/>
+									<Input id="inAwardReason" width="100%" placeholder="VD: Giá thấp nhất, giao nhanh, đủ hồ sơ pháp lý"/>
+								</VBox>
+							</HBox>
+							<HBox wrap="Wrap" alignItems="End">
+								<VBox width="60%" class="sapUiSmallMarginEnd" visible="{= ${/quotations}.length === 1 }">
+									<Label text="Lý do chỉ định 1 NCC (Sole source)" required="true"/>
+									<Input id="inSoleSourceReason" width="100%" placeholder="VD: NCC độc quyền phân phối, các NCC khác không phản hồi trước hạn"/>
+								</VBox>
+								<Button
+									text="Chốt NCC &amp; Trình CFO"
+									type="Accept"
+									icon="sap-icon://accept"
+									press=".onAwardPress"
+									class="qdActionBtn"
+								/>
+							</HBox>
+						</VBox>
+
+						<!-- CARD KET QUA (khi da AWARDED) -->
+						<VBox class="qdContentCard" visible="{= ${/rfq/Status} === 'AWARDED' }">
+							<HBox alignItems="Center">
+								<core:Icon src="sap-icon://accept" color="Positive" class="sapUiSmallMarginEnd"/>
+								<VBox>
+									<Title text="Đã chốt NCC {/rfq/AwardedVendor} — giá {path: '/rfq/FinalValue', formatter: '.formatCurrency'} {/rfq/Currency}" level="H3" class="qdCardTitle"/>
+									<Text text="Lý do: {/rfq/AwardReason} · Người chốt: {/rfq/AwardedBy} · PR gốc đã chuyển sang chờ CFO duyệt" class="qdCellHint"/>
+								</VBox>
+							</HBox>
+						</VBox>
+
+					</VBox>
+				</l:contentAreas>
+			</l:Splitter>
+
+		</content>
+	</Page>
+</mvc:View>

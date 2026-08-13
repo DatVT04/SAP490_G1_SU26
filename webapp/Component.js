@@ -7,7 +7,7 @@ sap.ui.define([
 	// Cac route can dang nhap moi vao duoc - go thang URL (VD #/create-po) khi chua login
 	// se bi day nguoc ve man Login.
 	// Bổ sung "thresholdConfig" vào danh sách các route bắt buộc phải đăng nhập
-	var PROTECTED_ROUTES = ["dashboard", "pr01", "pr02", "po01", "thresholdConfig", "poReport", "profile", "materialCreate"];
+	var PROTECTED_ROUTES = ["dashboard", "pr01", "pr02", "po01", "thresholdConfig", "poReport", "materialCreate"];
 
 	return UIComponent.extend("com.qdavy.procurement.Component", {
 		metadata: {
@@ -24,6 +24,8 @@ sap.ui.define([
 				role: "",
 				position: "",
 				costCenter: "",
+				avatarUrl: "",
+				avatarInitials: "",
 				firstName: "",
 				lastName: "",
 				phoneNumber: "",
