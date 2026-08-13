@@ -2036,6 +2036,7 @@ async function fetchPRItemsFromSAP(prNumber) {
 	if (!process.env.SAP_HOST || !prNumber) { return []; }
 
 	const candidateFilterFields = ["PRNumber", "PrNumber", "PRId", "ReqNo"];
+	const target = String(prNumber).replace(/^0+/, "");
 
 	for (const field of candidateFilterFields) {
 		try {
@@ -2047,7 +2048,18 @@ async function fetchPRItemsFromSAP(prNumber) {
 					timeout: 20000
 				}
 			);
-			const results = (response.data && response.data.d && response.data.d.results) || [];
+			let results = (response.data && response.data.d && response.data.d.results) || [];
+
+			// Loc lai o Node: nhieu method <EntitySet>_GET_ENTITYSET ben SAP bo qua $filter
+			// (so ten property camel-case voi ten VIET HOA ma Gateway gui) va tra ve CA BANG.
+			// Neu tin ket qua tho thi se lay nham dong cua PR khac. Xem memory:
+			// SAP490_G1 PR ghi len SAP that 13/08.
+			results = results.filter(function (row) {
+				const rowPr = String(row.PRNumber || row.PrNumber || row.PRId || row.ReqNo || "")
+					.replace(/^0+/, "");
+				return rowPr === target;
+			});
+
 			if (results.length > 0) {
 				console.log(`[fetchPRItemsFromSAP] Khop filter field "${field}" cho PR ${prNumber}, tra ve ${results.length} dong.`);
 				return results;
@@ -2242,8 +2254,13 @@ app.post("/api/po/create", async (req, res) => {
 
 					var rawPreqNo = String(item.preqNo || prNumber || "").trim();
 					var formattedPreqNo = /^\d+$/.test(rawPreqNo) ? rawPreqNo.padStart(10, "0") : rawPreqNo;
+					// Fallback PHAI la (idx + 1) chu khong phai "00010".
+					// PR cua app do chinh CREATE_DEEP_ENTITY tao ra, no danh so dong bang
+					// lv_pr_serial chay tu 1 -> EBAN-BNFPO la 00001, 00002... Con "00010"
+					// la kieu danh so cua SAP standard (buoc 10), khong dung o day, nen
+					// nhanh PO tra EBAN khong thay dong nao va bao "PR ... item 00010 not found".
 					var formattedPreqItem = realPreqItemAt(idx)
-						|| String(item.preqItem || "00010").padStart(5, "0");
+						|| String(item.preqItem || (idx + 1)).padStart(5, "0");
 
 					return {
 						PoNumber: "",

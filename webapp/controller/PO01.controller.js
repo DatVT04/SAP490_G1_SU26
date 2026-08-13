@@ -154,7 +154,7 @@ sap.ui.define([
 				var firstItem = aItems[0] || {};
 
 				// 2. Điền dữ liệu thông tin PR tham chiếu (Card 1)
-				oView.byId("txtSelectedPR").setText(oPRData.PrNumber ? (oPRData.PrNumber + " / " + (firstItem.LineNo || "00010")) : "");
+				oView.byId("txtSelectedPR").setText(oPRData.PrNumber ? (oPRData.PrNumber + " / " + (firstItem.LineNo || "00001")) : "");
 				oView.byId("txtRequester").setText(oPRData.RequesterEmail || "");
 				oView.byId("txtMaterialInfo").setText((firstItem.Description || oPRData.Description || "") + (firstItem.MaterialNo ? " (" + firstItem.MaterialNo + ")" : ""));
 				oView.byId("txtQuantity").setText((firstItem.Quantity || oPRData.Quantity || 0) + " " + (firstItem.UoM || oPRData.UoM || ""));
@@ -186,7 +186,10 @@ sap.ui.define([
 				// 6. Cập nhật mảng /poItems cho Bảng Card 3
 				var aTableItems = aItems.map(function(it, idx) {
 					return {
-						LineNo: it.LineNo || String((idx + 1) * 10).padStart(5, "0"),
+						// Danh so 00001, 00002... khop cach CREATE_DEEP_ENTITY danh so dong PR
+						// khi tao tren SAP. Truoc day dung buoc 10 (00010) theo kieu SAP
+						// standard nen tra EBAN khong thay dong nao.
+						LineNo: it.LineNo || String(idx + 1).padStart(5, "0"),
 						PreqNo: oPRData.PrNumber || "",
 						MaterialNo: it.MaterialNo || "",
 						Description: it.Description || "",
@@ -201,7 +204,7 @@ sap.ui.define([
 
 				if (aTableItems.length === 0) {
 					aTableItems.push({
-						LineNo: "00010",
+						LineNo: "00001",
 						PreqNo: oPRData.PrNumber || "",
 						MaterialNo: oPRData.MaterialNo || "",
 						Description: oPRData.Description || "",
@@ -350,7 +353,11 @@ sap.ui.define([
 			var aItemsPayload = aTableItems.map(function (it, idx) {
 				return {
 					preqNo: oPR.PrNumber,
-					preqItem: it.LineNo || String((idx + 1) * 10).padStart(5, "0"),
+					// (idx + 1), KHONG phai (idx + 1) * 10. PR do app tao ra qua
+					// CREATE_DEEP_ENTITY duoc danh so dong 00001, 00002... chu khong theo
+					// buoc 10 nhu SAP standard, nen gui 00010 se khong tra thay dong nao
+					// trong EBAN ("PR ... item 00010 not found").
+					preqItem: it.LineNo || String(idx + 1).padStart(5, "0"),
 					materialNo: it.MaterialNo || "",
 					description: it.Description || "",
 					quantity: Number(it.Quantity || 1),
