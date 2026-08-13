@@ -1583,3 +1583,37 @@ DASHBOARD PO
     }
 }
 
+
+/* ==========================================================================
+   RFQ01 — polish giao diện (chỉ CSS, không đổi logic/id)
+   ========================================================================== */
+
+/* Dòng PR đang chọn ở bảng trái + dòng NCC đã tick: nổi bật rõ, đồng bộ tông tím Hero */
+#pendingPRTable .sapMLIBSelected,
+#vendorTable .sapMLIBSelected {
+	background: rgba(124, 58, 237, 0.06) !important;
+	border-left: 3px solid var(--qd-accent-purple) !important;
+}
+
+/* Card 3 (Hạn nộp & Gửi): nền nhạt để tách khỏi 2 card thao tác phía trên */
+.qdRfqSendCard {
+	background: linear-gradient(180deg, rgba(124, 58, 237, 0.04) 0%, #FFFFFF 60%);
+}
+
+/* Hàng DatePicker + nút gửi: canh đều, không dính sát nhau khi xuống dòng */
+.qdRfqSendRow {
+	gap: 0.75rem;
+	row-gap: 0.75rem;
+}
+
+/* Badge đếm số NCC đã chọn — to hơn mặc định cho dễ liếc thấy */
+.qdRfqVendorCount .sapMObjStatusText {
+	font-weight: 600;
+}
+
+/* Nút gửi khi bị khoá (chưa chọn NCC): làm mờ hẳn để thấy rõ là chưa bấm được,
+   tránh lặp lại cảm giác "bấm không ăn" như bug busy toàn view trước đây */
+.qdPrimarySubmitBtn.sapMBtnDisabled .sapMBtnInner {
+	background: var(--qd-border) !important;
+	opacity: 0.7;
+}

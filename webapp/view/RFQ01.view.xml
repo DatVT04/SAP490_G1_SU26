@@ -29,9 +29,9 @@
 							<l:SplitterLayoutData size="35%" minSize="320"/>
 						</layoutData>
 
-						<VBox class="qdContentCard qdCardTight">
+						<VBox class="qdContentCard qdCardTight qdCardAccentPurple">
 							<HBox alignItems="Center" class="sapUiSmallMargin">
-								<Text text="1" class="qdStepBadge"/>
+								<Text text="1" class="qdStepBadge qdStepBadgePurple"/>
 								<VBox>
 									<Title text="PR chờ Purchasing xử lý" level="H3" class="qdCardTitle"/>
 									<Text text="Chọn một Yêu cầu mua hàng để mở RFQ" class="qdCellHint"/>
@@ -43,6 +43,7 @@
 								items="{/PendingPRs}"
 								mode="SingleSelectMaster"
 								selectionChange=".onPRSelect"
+								sticky="ColumnHeaders"
 								noDataText="Không có PR nào đang chờ Purchasing xử lý."
 							>
 								<columns>
@@ -76,10 +77,10 @@
 						</layoutData>
 
 						<!-- CARD 2: CHON NHA CUNG CAP MOI BAO GIA -->
-						<VBox class="qdContentCard">
+						<VBox class="qdContentCard qdCardAccentPurple">
 							<HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
 								<HBox alignItems="Center">
-									<Text text="2" class="qdStepBadge"/>
+									<Text text="2" class="qdStepBadge qdStepBadgePurple"/>
 									<VBox>
 										<Title text="Chọn Nhà cung cấp mời báo giá" level="H3" class="qdCardTitle"/>
 										<Text text="Nên mời tối thiểu 2 NCC để có cơ sở so sánh — nếu chỉ mời 1, khi chốt sẽ phải nhập lý do chỉ định (sole source)" class="qdCellHint"/>
@@ -106,6 +107,8 @@
 								id="vendorTable"
 								items="{/Vendors}"
 								mode="MultiSelect"
+								selectionChange=".onVendorSelectionChange"
+								sticky="ColumnHeaders"
 								noDataText="Không tải được danh sách Nhà cung cấp từ SAP."
 							>
 								<columns>
@@ -126,16 +129,24 @@
 						</VBox>
 
 						<!-- CARD 3: HAN NOP & GUI -->
-						<VBox class="qdContentCard">
-							<HBox alignItems="Center" class="sapUiSmallMarginBottom">
-								<Text text="3" class="qdStepBadge"/>
-								<VBox>
-									<Title text="Hạn nộp báo giá &amp; Gửi RFQ" level="H3" class="qdCardTitle"/>
-									<Text text="Hệ thống sinh mã RFQ, lưu vào SAP và gửi email mời báo giá tới các NCC đã chọn" class="qdCellHint"/>
-								</VBox>
+						<VBox class="qdContentCard qdCardAccentPurple qdRfqSendCard">
+							<HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
+								<HBox alignItems="Center">
+									<Text text="3" class="qdStepBadge qdStepBadgePurple"/>
+									<VBox>
+										<Title text="Hạn nộp báo giá &amp; Gửi RFQ" level="H3" class="qdCardTitle"/>
+										<Text text="Hệ thống sinh mã RFQ, lưu vào SAP và gửi email mời báo giá tới các NCC đã chọn" class="qdCellHint"/>
+									</VBox>
+								</HBox>
+								<ObjectStatus
+									icon="sap-icon://supplier"
+									text="{= ${/selectedVendorCount} + ' NCC đã chọn' }"
+									state="{= ${/selectedVendorCount} === 0 ? 'Error' : (${/selectedVendorCount} === 1 ? 'Warning' : 'Success') }"
+									class="qdRfqVendorCount"
+								/>
 							</HBox>
 
-							<HBox alignItems="End" wrap="Wrap">
+							<HBox alignItems="End" wrap="Wrap" class="qdRfqSendRow">
 								<VBox class="sapUiSmallMarginEnd">
 									<Label text="Hạn nộp báo giá (Deadline)" required="true"/>
 									<DatePicker
@@ -150,9 +161,16 @@
 									type="Emphasized"
 									icon="sap-icon://email"
 									press=".onCreateAndSendRFQ"
-									class="qdActionBtn"
+									enabled="{= ${/selectedVendorCount} > 0 }"
+									class="qdActionBtn qdPrimarySubmitBtn"
 								/>
 							</HBox>
+
+							<Text
+								text="Chọn ít nhất 1 Nhà cung cấp ở bước 2 để bật nút gửi."
+								visible="{= ${/selectedVendorCount} === 0 }"
+								class="qdCellHint sapUiTinyMarginTop"
+							/>
 						</VBox>
 
 					</VBox>

@@ -16,14 +16,31 @@ sap.ui.define([
 				PendingPRs: [],
 				Vendors: [],
 				aiText: "",
-				busyAi: false
+				busyAi: false,
+				selectedVendorCount: 0
 			}));
+
+			// Hien vong xoay NGAY khi bat busy. Mac dinh UI5 tre 1 giay: trong 1 giay do
+			// trang trong nhu binh thuong nhung da bi khoa, nguoi dung bam khong an va
+			// tuong la loi giao dien (phai F5). Dat 0 de trang thai cho luon nhin thay duoc.
+			this.getView().setBusyIndicatorDelay(0);
 
 			// Khong cho chon Deadline trong qua khu — truoc day DatePicker khong co minDate
 			// nen chon duoc ca ngay da qua, chi bi bo lo (khong bao gio ai kiem tra ca FE lan BE).
 			var oToday = new Date();
 			oToday.setHours(0, 0, 0, 0);
-			this.getView().byId("dpDeadline").setMinDate(oToday);
+			var oDeadlinePicker = this.getView().byId("dpDeadline");
+			oDeadlinePicker.setMinDate(oToday);
+			oDeadlinePicker.setBusyIndicatorDelay(0);
+
+			// Goi y san han nop = hom nay + 7 ngay (van sua duoc), do gan nhu lan nao
+			// nguoi dung cung phai tu mo lich chon mot ngay trong tuan toi.
+			var oDefaultDeadline = new Date(oToday.getTime());
+			oDefaultDeadline.setDate(oDefaultDeadline.getDate() + 7);
+			oDeadlinePicker.setDateValue(oDefaultDeadline);
+
+			this.getView().byId("pendingPRTable").setBusyIndicatorDelay(0);
+			this.getView().byId("vendorTable").setBusyIndicatorDelay(0);
 
 			this._loadPendingPRs();
 			this._loadVendors();
@@ -45,12 +62,17 @@ sap.ui.define([
 		// Purchasing phai bam Duyet tren PR-02 truoc, PR moi xuat hien o day.) ──
 		_loadPendingPRs: function () {
 			var oView = this.getView();
-			oView.setBusy(true);
+			// CHI khoa rieng bang PR, khong khoa ca view: truoc day dung oView.setBusy(true)
+			// nen trong suot thoi gian goi API (SAP OData + cold start cua serverless co the
+			// vai giay) thi DatePicker va nut "Tao & Gui RFQ" o card 3 cung bi khoa theo,
+			// dung dung dan toi trieu chung "bam khong an, phai F5".
+			var oTable = oView.byId("pendingPRTable");
+			oTable.setBusy(true);
 
 			fetch(BACKEND + "/api/approval/pending?role=PURCHASING&status=PENDING_RFQ")
 				.then(function (r) { return r.json(); })
 				.then(function (res) {
-					oView.setBusy(false);
+					oTable.setBusy(false);
 					if (res && res.success) {
 						// PR da gan RfqId nghia la RFQ da duoc tao roi (dang o buoc gui/nhap
 						// bao gia ben RFQ-02) -> khong hien o man tao RFQ nua, tranh tao trung.
@@ -76,7 +98,7 @@ sap.ui.define([
 					}
 				})
 				.catch(function () {
-					oView.setBusy(false);
+					oTable.setBusy(false);
 					MessageToast.show("Không thể lấy danh sách PR từ máy chủ.");
 				});
 		},
@@ -84,16 +106,25 @@ sap.ui.define([
 		// ── 2. DANH SACH NCC TU SAP ──
 		_loadVendors: function () {
 			var oView = this.getView();
+			var oTable = oView.byId("vendorTable");
+			oTable.setBusy(true);
 			fetch(BACKEND + "/api/vendors")
 				.then(function (r) { return r.json(); })
 				.then(function (res) {
+					oTable.setBusy(false);
 					if (res && res.success) {
 						oView.getModel().setProperty("/Vendors", res.data || []);
 					}
 				})
 				.catch(function () {
+					oTable.setBusy(false);
 					MessageToast.show("Không tải được danh sách Nhà cung cấp.");
 				});
+		},
+
+		onVendorSelectionChange: function () {
+			var iCount = this.getView().byId("vendorTable").getSelectedItems().length;
+			this.getView().getModel().setProperty("/selectedVendorCount", iCount);
 		},
 
 		onPRSelect: function (oEvent) {
@@ -107,6 +138,7 @@ sap.ui.define([
 			this.getView().byId("rfqCreationArea").setVisible(true);
 			this.getView().getModel().setProperty("/aiText", "");
 			this.getView().byId("vendorTable").removeSelections(true);
+			this.getView().getModel().setProperty("/selectedVendorCount", 0);
 		},
 
 		// ── 3. AI GOI Y NCC (dua tren vat tu dong dau + ngan sach cua PR dang chon) ──
@@ -255,6 +287,7 @@ sap.ui.define([
 						onClose: function () {
 							oView.byId("rfqCreationArea").setVisible(false);
 							that._currentPR = null;
+							oView.getModel().setProperty("/selectedVendorCount", 0);
 							that._loadPendingPRs();
 						}
 					});
