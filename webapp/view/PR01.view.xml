@@ -183,6 +183,7 @@
 
 									<Input
 										value="{assetNo}"
+										tooltip="Mã tài sản cố định do Kế toán tạo trước trên SAP (AS01). Chưa có mã thì liên hệ Kế toán."
 										enabled="{= ${materialType} === 'ZAST' }"
 										placeholder="{= ${materialType} === 'ZAST' ? 'Mã tài sản *' : '—' }"
 										width="100%"
@@ -201,7 +202,7 @@
 				</ScrollContainer>
 
 				<Text
-					text="Mỗi dòng chỉ dùng 1 đối tượng chi phí (Cost Center, Internal Order hoặc Asset). GL Account được hệ thống tự xác định theo loại vật tư khi tạo Purchase Requisition trên SAP."
+					text="Bạn không cần biết cấu hình SAP: Vật tư, Cost Center, Internal Order đều CHỌN TỪ DANH SÁCH có sẵn (hệ thống tự kéo từ SAP về, kèm mô tả tiếng Việt). Đối tượng chi phí là nơi ghi nhận khoản chi: Cost Center = mua dùng chung cho bộ phận (hệ thống tự điền bộ phận của bạn nếu đã được gán); Internal Order = mua theo ngân sách được cấp riêng — vượt ngân sách sẽ cần CEO duyệt; Asset = mua tài sản cố định, nhập mã tài sản do Kế toán tạo trước trên SAP (chưa có mã thì liên hệ Kế toán). GL Account hệ thống tự xác định, không phải điền."
 					class="qdInfoHint sapUiTinyMarginTop"
 				/>
 

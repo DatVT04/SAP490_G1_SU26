@@ -223,7 +223,36 @@ sap.ui.define([
 					if (oResult.success) {
 						var aCC = oResult.data || [];
 						oModel.setProperty("/costCenters", aCC);
-						if (aCC.length > 0 && !that._defaultCC) {
+
+						// UU TIEN Cost Center gan cho CHINH nhan vien dang dang nhap
+						// (EmployeeSet.CostCenter, suy ra tu IT0001 tren SAP HCM). Day chinh
+						// la ly do gan CC cho nhan vien: chi phi mua sam mac dinh do ve bo
+						// phan cua ho, requester khong can biet ma SAP. Truoc day code lay
+						// dai phan tu dau danh sach — CC cua nhan vien co gan cung khong
+						// bao gio duoc dung (feedback 14/08).
+						var sUserCC = String(
+							that.getOwnerComponent().getModel("user").getProperty("/costCenter") || ""
+						).trim();
+
+						if (sUserCC) {
+							// /api/cost-centers KHONG doc thang CSKS ma suy ra tu
+							// InternalOrderSet + lich su PR (xem fetchInternalOrderMaster
+							// trong server.js). Nen CC cua nhan vien co the CHUA tung xuat
+							// hien o dau -> khong co trong list -> ComboBox setSelectedKey
+							// se ra rong. Tu chen vao dau danh sach cho chac.
+							var bInList = aCC.some(function (cc) {
+								return String(cc.CostCenter) === sUserCC;
+							});
+							if (!bInList) {
+								aCC = [{
+									CostCenter: sUserCC,
+									Description: sUserCC + " — bộ phận của bạn"
+								}].concat(aCC);
+								oModel.setProperty("/costCenters", aCC);
+							}
+							that._userCC = sUserCC;
+							that._defaultCC = sUserCC;
+						} else if (aCC.length > 0 && !that._defaultCC) {
 							that._defaultCC = aCC[0].CostCenter || "";
 						}
 						that._applyDefaultsToEmptyItems();
@@ -249,7 +278,9 @@ sap.ui.define([
 
 						if (aIO.length > 0) {
 							that._defaultIO = aIO[0].InternalOrder || "";
-							if (that._defaultIO && that._ioToCostCenter[that._defaultIO]) {
+							// Chi de IO keo CC theo khi nhan vien KHONG co CC rieng —
+							// CC gan cho nhan vien luon thang.
+							if (that._defaultIO && that._ioToCostCenter[that._defaultIO] && !that._userCC) {
 								that._defaultCC = that._ioToCostCenter[that._defaultIO];
 							}
 						}

@@ -30,6 +30,8 @@ const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const crypto = require("crypto");
+const { QDAVY_LOGO_CID, BRAND, qdavyLogoAttachment } = require("./mail-assets");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -1859,6 +1861,104 @@ async function buildAgingAlerts(role, email) {
 	return alerts;
 }
 
+// So ngay truoc han nop bao gia thi bat dau canh bao "sap het han".
+const RFQ_DUE_SOON_DAYS = Number(process.env.RFQ_DUE_SOON_DAYS || 2);
+
+/**
+ * Canh bao ve RFQ cho role PURCHASING — tinh lai tu SAP moi lan goi, giong
+ * buildAgingAlerts (khong luu vao notificationStore nen khong bao gio mo coi,
+ * va khong mat khi Vercel doi instance).
+ *
+ * Tra loi cho cau hoi "lam sao biet NCC da gui bao gia lai?": khong phai ngoi
+ * canh hop thu nua — 3 loai canh bao duoi day tu hien tren chuong thong bao:
+ *   1. co bao gia moi vao trong 24h qua
+ *   2. RFQ sap het han ma con NCC chua nop
+ *   3. RFQ da qua han — can nhac lai, gia han, hoac chot voi so bao gia dang co
+ *
+ * Chi 2 request SAP (RfqSet + QuotationSet toan bang) chu khong phai N+1: doc
+ * QuotationSet khong kem key tra ve toan bo bang, gom theo RfqId o Node.
+ */
+async function buildRfqAlerts(role, email) {
+	if (role !== "PURCHASING" || !process.env.SAP_HOST) { return []; }
+
+	const alerts = [];
+	try {
+		const [rfqResp, quoteResp] = await Promise.all([sapRead("RfqSet"), sapRead("QuotationSet")]);
+		const rfqs = (rfqResp.data && rfqResp.data.d && rfqResp.data.d.results) || [];
+		const quotes = (quoteResp.data && quoteResp.data.d && quoteResp.data.d.results) || [];
+
+		const byRfq = {};
+		quotes.forEach(function (q) {
+			const key = String(q.RfqId || "");
+			(byRfq[key] = byRfq[key] || []).push(q);
+		});
+
+		const now = Date.now();
+		rfqs.forEach(function (rfq) {
+			const status = String(rfq.Status || "").toUpperCase();
+			if (status !== "SENT" && status !== "QUOTATIONS_RECEIVED") { return; }
+
+			const rfqId = String(rfq.RfqId || "");
+			const list = byRfq[rfqId] || [];
+			const received = list.filter((q) => q.QuoteStatus === "RECEIVED" || q.QuoteStatus === "AWARDED");
+			const pendingCount = list.length - received.length;
+			const daysLeft = daysUntilDeadline(rfq.Deadline);
+
+			// 1) Bao gia moi trong 24h — mot dong cho moi NCC vua gui.
+			received.forEach(function (q) {
+				const enteredIso = sapTsToIso(q.EnteredAt, 0);
+				const enteredMs = enteredIso ? new Date(enteredIso).getTime() : 0;
+				if (!enteredMs || now - enteredMs > 86400000) { return; }
+				alerts.push({
+					id: "rfq-new-" + rfqId + "-" + q.VendorNo,
+					toEmail: email,
+					prId: rfq.SapPrNumber || rfq.PrId || rfqId,
+					message: "Báo giá mới: " + (q.VendorName || q.VendorNo) + " đã gửi "
+						+ Number(q.QuotedPrice || 0).toLocaleString("vi-VN") + " " + (q.Currency || "VND")
+						+ " cho RFQ " + rfqId + " (" + received.length + "/" + list.length + " NCC đã nộp).",
+					createdAt: enteredIso || new Date().toISOString(),
+					read: false,
+					aging: true
+				});
+			});
+
+			// 2) Sap het han ma con NCC chua nop.
+			if (daysLeft != null && daysLeft >= 0 && daysLeft <= RFQ_DUE_SOON_DAYS && pendingCount > 0) {
+				alerts.push({
+					id: "rfq-due-" + rfqId,
+					toEmail: email,
+					prId: rfq.SapPrNumber || rfq.PrId || rfqId,
+					message: "RFQ " + rfqId + " còn " + daysLeft + " ngày tới hạn nộp báo giá, "
+						+ pendingCount + "/" + list.length + " NCC chưa phản hồi — nên gửi nhắc hoặc gọi điện xác nhận.",
+					createdAt: new Date().toISOString(),
+					read: false,
+					aging: true
+				});
+			}
+
+			// 3) Da qua han.
+			if (daysLeft != null && daysLeft < 0) {
+				alerts.push({
+					id: "rfq-overdue-" + rfqId,
+					toEmail: email,
+					prId: rfq.SapPrNumber || rfq.PrId || rfqId,
+					message: "RFQ " + rfqId + " đã quá hạn nộp báo giá " + Math.abs(daysLeft) + " ngày — "
+						+ (received.length === 0
+							? "chưa có NCC nào báo giá. Cần nhắc lại, gia hạn hoặc mời thêm NCC."
+							: "đã có " + received.length + "/" + list.length + " báo giá. Cần chốt NCC hoặc gia hạn."),
+					createdAt: new Date().toISOString(),
+					read: false,
+					aging: true
+				});
+			}
+		});
+	} catch (error) {
+		// Giong buildAgingAlerts: loi doc SAP khong duoc lam mat thong bao thuong.
+		console.error("[buildRfqAlerts] Bo qua canh bao RFQ:", extractSapErrorMessage(error));
+	}
+	return alerts;
+}
+
 app.get("/api/notifications", async (req, res) => {
 	const { email } = req.query;
 	const role = String(req.query.role || "").toUpperCase();
@@ -1869,9 +1969,13 @@ app.get("/api/notifications", async (req, res) => {
 		.filter((n) => n.toEmail.toLowerCase() === String(email).toLowerCase())
 		.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-	// Canh bao aging dat len dau danh sach — la viec can xu ly ngay, khong phai lich su.
-	const agingAlerts = await buildAgingAlerts(role, String(email));
-	return res.json({ success: true, data: agingAlerts.concat(list) });
+	// Canh bao aging + canh bao RFQ dat len dau danh sach — la viec can xu ly
+	// ngay, khong phai lich su. Chay song song vi doc 2 nguon SAP khac nhau.
+	const [agingAlerts, rfqAlerts] = await Promise.all([
+		buildAgingAlerts(role, String(email)),
+		buildRfqAlerts(role, String(email))
+	]);
+	return res.json({ success: true, data: rfqAlerts.concat(agingAlerts).concat(list) });
 });
 
 app.patch("/api/notifications/:id/read", (req, res) => {
@@ -2194,20 +2298,6 @@ function pickRealItemNo(row) {
 	return row.ItemNo || row.PRItem || row.ReqItem || row.PrItem || row.Item || row.LineNo || null;
 }
 
-// Logo cong ty gan vao mail bang inline attachment (cid), KHONG dung link anh
-// public — nhieu mail client (Outlook, Gmail) mac dinh chan tai anh tu URL
-// ngoai nen link se hien o dang "vo anh". attachments rong neu thieu file thi
-// mail van gui binh thuong, chi la khong co logo.
-const COMPANY_LOGO_PATH = path.join(__dirname, "webapp", "images", "LogoCty.png");
-function getLogoAttachment() {
-	if (!fs.existsSync(COMPANY_LOGO_PATH)) { return []; }
-	return [{
-		filename: "LogoCty.png",
-		path: COMPANY_LOGO_PATH,
-		cid: "companyLogo"
-	}];
-}
-
 // gửi mail Vendor
 async function sendPOEmailToVendor(vendorEmail, poNumber, data) {
 
@@ -2227,7 +2317,6 @@ async function sendPOEmailToVendor(vendorEmail, poNumber, data) {
 	}).join("");
 
 	const html = `
-  <img src="cid:companyLogo" alt="Company Logo" style="max-width:200px;height:auto;display:block;margin-bottom:16px;">
         <h2>Purchase Order Notification</h2>
 
         <p>Dear Vendor,</p>
@@ -2301,8 +2390,7 @@ async function sendPOEmailToVendor(vendorEmail, poNumber, data) {
 
 			subject: `Purchase Order ${poNumber}`,
 
-			html,
-      attachments: getLogoAttachment()
+			html
 
 		});
 
@@ -2650,6 +2738,622 @@ async function callClaude(promptText, maxTokens) {
 	return result.text;
 }
 
+// ============================================================================
+// PORTAL BAO GIA CHO NHA CUNG CAP (webapp/quote.html)
+//
+// Bai toan: truoc day gui mail xong thi Purchasing chi con cach ngoi cho NCC
+// tra loi mail, roi go tay tung con so vao RFQ-02. Khong ai biet NCC da doc
+// mail chua, mail co roi vao Spam khong, con bao nhieu NCC chua nop.
+//
+// Cach lam: moi NCC nhan 1 link rieng co token -> mo trang quote.html (khong
+// can tai khoan) -> nhap dung cac truong RFQ-02 can -> ghi thang vao
+// ZG1_QUOTATION voi QuoteStatus = RECEIVED. He thong biet NGAY luc NCC bam
+// gui, khong phu thuoc vao viec ai do doc mail.
+//
+// Token KHONG luu o dau ca (SAP khong co field de luu, va them field thi phai
+// sua SE11 + SEGW): token = HMAC-SHA256(RfqId|VendorNo, secret) cat 32 ky tu.
+// Muon kiem tra thi tinh lai roi so — khong the doan, khong the sua RfqId hay
+// VendorNo trong URL de nhay sang RFQ cua nguoi khac. Doi RFQ_PORTAL_SECRET la
+// vo hieu toan bo link cu (chap nhan duoc: RFQ song rat ngan).
+// ============================================================================
+
+const RFQ_QUOTE_PATH = "/quote.html";
+let _warnedPortalSecret = false;
+
+function rfqPortalSecret() {
+	const configured = String(process.env.RFQ_PORTAL_SECRET || "").trim();
+	if (configured.length >= 16) { return configured; }
+	if (!_warnedPortalSecret) {
+		_warnedPortalSecret = true;
+		console.warn("⚠️ RFQ_PORTAL_SECRET chua dat (hoac ngan hon 16 ky tu) — dang dung secret mac dinh. "
+			+ "PHAI dat bien moi truong nay truoc khi deploy, neu khong ai doc duoc source cung tao duoc link bao gia.");
+	}
+	return "qdavy-rfq-portal-dev-secret-doi-truoc-khi-deploy";
+}
+
+/** Token cua 1 cap (RFQ, NCC) — tinh lai duoc, khong can luu tru. */
+function rfqPortalToken(rfqId, vendorNo) {
+	return crypto
+		.createHmac("sha256", rfqPortalSecret())
+		.update(String(rfqId) + "|" + String(vendorNo))
+		.digest("hex")
+		.slice(0, 32);
+}
+
+/** So sanh token theo kieu chong timing attack (do dai luon bang nhau nen an toan de dung timingSafeEqual). */
+function verifyRfqPortalToken(rfqId, vendorNo, token) {
+	const expected = rfqPortalToken(rfqId, vendorNo);
+	const given = String(token || "");
+	if (given.length !== expected.length) { return false; }
+	return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(given));
+}
+
+/**
+ * URL goc cua ung dung de ghep vao link gui cho NCC.
+ * Uu tien APP_BASE_URL (bat buoc dat tren Vercel) vi mail gui di co the duoc mo
+ * o bat ky dau — suy tu req.headers chi dung khi chay local/dev.
+ */
+function appBaseUrl(req) {
+	const configured = String(process.env.APP_BASE_URL || "").trim().replace(/\/+$/, "");
+	if (configured) { return configured; }
+	const proto = String(req.headers["x-forwarded-proto"] || req.protocol || "http").split(",")[0].trim();
+	const host = String(req.headers["x-forwarded-host"] || req.headers.host || ("localhost:" + PORT)).split(",")[0].trim();
+	return proto + "://" + host;
+}
+
+function rfqQuoteLink(baseUrl, rfqId, vendorNo) {
+	return baseUrl + RFQ_QUOTE_PATH
+		+ "?rfq=" + encodeURIComponent(rfqId)
+		+ "&v=" + encodeURIComponent(vendorNo)
+		+ "&t=" + rfqPortalToken(rfqId, vendorNo);
+}
+
+// ============================================================================
+// EMAIL MOI BAO GIA — template dung chung cho lan gui dau va lan nhac
+// ============================================================================
+
+/** Chan noi dung tu SAP/nguoi dung truoc khi nhet vao HTML email. */
+function htmlEscape(v) {
+	return String(v == null ? "" : v)
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#39;");
+}
+
+/** "20260820" (DATS cua SAP) -> "20/08/2026". Chuoi khac dinh dang thi tra ve nguyen van. */
+function formatDeadlineVi(dats) {
+	const s = String(dats || "").replace(/-/g, "").trim();
+	if (!/^\d{8}$/.test(s)) { return String(dats || ""); }
+	return s.slice(6, 8) + "/" + s.slice(4, 6) + "/" + s.slice(0, 4);
+}
+
+/** So ngay con lai tinh tu hom nay toi han nop (am = da qua han). null neu khong co han. */
+function daysUntilDeadline(dats) {
+	const s = normalizeSapDeadline(dats);
+	if (!s) { return null; }
+	const due = Date.UTC(Number(s.slice(0, 4)), Number(s.slice(4, 6)) - 1, Number(s.slice(6, 8)));
+	const today = normalizeSapDeadline(sapDateOnly());
+	const now = Date.UTC(Number(today.slice(0, 4)), Number(today.slice(4, 6)) - 1, Number(today.slice(6, 8)));
+	return Math.round((due - now) / 86400000);
+}
+
+/**
+ * Dung noi dung email moi bao gia.
+ *
+ * Nguyen tac noi dung:
+ *  - KHONG gui gia tri uoc tinh cua PR cho NCC (EstimatedValue). Do la ngan
+ *    sach noi bo; lo ra thi bao gia nao cung se bam sat con so do.
+ *  - Liet ke du dung cac truong ma man RFQ-02 bat NHAP, de neu NCC tra loi
+ *    bang email thuong thi trong mail cung co san moi thu, khong phai hoi lai.
+ *  - Luon co ban plain-text (`text`): mail chi co HTML bi cham diem spam cao
+ *    hon han, va mot so he thong mua hang cua NCC doc plain-text.
+ */
+function buildRfqEmail(opts) {
+	const isReminder = !!opts.isReminder;
+	const rfqId = String(opts.rfqId || "");
+	const vendorName = String(opts.vendorName || opts.vendorNo || "Quý Nhà cung cấp");
+	const prLabel = String(opts.prLabel || "");
+	const deadlineVi = opts.deadline ? formatDeadlineVi(opts.deadline) : "";
+	const daysLeft = opts.deadline ? daysUntilDeadline(opts.deadline) : null;
+	const items = Array.isArray(opts.items) ? opts.items : [];
+	const quoteLink = String(opts.quoteLink || "");
+	const buyerEmail = String(opts.buyerEmail || process.env.EMAIL_USER || "");
+
+	const subject = (isReminder ? "[Nhắc lần " + (opts.reminderCount || 1) + "] " : "")
+		+ "Mời báo giá " + rfqId
+		+ (deadlineVi ? " — hạn nộp " + deadlineVi : "");
+
+	const deadlineNote = deadlineVi
+		? (daysLeft != null && daysLeft < 0
+			? "Đã quá hạn " + Math.abs(daysLeft) + " ngày"
+			: (daysLeft != null ? "Còn " + daysLeft + " ngày" : ""))
+		: "";
+
+	// ── Bang vat tu can bao gia ──────────────────────────────────────────
+	const itemRows = items.length
+		? items.map(function (it, idx) {
+			const maNvl = it.MaterialNo
+				? htmlEscape(it.MaterialNo)
+				: '<span style="color:' + BRAND.slate + '">Hàng/dịch vụ mô tả tự do</span>';
+			return '<tr>'
+				+ '<td style="padding:10px 8px;border-bottom:1px solid ' + BRAND.line + ';color:' + BRAND.slate + ';font-size:13px;text-align:center">' + (idx + 1) + '</td>'
+				+ '<td style="padding:10px 8px;border-bottom:1px solid ' + BRAND.line + ';font-size:14px;color:' + BRAND.navy + '"><b>' + htmlEscape(it.Description || "(không có mô tả)") + '</b><br><span style="font-size:12px;color:' + BRAND.slate + '">' + maNvl + '</span></td>'
+				+ '<td style="padding:10px 8px;border-bottom:1px solid ' + BRAND.line + ';font-size:14px;color:' + BRAND.navy + ';text-align:right;white-space:nowrap"><b>' + htmlEscape(Number(it.Quantity || 0).toLocaleString("vi-VN")) + '</b> ' + htmlEscape(it.UoM || "") + '</td>'
+				+ '</tr>';
+		}).join("")
+		: '<tr><td colspan="3" style="padding:14px 8px;color:' + BRAND.slate + ';font-size:13px">Chi tiết hàng hoá/dịch vụ sẽ được gửi trong thư trả lời. Vui lòng liên hệ đầu mối bên dưới.</td></tr>';
+
+	// ── Bang cac truong bat buoc trong bao gia ───────────────────────────
+	const fieldRows = [
+		["Tổng giá báo (VND, đã gồm VAT)", "Bắt buộc. Ghi rõ đơn giá từng dòng nếu có nhiều dòng."],
+		["Thời gian giao hàng (số ngày)", "Tính từ ngày ký hợp đồng/nhận PO. Ghi 0 nếu giao ngay."],
+		["Điều khoản thanh toán", PAYMENT_TERMS.map(function (t) { return t.label; }).join(" · ")],
+		["Thời gian bảo hành (số tháng)", "Ghi 0 nếu hàng hoá/dịch vụ không có bảo hành."],
+		["Hồ sơ pháp lý", "Giấy phép kinh doanh, mã số thuế, chứng nhận/uỷ quyền phân phối (nếu có)."]
+	].map(function (row) {
+		return '<tr>'
+			+ '<td style="padding:9px 10px;border-bottom:1px solid ' + BRAND.line + ';font-size:13px;color:' + BRAND.navy + ';white-space:nowrap"><b>' + row[0] + '</b></td>'
+			+ '<td style="padding:9px 10px;border-bottom:1px solid ' + BRAND.line + ';font-size:13px;color:' + BRAND.slate + '">' + row[1] + '</td>'
+			+ '</tr>';
+	}).join("");
+
+	const infoRow = function (label, value, strong) {
+		return '<tr>'
+			+ '<td style="padding:7px 0;font-size:13px;color:' + BRAND.slate + ';white-space:nowrap">' + label + '</td>'
+			+ '<td style="padding:7px 0 7px 16px;font-size:14px;color:' + BRAND.navy + ';text-align:right">' + (strong ? '<b>' + value + '</b>' : value) + '</td>'
+			+ '</tr>';
+	};
+
+	const html = '<!DOCTYPE html>'
++ '<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + htmlEscape(subject) + '</title></head>'
++ '<body style="margin:0;padding:0;background:' + BRAND.bg + ';">'
++ '<div style="display:none;max-height:0;overflow:hidden;opacity:0">'
+	+ 'Mời báo giá ' + htmlEscape(rfqId) + (deadlineVi ? ' — hạn nộp ' + deadlineVi : '') + '. Quý vị có thể gửi báo giá trực tuyến chỉ trong 1 phút.'
++ '</div>'
++ '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:' + BRAND.bg + ';padding:24px 12px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Arial,sans-serif">'
++ '<tr><td align="center">'
++ '<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 2px 14px rgba(11,31,63,.08)">'
+
+	// Header: logo tren nen trang + thanh gradient
++ '<tr><td align="center" style="padding:26px 24px 18px">'
+	+ '<img src="cid:' + QDAVY_LOGO_CID + '" width="150" alt="QDAVY Global Group" style="display:block;border:0;width:150px;height:auto">'
++ '</td></tr>'
++ '<tr><td style="height:4px;background:linear-gradient(90deg,' + BRAND.blueDark + ' 0%,' + BRAND.blue + ' 100%);background-color:' + BRAND.blue + ';font-size:0;line-height:0">&nbsp;</td></tr>'
+
+	// Tieu de
++ '<tr><td style="padding:26px 32px 6px">'
+	+ '<div style="font-size:11px;letter-spacing:2px;color:' + BRAND.slate + ';text-transform:uppercase">'
+		+ (isReminder ? 'Thư nhắc · Reminder' : 'Thư mời báo giá · Request for Quotation')
+	+ '</div>'
+	+ '<div style="font-size:26px;font-weight:700;color:' + BRAND.navy + ';padding-top:4px">' + htmlEscape(rfqId) + '</div>'
++ '</td></tr>'
+
+	// Loi chao
++ '<tr><td style="padding:14px 32px 0;font-size:14px;line-height:1.65;color:' + BRAND.navy + '">'
+	+ '<p style="margin:0 0 10px">Kính gửi <b>' + htmlEscape(vendorName) + '</b>,</p>'
+	+ '<p style="margin:0">'
+		+ (isReminder
+			? 'Chúng tôi đã gửi thư mời báo giá cho yêu cầu mua sắm dưới đây nhưng chưa nhận được phản hồi của Quý công ty. Rất mong Quý công ty dành ít phút gửi báo giá trước hạn.'
+			: 'Công ty QDAVY Global Group trân trọng kính mời Quý công ty gửi báo giá cho yêu cầu mua sắm dưới đây.')
+	+ '</p>'
++ '</td></tr>'
+
+	// The thong tin
++ '<tr><td style="padding:18px 32px 0">'
+	+ '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:' + BRAND.bg + ';border-radius:10px;padding:6px 16px">'
+	+ '<tr><td style="padding:10px 16px">'
+		+ '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">'
+		+ infoRow('Mã yêu cầu báo giá', htmlEscape(rfqId), true)
+		+ (prLabel ? infoRow('Mã đề nghị mua hàng', htmlEscape(prLabel)) : '')
+		+ (deadlineVi
+			? infoRow('Hạn nộp báo giá',
+				'<span style="color:' + (daysLeft != null && daysLeft < 0 ? '#C0392B' : BRAND.navy) + '">' + deadlineVi + '</span>'
+				+ (deadlineNote ? ' <span style="font-size:12px;color:' + BRAND.slate + '">(' + deadlineNote + ')</span>' : ''), true)
+			: '')
+		+ infoRow('Đầu mối liên hệ', '<a href="mailto:' + htmlEscape(buyerEmail) + '" style="color:' + BRAND.blueDark + ';text-decoration:none">' + htmlEscape(buyerEmail) + '</a>')
+		+ '</table>'
+	+ '</td></tr></table>'
++ '</td></tr>'
+
+	// Bang vat tu
++ '<tr><td style="padding:24px 32px 0">'
+	+ '<div style="font-size:13px;font-weight:700;color:' + BRAND.navy + ';padding-bottom:8px">NỘI DUNG CẦN BÁO GIÁ</div>'
+	+ '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">'
+	+ '<tr style="background:' + BRAND.navy + '">'
+		+ '<th style="padding:9px 8px;font-size:11px;letter-spacing:.6px;color:#fff;text-align:center;width:34px">#</th>'
+		+ '<th style="padding:9px 8px;font-size:11px;letter-spacing:.6px;color:#fff;text-align:left">HÀNG HOÁ / DỊCH VỤ</th>'
+		+ '<th style="padding:9px 8px;font-size:11px;letter-spacing:.6px;color:#fff;text-align:right;white-space:nowrap">SỐ LƯỢNG</th>'
+	+ '</tr>'
+	+ itemRows
+	+ '</table>'
++ '</td></tr>'
+
+	// CTA portal
++ (quoteLink
+	? '<tr><td style="padding:26px 32px 0">'
+		+ '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ' + BRAND.line + ';border-radius:12px">'
+		+ '<tr><td align="center" style="padding:22px 20px">'
+			+ '<div style="font-size:15px;font-weight:700;color:' + BRAND.navy + '">Gửi báo giá trực tuyến — nhanh hơn trả lời email</div>'
+			+ '<div style="font-size:13px;color:' + BRAND.slate + ';padding:6px 0 16px;line-height:1.6">Không cần tạo tài khoản. Link dưới đây dành riêng cho Quý công ty và chỉ dùng cho yêu cầu ' + htmlEscape(rfqId) + '.</div>'
+			+ '<a href="' + htmlEscape(quoteLink) + '" style="display:inline-block;background:' + BRAND.blueDark + ';color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 30px;border-radius:9px">Nhập báo giá ngay &rarr;</a>'
+			+ '<div style="font-size:11px;color:' + BRAND.slate + ';padding-top:14px;word-break:break-all;line-height:1.5">Nếu nút trên không bấm được, sao chép đường dẫn sau vào trình duyệt:<br><span style="color:' + BRAND.blueDark + '">' + htmlEscape(quoteLink) + '</span></div>'
+		+ '</td></tr></table>'
+	+ '</td></tr>'
+	: '')
+
+	// Bang truong bat buoc
++ '<tr><td style="padding:26px 32px 0">'
+	+ '<div style="font-size:13px;font-weight:700;color:' + BRAND.navy + '">NẾU QUÝ CÔNG TY TRẢ LỜI BẰNG EMAIL</div>'
+	+ '<div style="font-size:13px;color:' + BRAND.slate + ';padding:6px 0 10px;line-height:1.6">Vui lòng nêu đủ các mục sau để chúng tôi đưa vào bảng so sánh; thiếu mục nào chúng tôi sẽ phải hỏi lại và báo giá bị chậm xét.</div>'
+	+ '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border-top:2px solid ' + BRAND.line + '">'
+	+ fieldRows
+	+ '</table>'
++ '</td></tr>'
+
+	// Ket
++ '<tr><td style="padding:22px 32px 0;font-size:14px;line-height:1.65;color:' + BRAND.navy + '">'
+	+ '<p style="margin:0 0 10px">Báo giá nộp sau hạn vẫn được ghi nhận nhưng có thể không kịp đưa vào vòng xét chọn.</p>'
+	+ '<p style="margin:0">Trân trọng cảm ơn,<br><b>Phòng Thu mua — QDAVY Global Group</b></p>'
++ '</td></tr>'
+
+	// Footer
++ '<tr><td style="padding:24px 32px 28px">'
+	+ '<div style="border-top:1px solid ' + BRAND.line + ';padding-top:14px;font-size:11px;line-height:1.7;color:' + BRAND.slate + '">'
+		+ 'Thư này được gửi tự động từ Hệ thống Mua sắm QDAVY. Nếu thư rơi vào mục Spam/Quảng cáo, vui lòng đánh dấu <b>&ldquo;Không phải spam&rdquo;</b> và thêm '
+		+ htmlEscape(buyerEmail) + ' vào danh bạ để nhận được các yêu cầu sau.<br>'
+		+ 'Mọi thắc mắc xin liên hệ Phòng Thu mua qua địa chỉ ' + htmlEscape(buyerEmail) + '.'
+	+ '</div>'
++ '</td></tr>'
+
++ '</table>'
++ '</td></tr></table></body></html>';
+
+	// ── Ban plain-text ───────────────────────────────────────────────────
+	const textItems = items.length
+		? items.map(function (it, idx) {
+			return "  " + (idx + 1) + ". " + (it.Description || "(khong co mo ta)")
+				+ (it.MaterialNo ? " [" + it.MaterialNo + "]" : "")
+				+ " — SL: " + Number(it.Quantity || 0).toLocaleString("vi-VN") + " " + (it.UoM || "");
+		}).join("\n")
+		: "  (Chi tiet se duoc gui trong thu tra loi)";
+
+	const text = [
+		(isReminder ? "THU NHAC — " : "") + "THU MOI BAO GIA " + rfqId,
+		"",
+		"Kinh gui " + vendorName + ",",
+		"",
+		isReminder
+			? "Chung toi chua nhan duoc bao gia cua Quy cong ty cho yeu cau duoi day."
+			: "QDAVY Global Group tran trong kinh moi Quy cong ty gui bao gia cho yeu cau mua sam duoi day.",
+		"",
+		"Ma yeu cau bao gia: " + rfqId,
+		prLabel ? "Ma de nghi mua hang: " + prLabel : "",
+		deadlineVi ? "Han nop bao gia: " + deadlineVi + (deadlineNote ? " (" + deadlineNote + ")" : "") : "",
+		"Dau moi lien he: " + buyerEmail,
+		"",
+		"NOI DUNG CAN BAO GIA:",
+		textItems,
+		"",
+		quoteLink ? "GUI BAO GIA TRUC TUYEN (khong can tai khoan):" : "",
+		quoteLink || "",
+		"",
+		"NEU TRA LOI BANG EMAIL, xin neu du cac muc sau:",
+		"  - Tong gia bao (VND, da gom VAT)",
+		"  - Thoi gian giao hang (so ngay)",
+		"  - Dieu khoan thanh toan (" + PAYMENT_TERMS.map(function (t) { return t.label; }).join(" / ") + ")",
+		"  - Thoi gian bao hanh (so thang)",
+		"  - Ho so phap ly: giay phep kinh doanh, ma so thue, chung nhan/uy quyen phan phoi",
+		"",
+		"Tran trong cam on,",
+		"Phong Thu mua — QDAVY Global Group"
+	].filter(function (line) { return line !== ""; }).join("\n");
+
+	return { subject: subject, html: html, text: text };
+}
+
+/**
+ * Gui email moi bao gia cho 1 danh sach quotation (1 dong = 1 NCC).
+ * Dung chung cho /api/rfq/:id/send (lan dau) va /api/rfq/:id/remind (nhac).
+ * Tra ve { sent, skipped, failed } — KHONG nem loi de 1 NCC sai email khong
+ * chan ca lo mail con lai.
+ */
+async function sendRfqInviteEmails(opts) {
+	const transporter = getMailTransporter();
+	const result = { sent: 0, skipped: 0, failed: 0, noEmailVendors: [] };
+	if (!transporter) {
+		console.error("[sendRfqInviteEmails] Bo qua gui email (nodemailer khong san sang):", opts.rfqId);
+		result.skipped = (opts.quotations || []).length;
+		return result;
+	}
+
+	for (const q of (opts.quotations || [])) {
+		if (!q.VendorEmail) {
+			result.skipped++;
+			result.noEmailVendors.push(String(q.VendorName || q.VendorNo || ""));
+			continue;
+		}
+		const mail = buildRfqEmail({
+			rfqId: opts.rfqId,
+			vendorName: q.VendorName || q.VendorNo,
+			vendorNo: q.VendorNo,
+			prLabel: opts.prLabel,
+			deadline: opts.deadline,
+			items: opts.items,
+			quoteLink: rfqQuoteLink(opts.baseUrl, opts.rfqId, q.VendorNo),
+			buyerEmail: opts.buyerEmail,
+			isReminder: opts.isReminder,
+			reminderCount: opts.reminderCount
+		});
+		try {
+			await transporter.sendMail({
+				// Ten hien thi that ("QDAVY..." thay vi dia chi gmail tran) giup NCC
+				// nhan ra nguoi gui va giup bo loc spam bot nghi ngo hon.
+				from: { name: "QDAVY Global Group — Phòng Thu mua", address: process.env.EMAIL_USER },
+				to: q.VendorEmail,
+				replyTo: opts.buyerEmail || process.env.EMAIL_USER,
+				subject: mail.subject,
+				text: mail.text,
+				html: mail.html,
+				attachments: [qdavyLogoAttachment()],
+				// Gom cac mail cua cung 1 RFQ vao 1 luong hoi thoai ben phia NCC.
+				references: "<rfq-" + opts.rfqId + "@qdavy.local>"
+			});
+			result.sent++;
+		} catch (mailError) {
+			result.failed++;
+			console.error("[sendRfqInviteEmails] Gui mail that bai cho " + q.VendorEmail + ":", mailError.message);
+		}
+	}
+	return result;
+}
+
+/** Doc RFQ + danh sach quotation + PR goc (kem items) — 3 route send/remind/portal dung chung. */
+async function loadRfqContext(rfqId) {
+	const rfqResp = await sapRead(`RfqSet('${odataEscape(rfqId)}')`);
+	const rfq = rfqResp.data && rfqResp.data.d;
+	if (!rfq) { return null; }
+
+	const quotationsResp = await sapRead(`RfqSet('${odataEscape(rfqId)}')/RfqToQuotations`);
+	const quotations = (quotationsResp.data && quotationsResp.data.d && quotationsResp.data.d.results) || [];
+
+	// PR goc chi dung de lay danh sach vat tu cho vao mail/portal — doc loi thi
+	// van gui duoc mail (bang vat tu se hien dong "se gui trong thu tra loi").
+	let pr = null;
+	try {
+		pr = await fetchPrDraftByRfq(rfq);
+	} catch (error) {
+		console.error("[loadRfqContext] Doc PR goc that bai:", extractSapErrorMessage(error));
+	}
+	return { rfq: rfq, quotations: quotations, pr: pr };
+}
+
+/** Nhan mo ta PR de hien cho NCC: uu tien so PR that tren SAP. */
+function prLabelOf(rfq, pr) {
+	return String((pr && (pr.SapPRId || pr.PRId)) || rfq.SapPrNumber || rfq.PrId || "").trim();
+}
+
+/**
+ * Sau khi 1 bao gia duoc ghi nhan (Purchasing nhap tay HOAC NCC tu gui qua
+ * portal): nang RFQ DRAFT/SENT -> QUOTATIONS_RECEIVED va phan anh len PR goc.
+ * Khong bao gio ha cap RFQ da AWARDED.
+ */
+async function promoteRfqAfterQuotation(rfqId, session) {
+	const rfqResp = await sapRead(`RfqSet('${odataEscape(rfqId)}')`);
+	const rfq = rfqResp.data && rfqResp.data.d;
+	if (!rfq || (rfq.Status !== "DRAFT" && rfq.Status !== "SENT")) { return; }
+
+	await sapWrite("MERGE", `RfqSet('${odataEscape(rfqId)}')`, { Status: "QUOTATIONS_RECEIVED" }, session);
+
+	const prRecord = await fetchPrDraftByRfq(rfq);
+	if (prRecord && (prRecord.Status === "PENDING_RFQ" || prRecord.Status === "RFQ_SENT")) {
+		await updatePrDraft(prRecord.InternalId, { Status: "QUOTATIONS_RECEIVED" });
+	}
+}
+
+/**
+ * Bao cho Purchasing biet vua co bao gia moi vao — day chinh la cau tra loi cho
+ * "khong le cu ngoi cho mail?": he thong chu dong bao thay vi nguoi phai canh.
+ * Gui ca 2 duong (email + thong bao trong app) vi notificationStore la file/RAM,
+ * tren Vercel co the mat khi doi instance; con email thi chac chan toi noi.
+ */
+async function notifyPurchasingNewQuote(rfqId, prLabel, quotation) {
+	const priceText = Number(quotation.QuotedPrice || 0).toLocaleString("vi-VN") + " " + (quotation.Currency || "VND");
+	const vendorText = (quotation.VendorName || "") + " (" + quotation.VendorNo + ")";
+	const message = "NCC " + vendorText + " vừa gửi báo giá " + priceText + " cho RFQ " + rfqId
+		+ (prLabel ? " (PR " + prLabel + ")" : "") + " — vào RFQ-02 để so sánh và chốt.";
+
+	let emails = [];
+	try {
+		emails = await findEmailsByRole("PURCHASING");
+	} catch (error) {
+		console.error("[notifyPurchasingNewQuote] Khong doc duoc email Purchasing:", extractSapErrorMessage(error));
+	}
+	emails.forEach(function (email) { pushNotification(email, prLabel || rfqId, message); });
+
+	const transporter = getMailTransporter();
+	if (!transporter || emails.length === 0) { return; }
+	try {
+		await transporter.sendMail({
+			from: { name: "QDAVY Procurement", address: process.env.EMAIL_USER },
+			to: emails.join(","),
+			subject: "[Báo giá mới] " + rfqId + " — " + vendorText,
+			text: message,
+			html: '<p style="font-family:Arial,sans-serif;font-size:14px;color:' + BRAND.navy + '">' + htmlEscape(message) + '</p>'
+		});
+	} catch (mailError) {
+		console.error("[notifyPurchasingNewQuote] Gui mail bao Purchasing that bai:", mailError.message);
+	}
+}
+
+// ── ROUTE CONG KHAI (KHONG DANG NHAP) — chi phuc vu trang quote.html ────────
+// Bao mat: moi request bat buoc co token dung cho dung cap (RfqId, VendorNo).
+// Tra ve DUY NHAT nhung gi NCC duoc phep thay: ma RFQ, han nop, mo ta + so
+// luong vat tu. TUYET DOI khong tra EstimatedValue/TotalValue (ngan sach noi
+// bo), khong tra danh sach NCC khac, khong tra bao gia cua NCC khac.
+
+/** Doc du lieu de hien trang portal. */
+app.get("/api/public/rfq/quote", async (req, res) => {
+	const rfqId = String(req.query.rfq || "").trim();
+	const vendorNo = String(req.query.v || "").trim();
+	const token = String(req.query.t || "").trim();
+
+	if (!rfqId || !vendorNo || !token) {
+		return res.status(400).json({ success: false, message: "Đường dẫn không hợp lệ (thiếu tham số)." });
+	}
+	if (!verifyRfqPortalToken(rfqId, vendorNo, token)) {
+		return res.status(403).json({ success: false, message: "Đường dẫn không hợp lệ hoặc đã hết hiệu lực. Vui lòng liên hệ Phòng Thu mua." });
+	}
+	if (!process.env.SAP_HOST) {
+		return res.status(503).json({ success: false, message: "Hệ thống đang bảo trì, vui lòng thử lại sau." });
+	}
+
+	try {
+		const ctx = await loadRfqContext(rfqId);
+		if (!ctx) {
+			return res.status(404).json({ success: false, message: "Không tìm thấy yêu cầu báo giá này." });
+		}
+		const mine = ctx.quotations.find((q) => String(q.VendorNo) === vendorNo);
+		if (!mine) {
+			return res.status(404).json({ success: false, message: "Quý công ty không nằm trong danh sách được mời báo giá của yêu cầu này." });
+		}
+
+		const daysLeft = daysUntilDeadline(ctx.rfq.Deadline);
+		return res.json({
+			success: true,
+			rfqId: rfqId,
+			prLabel: prLabelOf(ctx.rfq, ctx.pr),
+			rfqStatus: ctx.rfq.Status,
+			deadline: ctx.rfq.Deadline || "",
+			deadlineText: ctx.rfq.Deadline ? formatDeadlineVi(ctx.rfq.Deadline) : "",
+			daysLeft: daysLeft,
+			overdue: daysLeft != null && daysLeft < 0,
+			// Da chot NCC thi khoa form — nhan xong roi ma con cho nhap tiep la lam
+			// nguoi ta mat cong vo ich.
+			closed: ctx.rfq.Status === "AWARDED",
+			awardedToMe: ctx.rfq.Status === "AWARDED" && String(ctx.rfq.AwardedVendor || "") === vendorNo,
+			vendor: { VendorNo: mine.VendorNo, VendorName: mine.VendorName || "" },
+			// Chi mo ta + so luong. Khong co gia tri uoc tinh.
+			items: ((ctx.pr && ctx.pr.items) || []).map(function (it) {
+				return {
+					LineNo: it.LineNo,
+					Description: it.Description || "",
+					MaterialNo: it.MaterialNo || "",
+					Quantity: it.Quantity || 0,
+					UoM: it.UoM || ""
+				};
+			}),
+			paymentTerms: PAYMENT_TERMS,
+			currency: ctx.rfq.Currency || "VND",
+			// Da nop roi thi do lai de NCC sua/xac nhan, khong bat go lai tu dau.
+			submitted: mine.QuoteStatus === "RECEIVED" || mine.QuoteStatus === "AWARDED",
+			current: (mine.QuoteStatus === "RECEIVED" || mine.QuoteStatus === "AWARDED") ? {
+				quotedPrice: Number(mine.QuotedPrice) || 0,
+				leadTimeDays: Number(mine.LeadTimeDays) || 0,
+				paymentTerms: mine.PaymentTerms || "",
+				warrantyMonths: Number(mine.WarrantyMonths) || 0,
+				legalDocsOk: mine.LegalDocsOk === "X",
+				enteredAt: sapTsToIso(mine.EnteredAt, 0)
+			} : null
+		});
+	} catch (error) {
+		console.error("[GET /api/public/rfq/quote] THAT BAI:", extractSapErrorMessage(error));
+		return res.status(502).json({ success: false, message: "Không đọc được yêu cầu báo giá. Vui lòng thử lại sau ít phút." });
+	}
+});
+
+/** NCC bam "Gửi báo giá" tren portal. */
+app.post("/api/public/rfq/quote", async (req, res) => {
+	const body = req.body || {};
+	const rfqId = String(body.rfq || "").trim();
+	const vendorNo = String(body.v || "").trim();
+	const token = String(body.t || "").trim();
+
+	if (!rfqId || !vendorNo || !verifyRfqPortalToken(rfqId, vendorNo, token)) {
+		return res.status(403).json({ success: false, message: "Đường dẫn không hợp lệ hoặc đã hết hiệu lực." });
+	}
+	if (!process.env.SAP_HOST) {
+		return res.status(503).json({ success: false, message: "Hệ thống đang bảo trì, vui lòng thử lại sau." });
+	}
+
+	const price = Number(body.quotedPrice);
+	if (!isFinite(price) || price <= 0) {
+		return res.status(400).json({ success: false, message: "Vui lòng nhập tổng giá báo hợp lệ (lớn hơn 0)." });
+	}
+	const contactName = String(body.contactName || "").trim();
+	if (!contactName) {
+		return res.status(400).json({ success: false, message: "Vui lòng nhập tên người gửi báo giá." });
+	}
+	// Ma dieu khoan phai nam trong danh muc — khong nhan chuoi tu do tu ben ngoai
+	// (day la du lieu cong khai, ai cung POST duoc neu co link).
+	const termCode = String(body.paymentTerms || "").trim().toUpperCase();
+	if (termCode && !PAYMENT_TERMS.some((t) => t.code === termCode)) {
+		return res.status(400).json({ success: false, message: "Điều khoản thanh toán không hợp lệ." });
+	}
+
+	try {
+		const ctx = await loadRfqContext(rfqId);
+		if (!ctx) {
+			return res.status(404).json({ success: false, message: "Không tìm thấy yêu cầu báo giá này." });
+		}
+		const mine = ctx.quotations.find((q) => String(q.VendorNo) === vendorNo);
+		if (!mine) {
+			return res.status(404).json({ success: false, message: "Quý công ty không nằm trong danh sách được mời báo giá của yêu cầu này." });
+		}
+		if (ctx.rfq.Status === "AWARDED") {
+			return res.status(409).json({ success: false, message: "Yêu cầu báo giá này đã kết thúc (đã chọn được nhà cung cấp)." });
+		}
+
+		const daysLeft = daysUntilDeadline(ctx.rfq.Deadline);
+		const late = daysLeft != null && daysLeft < 0;
+		const contactInfo = String(body.contactInfo || "").trim();
+
+		// SourceNote/EnteredBy la field CHAR do dai co han tren ZG1_QUOTATION —
+		// cat ngan chu dong o day, vi ABAP cat cut am tham khong bao loi (da dinh
+		// 1 lan voi ZPR_DRAFT-RFQID CHAR10, xem CLAUDE.md).
+		const sourceNote = ("NCC tự gửi qua Portal " + sapDateOnly() + " — " + contactName
+			+ (contactInfo ? " (" + contactInfo + ")" : "")
+			+ (late ? " [NỘP SAU HẠN]" : "")).slice(0, 100);
+
+		await sapWrite(
+			"MERGE",
+			`QuotationSet(RfqId='${odataEscape(rfqId)}',VendorNo='${odataEscape(vendorNo)}')`,
+			{
+				QuotedPrice: String(price),
+				Currency: ctx.rfq.Currency || "VND",
+				LeadTimeDays: Number(body.leadTimeDays) || 0,
+				PaymentTerms: termCode,
+				WarrantyMonths: Number(body.warrantyMonths) || 0,
+				LegalDocsOk: body.legalDocsOk ? "X" : "",
+				QuoteStatus: "RECEIVED",
+				EnteredBy: (contactInfo || contactName).slice(0, 40),
+				EnteredAt: sapTimestamp(),
+				SourceNote: sourceNote
+			}
+		);
+
+		await promoteRfqAfterQuotation(rfqId);
+
+		// Khong de loi gui thong bao lam hong ket qua da ghi thanh cong len SAP.
+		try {
+			await notifyPurchasingNewQuote(rfqId, prLabelOf(ctx.rfq, ctx.pr), {
+				VendorNo: vendorNo,
+				VendorName: mine.VendorName,
+				QuotedPrice: price,
+				Currency: ctx.rfq.Currency || "VND"
+			});
+		} catch (notifyError) {
+			console.error("[POST /api/public/rfq/quote] Bao cho Purchasing that bai:", notifyError.message);
+		}
+
+		return res.json({ success: true, late: late });
+	} catch (error) {
+		console.error("[POST /api/public/rfq/quote] THAT BAI:", extractSapErrorMessage(error));
+		return res.status(502).json({ success: false, message: "Không lưu được báo giá. Vui lòng thử lại hoặc gửi email cho Phòng Thu mua." });
+	}
+});
+
 // 0) Danh sach RFQ (cho man RFQ-02 chon RFQ dang xu ly) — doc thang tu RfqSet
 app.get("/api/rfq", async (req, res) => {
 	if (!process.env.SAP_HOST) {
@@ -2794,7 +3498,7 @@ app.post("/api/rfq/create", async (req, res) => {
 // 2) Gui email RFQ toi cac NCC da moi + chuyen trang thai sang SENT
 app.post("/api/rfq/:id/send", async (req, res) => {
 	const { id } = req.params;
-	const { deadline } = req.body || {};
+	const { deadline, sentBy } = req.body || {};
 
 	if (!process.env.SAP_HOST) {
 		return res.status(503).json({ success: false, message: "He thong SAP chua duoc cau hinh (thieu SAP_HOST)." });
@@ -2807,46 +3511,22 @@ app.post("/api/rfq/:id/send", async (req, res) => {
 	}
 
 	try {
-		const rfqResp = await sapRead(`RfqSet('${odataEscape(id)}')`);
-		const rfq = rfqResp.data && rfqResp.data.d;
-		if (!rfq) {
+		const ctx = await loadRfqContext(id);
+		if (!ctx) {
 			return res.status(404).json({ success: false, message: "Khong tim thay RFQ " + id + "." });
 		}
+		const { rfq, quotations, pr } = ctx;
 
-		const quotationsResp = await sapRead(`RfqSet('${odataEscape(id)}')/RfqToQuotations`);
-		const quotations = (quotationsResp.data && quotationsResp.data.d && quotationsResp.data.d.results) || [];
-
-		const transporter = getMailTransporter();
-		let sentCount = 0;
-		if (transporter) {
-			for (const q of quotations) {
-				if (!q.VendorEmail) { continue; }
-				try {
-					await transporter.sendMail({
-						from: process.env.EMAIL_USER,
-						to: q.VendorEmail,
-						subject: `Yeu cau bao gia ${id}`,
-						html: `
-							<p>Kinh gui ${q.VendorName || q.VendorNo},</p>
-							<p>Chung toi de nghi Quy vi gui bao gia cho yeu cau mua sam lien quan:</p>
-							<table border="1" cellpadding="6" cellspacing="0">
-								<tr><td><b>Ma RFQ</b></td><td>${id}</td></tr>
-								<tr><td><b>PR lien quan</b></td><td>${rfq.SapPrNumber || rfq.PrId || ""}</td></tr>
-								<tr><td><b>Han nop bao gia</b></td><td>${deadline || "(chua xac dinh)"}</td></tr>
-							</table>
-							<p>Vui long phan hoi truoc han neu co the.</p>
-							<p>Tran trong,<br>Purchasing Department</p>
-						`,
-            attachments: getLogoAttachment()
-					});
-					sentCount++;
-				} catch (mailError) {
-					console.error(`[POST /api/rfq/${id}/send] Gui mail that bai cho ${q.VendorEmail}:`, mailError.message);
-				}
-			}
-		} else {
-			console.error(`[POST /api/rfq/${id}/send] Bo qua gui email (nodemailer khong san sang).`);
-		}
+		const mailResult = await sendRfqInviteEmails({
+			rfqId: id,
+			quotations: quotations,
+			prLabel: prLabelOf(rfq, pr),
+			deadline: normalizeSapDeadline(deadline),
+			items: (pr && pr.items) || [],
+			baseUrl: appBaseUrl(req),
+			buyerEmail: sentBy || process.env.EMAIL_USER,
+			isReminder: false
+		});
 
 		const normalizedDeadline = normalizeSapDeadline(deadline);
 		const mergeData = {
@@ -2858,15 +3538,141 @@ app.post("/api/rfq/:id/send", async (req, res) => {
 		await sapWrite("MERGE", `RfqSet('${odataEscape(id)}')`, mergeData);
 
 		// Chuyen PR goc sang RFQ_SENT (khong ha cap neu vi ly do nao do da qua giai doan sau).
-		const prRecordForSend = await fetchPrDraftByRfq(rfq);
-		if (prRecordForSend && prRecordForSend.Status === "PENDING_RFQ") {
-			await updatePrDraft(prRecordForSend.InternalId, { Status: "RFQ_SENT" });
+		if (pr && pr.Status === "PENDING_RFQ") {
+			await updatePrDraft(pr.InternalId, { Status: "RFQ_SENT" });
 		}
 
-		return res.json({ success: true, emailsSent: sentCount, totalVendors: quotations.length });
+		return res.json({
+			success: true,
+			emailsSent: mailResult.sent,
+			totalVendors: quotations.length,
+			// FE canh bao ro: NCC khong co email trong VendorSet thi khong bao gio
+			// nhan duoc thu, truoc day am tham bi bo qua (`continue`) khong ai biet.
+			vendorsWithoutEmail: mailResult.noEmailVendors,
+			emailsFailed: mailResult.failed
+		});
 	} catch (error) {
 		const message = extractSapErrorMessage(error);
 		console.error(`[POST /api/rfq/${id}/send] THAT BAI:`, message);
+		return res.status(502).json({ success: false, message });
+	}
+});
+
+// 2b) Gui NHAC cho cac NCC chua nop bao gia (QuoteStatus = PENDING).
+// Thu cong tu man RFQ-02 hoac tu dong qua GET /api/cron/rfq-reminders.
+app.post("/api/rfq/:id/remind", async (req, res) => {
+	const { id } = req.params;
+	const { sentBy } = req.body || {};
+
+	if (!process.env.SAP_HOST) {
+		return res.status(503).json({ success: false, message: "He thong SAP chua duoc cau hinh (thieu SAP_HOST)." });
+	}
+
+	try {
+		const ctx = await loadRfqContext(id);
+		if (!ctx) {
+			return res.status(404).json({ success: false, message: "Khong tim thay RFQ " + id + "." });
+		}
+		const { rfq, quotations, pr } = ctx;
+
+		if (rfq.Status === "AWARDED") {
+			return res.status(400).json({ success: false, message: "RFQ " + id + " da chot NCC — khong gui nhac nua." });
+		}
+		if (rfq.Status === "DRAFT") {
+			return res.status(400).json({ success: false, message: "RFQ " + id + " chua gui lan nao — hay bam gui o man RFQ-01 truoc." });
+		}
+
+		const pending = quotations.filter((q) => q.QuoteStatus === "PENDING");
+		if (pending.length === 0) {
+			return res.json({ success: true, emailsSent: 0, totalVendors: 0, message: "Tat ca NCC da nop bao gia — khong can nhac." });
+		}
+
+		const mailResult = await sendRfqInviteEmails({
+			rfqId: id,
+			quotations: pending,
+			prLabel: prLabelOf(rfq, pr),
+			deadline: rfq.Deadline,
+			items: (pr && pr.items) || [],
+			baseUrl: appBaseUrl(req),
+			buyerEmail: sentBy || process.env.EMAIL_USER,
+			isReminder: true
+		});
+
+		return res.json({
+			success: true,
+			emailsSent: mailResult.sent,
+			totalVendors: pending.length,
+			vendorsWithoutEmail: mailResult.noEmailVendors,
+			emailsFailed: mailResult.failed
+		});
+	} catch (error) {
+		const message = extractSapErrorMessage(error);
+		console.error(`[POST /api/rfq/${id}/remind] THAT BAI:`, message);
+		return res.status(502).json({ success: false, message });
+	}
+});
+
+// 2c) Nhac TU DONG — goi 1 lan/ngay bang Vercel Cron (xem vercel.json) hoac
+// bat ky bo lich nao khac. Khong luu "da nhac lan may" o dau: chi nhac dung
+// vao cac moc con 3 ngay / con 1 ngay / qua han 1 ngay, nen chay lai nhieu lan
+// trong cung 1 ngay cung khong sinh them thu (tru khi cron chay 2 lan/ngay).
+const RFQ_REMIND_ON_DAYS_LEFT = [3, 1, -1];
+
+app.get("/api/cron/rfq-reminders", async (req, res) => {
+	// Vercel Cron gui header Authorization: Bearer <CRON_SECRET>. Neu khong dat
+	// CRON_SECRET thi route bi khoa han — endpoint nay gui mail ra ngoai, de mo
+	// cho ca internet goi la mo duong spam NCC.
+	const secret = String(process.env.CRON_SECRET || "").trim();
+	if (!secret) {
+		return res.status(503).json({ success: false, message: "CRON_SECRET chua duoc cau hinh — route nhac tu dong dang tat." });
+	}
+	if (String(req.headers.authorization || "") !== "Bearer " + secret) {
+		return res.status(401).json({ success: false, message: "Unauthorized." });
+	}
+	if (!process.env.SAP_HOST) {
+		return res.status(503).json({ success: false, message: "He thong SAP chua duoc cau hinh (thieu SAP_HOST)." });
+	}
+
+	try {
+		const rfqResp = await sapRead("RfqSet");
+		const rfqs = (rfqResp.data && rfqResp.data.d && rfqResp.data.d.results) || [];
+		const targets = rfqs.filter(function (rfq) {
+			const status = String(rfq.Status || "").toUpperCase();
+			if (status !== "SENT" && status !== "QUOTATIONS_RECEIVED") { return false; }
+			const daysLeft = daysUntilDeadline(rfq.Deadline);
+			return daysLeft != null && RFQ_REMIND_ON_DAYS_LEFT.indexOf(daysLeft) >= 0;
+		});
+
+		const report = [];
+		for (const rfq of targets) {
+			const rfqId = String(rfq.RfqId);
+			try {
+				const ctx = await loadRfqContext(rfqId);
+				if (!ctx) { continue; }
+				const pending = ctx.quotations.filter((q) => q.QuoteStatus === "PENDING");
+				if (pending.length === 0) { continue; }
+
+				const mailResult = await sendRfqInviteEmails({
+					rfqId: rfqId,
+					quotations: pending,
+					prLabel: prLabelOf(ctx.rfq, ctx.pr),
+					deadline: ctx.rfq.Deadline,
+					items: (ctx.pr && ctx.pr.items) || [],
+					baseUrl: appBaseUrl(req),
+					buyerEmail: process.env.EMAIL_USER,
+					isReminder: true
+				});
+				report.push({ rfqId: rfqId, daysLeft: daysUntilDeadline(rfq.Deadline), reminded: mailResult.sent, failed: mailResult.failed });
+			} catch (error) {
+				console.error("[GET /api/cron/rfq-reminders] Bo qua RFQ " + rfqId + ":", extractSapErrorMessage(error));
+			}
+		}
+
+		console.log("[GET /api/cron/rfq-reminders] Da xu ly " + report.length + " RFQ:", JSON.stringify(report));
+		return res.json({ success: true, processed: report.length, detail: report });
+	} catch (error) {
+		const message = extractSapErrorMessage(error);
+		console.error("[GET /api/cron/rfq-reminders] THAT BAI:", message);
 		return res.status(502).json({ success: false, message });
 	}
 });
@@ -2913,18 +3719,7 @@ app.post("/api/rfq/:id/quotation", async (req, res) => {
 			session
 		);
 
-		// Neu RFQ dang DRAFT/SENT thi nang len QUOTATIONS_RECEIVED — khong ha cap neu da AWARDED
-		const rfqResp = await sapRead(`RfqSet('${odataEscape(id)}')`);
-		const rfq = rfqResp.data && rfqResp.data.d;
-		if (rfq && (rfq.Status === "DRAFT" || rfq.Status === "SENT")) {
-			await sapWrite("MERGE", `RfqSet('${odataEscape(id)}')`, { Status: "QUOTATIONS_RECEIVED" }, session);
-
-			// Phan anh cung trang thai nay len PR goc tren PrDraftSet.
-			const prRecordForQuote = await fetchPrDraftByRfq(rfq);
-			if (prRecordForQuote && (prRecordForQuote.Status === "PENDING_RFQ" || prRecordForQuote.Status === "RFQ_SENT")) {
-				await updatePrDraft(prRecordForQuote.InternalId, { Status: "QUOTATIONS_RECEIVED" });
-			}
-		}
+		await promoteRfqAfterQuotation(id, session);
 
 		return res.json({ success: true });
 	} catch (error) {
@@ -2978,7 +3773,14 @@ app.get("/api/rfq/:id/compare", async (req, res) => {
 					PaymentTermsLabel: describePaymentTerms(q.PaymentTerms)
 				});
 			}),
-			pendingVendors: pending.map((q) => ({ VendorNo: q.VendorNo, VendorName: q.VendorName }))
+			// QuoteLink: dung link portal ma chinh NCC do da nhan trong email, de
+			// Purchasing copy gui lai qua Zalo/dien thoai khi NCC bao "khong thay mail".
+			pendingVendors: pending.map((q) => ({
+				VendorNo: q.VendorNo,
+				VendorName: q.VendorName,
+				VendorEmail: q.VendorEmail || "",
+				QuoteLink: rfqQuoteLink(appBaseUrl(req), id, q.VendorNo)
+			}))
 		});
 	} catch (error) {
 		const message = extractSapErrorMessage(error);

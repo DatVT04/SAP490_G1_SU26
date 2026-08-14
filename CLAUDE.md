@@ -142,6 +142,33 @@ Thứ tự ưu tiên (🔴 trước, 🟠 sau):
 căn cứ email nào) — đây là yêu cầu audit trail, không phải nice-to-have, vì cả đề tài định vị
 là giải quyết vấn đề thiếu audit trail.
 
+## Portal báo giá cho NCC (thêm 14/08) — đọc trước khi sửa luồng RFQ
+
+Trước đây gửi mail xong thì chỉ còn cách ngồi chờ NCC trả lời email rồi gõ tay vào RFQ-02.
+Nay có thêm đường thứ hai, **không thay thế** đường nhập tay:
+
+- `webapp/quote.html` — trang HTML thuần (KHÔNG phải UI5, cố ý: NCC là người ngoài, mở trên
+  điện thoại, không nên bắt tải cả framework). Đường dẫn `/quote.html?rfq=…&v=…&t=…`.
+- Token `t` = `HMAC-SHA256(RfqId|VendorNo, RFQ_PORTAL_SECRET)` cắt 32 ký tự — **không lưu ở
+  đâu cả**, tính lại để kiểm tra. Chọn cách này để khỏi phải thêm field vào `ZG1_QUOTATION`
+  (SE11 + SEGW + generate lại). Đổi `RFQ_PORTAL_SECRET` = vô hiệu mọi link đã gửi.
+- Route công khai (không đăng nhập): `GET/POST /api/public/rfq/quote`. **Không bao giờ trả
+  `EstimatedValue`/`TotalValue` của PR ra 2 route này** — đó là ngân sách nội bộ, lộ ra thì
+  báo giá nào cũng sẽ bám sát con số đó. Cũng không trả danh sách/báo giá của NCC khác.
+- NCC nộp qua portal → `QuotationSet` `QuoteStatus = RECEIVED`, `EnteredBy` = liên hệ NCC,
+  `SourceNote` tự sinh ("NCC tự gửi qua Portal …"). Cùng đường trạng thái với nhập tay
+  (`promoteRfqAfterQuotation`), nên RFQ-02/PO-01 không cần biết báo giá đến từ đâu.
+- Email mời báo giá dựng trong `buildRfqEmail()` (server.js) + logo ở `mail-assets.js`
+  (base64, KHÔNG đọc file từ `webapp/images/` — thư mục đó không được đóng gói vào serverless
+  function trên Vercel).
+- Biết NCC đã phản hồi chưa: `buildRfqAlerts()` tính lại từ SAP mỗi lần gọi
+  `/api/notifications` (báo giá mới trong 24h / sắp hết hạn / quá hạn), cộng thêm email báo
+  cho role PURCHASING ngay khi có báo giá vào. Nhắc NCC: `POST /api/rfq/:id/remind` (thủ công
+  từ RFQ-02) và `GET /api/cron/rfq-reminders` (Vercel Cron, cần `CRON_SECRET`).
+
+Biến môi trường mới — xem `.env.example`: `RFQ_PORTAL_SECRET`, `APP_BASE_URL`, `CRON_SECRET`,
+`RFQ_DUE_SOON_DAYS`. Thiếu `APP_BASE_URL` thì link trong mail sẽ là `localhost:3001`.
+
 ## Quy ước code hiện có (giữ nguyên style khi sửa)
 
 - Node: CommonJS, không dùng router riêng, mọi route khai báo thẳng trong `server.js`.

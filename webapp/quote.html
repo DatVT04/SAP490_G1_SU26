@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Gửi báo giá — QDAVY Global Group</title>
+<!--
+	TRANG CONG KHAI CHO NHA CUNG CAP — khong nam trong ung dung SAPUI5.
+
+	Ly do khong lam bang UI5: NCC la nguoi ngoai, mo link tren dien thoai, mang
+	yeu; bat ho tai ca framework UI5 (vai MB) de dien 5 o la khong hop ly. Day la
+	1 file HTML thuan, khong build, khong phu thuoc thu vien nao.
+
+	Duong dan: /quote.html?rfq=<RfqId>&v=<VendorNo>&t=<token>
+	Token do server sinh (HMAC cua cap RFQ+NCC) va kiem tra o moi request —
+	trang nay khong tu tin tuong gi ca, moi thu deu do API tra ve.
+
+	Route tren Vercel: vercel.json dang map "/(.*)" -> "/webapp/$1" nen file nay
+	ra thang /quote.html. Chay local thi express.static(webapp) phuc vu.
+-->
+<style>
+	:root {
+		--navy: #0B1F3F;
+		--blue-dark: #123E8F;
+		--blue: #2E7CF6;
+		--amber: #F5A623;
+		--slate: #5A7098;
+		--line: #E3E9F2;
+		--bg: #F1F4F9;
+		--ok: #1B8A5A;
+		--err: #C0392B;
+	}
+	* { box-sizing: border-box; }
+	body {
+		margin: 0;
+		background: var(--bg);
+		color: var(--navy);
+		font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+		font-size: 15px;
+		line-height: 1.6;
+	}
+	.wrap { max-width: 720px; margin: 0 auto; padding: 24px 14px 56px; }
+	.card {
+		background: #fff;
+		border-radius: 16px;
+		box-shadow: 0 2px 18px rgba(11, 31, 63, .09);
+		overflow: hidden;
+	}
+	.card + .card { margin-top: 18px; }
+	.head { text-align: center; padding: 26px 24px 18px; }
+	.head svg { width: 120px; height: auto; }
+	.rule { height: 4px; background: linear-gradient(90deg, var(--blue-dark), var(--blue)); }
+	.pad { padding: 26px 28px; }
+	.eyebrow { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--slate); }
+	h1 { font-size: 25px; margin: 4px 0 0; }
+	h2 { font-size: 13px; letter-spacing: .4px; margin: 0 0 10px; }
+	.sub { color: var(--slate); font-size: 14px; margin-top: 6px; }
+
+	.facts { background: var(--bg); border-radius: 12px; padding: 6px 16px; margin-top: 18px; }
+	.fact { display: flex; justify-content: space-between; gap: 16px; padding: 9px 0; font-size: 14px; }
+	.fact + .fact { border-top: 1px solid var(--line); }
+	.fact span:first-child { color: var(--slate); }
+	.fact span:last-child { font-weight: 600; text-align: right; }
+
+	table.items { width: 100%; border-collapse: collapse; margin-top: 4px; }
+	table.items th {
+		background: var(--navy); color: #fff; font-size: 11px; letter-spacing: .6px;
+		padding: 9px 8px; text-align: left; font-weight: 600;
+	}
+	table.items th.num, table.items td.num { text-align: right; white-space: nowrap; }
+	table.items td { padding: 10px 8px; border-bottom: 1px solid var(--line); font-size: 14px; vertical-align: top; }
+	table.items .muted { color: var(--slate); font-size: 12px; }
+
+	.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+	@media (max-width: 560px) { .grid { grid-template-columns: 1fr; } .pad { padding: 22px 18px; } }
+	.field { display: flex; flex-direction: column; }
+	.field.full { grid-column: 1 / -1; }
+	label { font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+	label .req { color: var(--err); }
+	.hint { font-size: 12px; color: var(--slate); font-weight: 400; margin-top: 4px; }
+	input[type=text], input[type=number], select, textarea {
+		font: inherit; font-size: 15px; padding: 11px 12px;
+		border: 1px solid var(--line); border-radius: 9px; background: #fff; color: var(--navy);
+		width: 100%;
+	}
+	input:focus, select:focus, textarea:focus { outline: 2px solid var(--blue); outline-offset: -1px; border-color: var(--blue); }
+	textarea { resize: vertical; min-height: 72px; }
+	.check { display: flex; align-items: flex-start; gap: 10px; background: var(--bg); border-radius: 10px; padding: 12px 14px; }
+	.check input { margin-top: 3px; width: 18px; height: 18px; flex: 0 0 auto; }
+
+	button.primary {
+		font: inherit; font-size: 16px; font-weight: 700; color: #fff; background: var(--blue-dark);
+		border: 0; border-radius: 10px; padding: 15px 26px; cursor: pointer; width: 100%;
+	}
+	button.primary:hover { background: #0d3175; }
+	button.primary:disabled { background: var(--slate); cursor: not-allowed; }
+
+	.banner { border-radius: 11px; padding: 14px 16px; font-size: 14px; margin-bottom: 18px; }
+	.banner.warn { background: #FFF6E5; border: 1px solid #F3D8A0; color: #7A5200; }
+	.banner.err { background: #FDECEA; border: 1px solid #F5C4BE; color: var(--err); }
+	.banner.ok { background: #E9F7F0; border: 1px solid #B7E3CD; color: var(--ok); }
+	.banner.info { background: #EAF2FE; border: 1px solid #C5DCFB; color: var(--blue-dark); }
+
+	.state { text-align: center; padding: 54px 28px; }
+	.state .big { font-size: 44px; line-height: 1; }
+	.state h1 { font-size: 22px; margin: 14px 0 6px; }
+	.state p { color: var(--slate); margin: 0; }
+
+	.foot { text-align: center; color: var(--slate); font-size: 12px; padding: 20px 14px 0; line-height: 1.7; }
+	.price-preview { font-size: 13px; color: var(--blue-dark); font-weight: 600; margin-top: 5px; min-height: 18px; }
+	[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+	<div class="card">
+		<div class="head">
+			<svg viewBox="0 0 900 450" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="QDAVY Global Group">
+				<defs>
+					<linearGradient id="bg1" x1="0" y1="0" x2="1" y2="1">
+						<stop offset="0%" stop-color="#123E8F"/><stop offset="100%" stop-color="#2E7CF6"/>
+					</linearGradient>
+				</defs>
+				<g transform="translate(340,10) scale(0.82)">
+					<rect x="0" y="0" width="220" height="220" rx="52" fill="url(#bg1)"/>
+					<path d="M 62 78 L 42 32 L 92 66 Z" fill="#FFFFFF"/>
+					<path d="M 158 78 L 178 32 L 128 66 Z" fill="#FFFFFF"/>
+					<path d="M 110 60 C 155 60 182 90 182 130 C 182 168 150 192 110 192 C 70 192 38 168 38 130 C 38 90 65 60 110 60 Z" fill="#FFFFFF"/>
+					<path d="M 38 130 C 25 150 25 175 40 190 C 50 178 52 155 55 138 Z" fill="#FFFFFF" opacity="0.85"/>
+					<path d="M 182 130 C 195 150 195 175 180 190 C 170 178 168 155 165 138 Z" fill="#FFFFFF" opacity="0.85"/>
+					<circle cx="82" cy="122" r="28" fill="url(#bg1)"/><circle cx="138" cy="122" r="28" fill="url(#bg1)"/>
+					<circle cx="82" cy="122" r="9" fill="#0B1F3F"/><circle cx="138" cy="122" r="9" fill="#0B1F3F"/>
+					<path d="M 100 150 L 120 150 L 110 172 Z" fill="#F5A623"/>
+				</g>
+				<text x="450" y="340" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="118" letter-spacing="4">
+					<tspan fill="url(#bg1)">Q</tspan><tspan fill="#0B1F3F">DAVY</tspan>
+				</text>
+				<text x="450" y="400" text-anchor="middle" font-family="Arial, sans-serif" font-weight="500" font-size="26" letter-spacing="7" fill="#5A7098">GLOBAL GROUP</text>
+			</svg>
+		</div>
+		<div class="rule"></div>
+
+		<!-- Dang tai -->
+		<div id="viewLoading" class="state">
+			<div class="big">⏳</div>
+			<h1>Đang tải yêu cầu báo giá…</h1>
+			<p>Vui lòng chờ trong giây lát.</p>
+		</div>
+
+		<!-- Loi / link khong hop le -->
+		<div id="viewError" class="state" hidden>
+			<div class="big">🔒</div>
+			<h1 id="errTitle">Không mở được yêu cầu báo giá</h1>
+			<p id="errText"></p>
+		</div>
+
+		<!-- Da chot NCC -->
+		<div id="viewClosed" class="state" hidden>
+			<div class="big">✅</div>
+			<h1 id="closedTitle">Yêu cầu báo giá đã kết thúc</h1>
+			<p id="closedText"></p>
+		</div>
+
+		<!-- Gui thanh cong -->
+		<div id="viewDone" class="state" hidden>
+			<div class="big">🎉</div>
+			<h1>Đã nhận được báo giá của Quý công ty</h1>
+			<p id="doneText"></p>
+		</div>
+
+		<!-- Noi dung chinh -->
+		<div id="viewMain" class="pad" hidden>
+			<div class="eyebrow">Thư mời báo giá · Request for Quotation</div>
+			<h1 id="rfqTitle">—</h1>
+			<div class="sub" id="vendorLine">—</div>
+
+			<div class="facts" id="facts"></div>
+		</div>
+	</div>
+
+	<!-- Noi dung can bao gia -->
+	<div class="card" id="cardItems" hidden>
+		<div class="pad">
+			<h2>NỘI DUNG CẦN BÁO GIÁ</h2>
+			<table class="items">
+				<thead>
+					<tr>
+						<th style="width:34px">#</th>
+						<th>Hàng hoá / Dịch vụ</th>
+						<th class="num">Số lượng</th>
+					</tr>
+				</thead>
+				<tbody id="itemsBody"></tbody>
+			</table>
+		</div>
+	</div>
+
+	<!-- Form nhap bao gia -->
+	<div class="card" id="cardForm" hidden>
+		<div class="pad">
+			<h2>BÁO GIÁ CỦA QUÝ CÔNG TY</h2>
+			<div id="formBanner"></div>
+
+			<form id="quoteForm" novalidate>
+				<div class="grid">
+					<div class="field full">
+						<label for="fPrice">Tổng giá báo (VND, đã gồm VAT) <span class="req">*</span></label>
+						<input type="number" id="fPrice" min="1" step="1" inputmode="numeric" placeholder="VD: 42000000" required>
+						<div class="price-preview" id="pricePreview"></div>
+					</div>
+
+					<div class="field">
+						<label for="fLead">Thời gian giao hàng (số ngày)</label>
+						<input type="number" id="fLead" min="0" step="1" inputmode="numeric" placeholder="VD: 7">
+						<div class="hint">Tính từ ngày nhận đơn hàng. Điền 0 nếu giao ngay.</div>
+					</div>
+
+					<div class="field">
+						<label for="fWarranty">Thời gian bảo hành (số tháng)</label>
+						<input type="number" id="fWarranty" min="0" step="1" inputmode="numeric" placeholder="VD: 12">
+						<div class="hint">Điền 0 nếu không có bảo hành.</div>
+					</div>
+
+					<div class="field full">
+						<label for="fTerms">Điều khoản thanh toán</label>
+						<select id="fTerms">
+							<option value="">— Chọn điều khoản —</option>
+						</select>
+						<div class="hint">Sau khi nhận hàng/hoá đơn thì bao lâu QDAVY thanh toán cho Quý công ty.</div>
+					</div>
+
+					<div class="field full">
+						<div class="check">
+							<input type="checkbox" id="fLegal">
+							<label for="fLegal" style="font-weight:400;margin:0">
+								<b>Hồ sơ pháp lý đầy đủ</b><br>
+								<span class="hint" style="margin:0">Quý công ty có sẵn giấy phép kinh doanh, mã số thuế và chứng nhận/uỷ quyền phân phối cho mặt hàng này, sẵn sàng cung cấp khi được yêu cầu.</span>
+							</label>
+						</div>
+					</div>
+
+					<div class="field">
+						<label for="fContactName">Người gửi báo giá <span class="req">*</span></label>
+						<input type="text" id="fContactName" maxlength="60" placeholder="VD: Nguyễn Văn A" required>
+					</div>
+
+					<div class="field">
+						<label for="fContactInfo">Email hoặc điện thoại liên hệ</label>
+						<input type="text" id="fContactInfo" maxlength="60" placeholder="VD: sales@ncc.vn / 0901234567">
+					</div>
+				</div>
+
+				<div style="margin-top:22px">
+					<button type="submit" class="primary" id="btnSubmit">Gửi báo giá</button>
+					<div class="hint" style="text-align:center;margin-top:10px">
+						Báo giá gửi qua trang này được ghi nhận ngay vào hệ thống mua sắm của QDAVY, kèm thời điểm gửi.
+					</div>
+				</div>
+			</form>
+		</div>
+	</div>
+
+	<div class="foot">
+		QDAVY Global Group — Phòng Thu mua<br>
+		Trang này chỉ dùng cho yêu cầu báo giá được gửi tới Quý công ty qua email. Vui lòng không chia sẻ đường dẫn.
+	</div>
+</div>
+
+<script>
+(function () {
+	"use strict";
+
+	var params = new URLSearchParams(window.location.search);
+	var RFQ = params.get("rfq") || "";
+	var VENDOR = params.get("v") || "";
+	var TOKEN = params.get("t") || "";
+	var data = null;
+
+	var $ = function (id) { return document.getElementById(id); };
+	function show(id) { $(id).hidden = false; }
+	function hide(id) { $(id).hidden = true; }
+	function text(id, s) { $(id).textContent = s; }
+
+	function money(n) {
+		var v = Number(n) || 0;
+		return v.toLocaleString("vi-VN");
+	}
+
+	function fail(title, msg) {
+		hide("viewLoading");
+		text("errTitle", title);
+		text("errText", msg);
+		show("viewError");
+	}
+
+	function fact(label, value) {
+		var row = document.createElement("div");
+		row.className = "fact";
+		var a = document.createElement("span");
+		a.textContent = label;
+		var b = document.createElement("span");
+		// Dung textContent chu khong innerHTML: du lieu tu API van nen coi la
+		// khong tin tuong duoc, tranh XSS neu ten NCC/mo ta co ky tu la.
+		b.textContent = value;
+		row.appendChild(a);
+		row.appendChild(b);
+		$("facts").appendChild(row);
+	}
+
+	function banner(kind, msg) {
+		var d = document.createElement("div");
+		d.className = "banner " + kind;
+		d.textContent = msg;
+		return d;
+	}
+
+	function render() {
+		hide("viewLoading");
+		show("viewMain");
+
+		text("rfqTitle", data.rfqId);
+		text("vendorLine", "Kính gửi " + (data.vendor.VendorName || data.vendor.VendorNo)
+			+ " — QDAVY Global Group trân trọng mời Quý công ty báo giá cho nội dung dưới đây.");
+
+		fact("Mã yêu cầu báo giá", data.rfqId);
+		if (data.prLabel) { fact("Mã đề nghị mua hàng", data.prLabel); }
+		if (data.deadlineText) {
+			fact("Hạn nộp báo giá", data.deadlineText
+				+ (data.daysLeft != null
+					? (data.daysLeft < 0 ? " (đã quá hạn " + Math.abs(data.daysLeft) + " ngày)" : " (còn " + data.daysLeft + " ngày)")
+					: ""));
+		}
+		fact("Nhà cung cấp", (data.vendor.VendorName || "") + " · " + data.vendor.VendorNo);
+
+		// Bang vat tu
+		if (data.items && data.items.length) {
+			var tb = $("itemsBody");
+			data.items.forEach(function (it, i) {
+				var tr = document.createElement("tr");
+
+				var c1 = document.createElement("td");
+				c1.textContent = String(i + 1);
+				c1.style.color = "var(--slate)";
+
+				var c2 = document.createElement("td");
+				var b = document.createElement("b");
+				b.textContent = it.Description || "(không có mô tả)";
+				var small = document.createElement("div");
+				small.className = "muted";
+				small.textContent = it.MaterialNo ? it.MaterialNo : "Hàng/dịch vụ mô tả tự do";
+				c2.appendChild(b);
+				c2.appendChild(small);
+
+				var c3 = document.createElement("td");
+				c3.className = "num";
+				c3.textContent = money(it.Quantity) + " " + (it.UoM || "");
+
+				tr.appendChild(c1); tr.appendChild(c2); tr.appendChild(c3);
+				tb.appendChild(tr);
+			});
+			show("cardItems");
+		}
+
+		// Da chot NCC -> khong cho nhap nua
+		if (data.closed) {
+			hide("viewMain");
+			hide("cardItems");
+			text("closedTitle", data.awardedToMe ? "Chúc mừng — Quý công ty đã được chọn" : "Yêu cầu báo giá đã kết thúc");
+			text("closedText", data.awardedToMe
+				? "QDAVY sẽ liên hệ với Quý công ty để tiến hành các bước tiếp theo. Trân trọng cảm ơn."
+				: "Yêu cầu " + data.rfqId + " đã chọn được nhà cung cấp. Rất mong được hợp tác với Quý công ty trong các yêu cầu tiếp theo.");
+			show("viewClosed");
+			return;
+		}
+
+		// Danh muc dieu khoan thanh toan lay tu server (dung chung 1 danh muc voi
+		// RFQ-02, khong hardcode lai o day de khong bao gio lech ma).
+		var sel = $("fTerms");
+		(data.paymentTerms || []).forEach(function (t) {
+			var opt = document.createElement("option");
+			opt.value = t.code;
+			opt.textContent = t.label;
+			sel.appendChild(opt);
+		});
+
+		var fb = $("formBanner");
+		if (data.overdue) {
+			fb.appendChild(banner("warn", "Yêu cầu này đã quá hạn nộp báo giá. Quý công ty vẫn gửi được, nhưng báo giá có thể không kịp đưa vào vòng xét chọn."));
+		}
+		if (data.submitted && data.current) {
+			fb.appendChild(banner("info", "Quý công ty đã gửi báo giá "
+				+ money(data.current.quotedPrice) + " " + (data.currency || "VND")
+				+ ". Có thể sửa và gửi lại — hệ thống lấy lần gửi mới nhất."));
+			$("fPrice").value = data.current.quotedPrice || "";
+			$("fLead").value = data.current.leadTimeDays || 0;
+			$("fWarranty").value = data.current.warrantyMonths || 0;
+			$("fTerms").value = data.current.paymentTerms || "";
+			$("fLegal").checked = !!data.current.legalDocsOk;
+			$("btnSubmit").textContent = "Cập nhật báo giá";
+			updatePreview();
+		}
+		show("cardForm");
+	}
+
+	function updatePreview() {
+		var v = Number($("fPrice").value);
+		$("pricePreview").textContent = (isFinite(v) && v > 0) ? money(v) + " VND" : "";
+	}
+
+	function submit(e) {
+		e.preventDefault();
+		var price = Number($("fPrice").value);
+		var contactName = $("fContactName").value.trim();
+
+		var fb = $("formBanner");
+		fb.innerHTML = "";
+		if (!isFinite(price) || price <= 0) {
+			fb.appendChild(banner("err", "Vui lòng nhập tổng giá báo (lớn hơn 0)."));
+			$("fPrice").focus();
+			return;
+		}
+		if (!contactName) {
+			fb.appendChild(banner("err", "Vui lòng nhập tên người gửi báo giá."));
+			$("fContactName").focus();
+			return;
+		}
+
+		var btn = $("btnSubmit");
+		btn.disabled = true;
+		btn.textContent = "Đang gửi…";
+
+		fetch("/api/public/rfq/quote", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				rfq: RFQ, v: VENDOR, t: TOKEN,
+				quotedPrice: price,
+				leadTimeDays: Number($("fLead").value) || 0,
+				warrantyMonths: Number($("fWarranty").value) || 0,
+				paymentTerms: $("fTerms").value || "",
+				legalDocsOk: $("fLegal").checked,
+				contactName: contactName,
+				contactInfo: $("fContactInfo").value.trim()
+			})
+		})
+			.then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
+			.then(function (res) {
+				if (!res.body || !res.body.success) {
+					throw new Error((res.body && res.body.message) || "Gửi báo giá không thành công.");
+				}
+				hide("viewMain"); hide("cardItems"); hide("cardForm");
+				text("doneText", "Báo giá cho yêu cầu " + RFQ + " đã được ghi nhận vào hệ thống"
+					+ (res.body.late ? " (ghi nhận là nộp sau hạn)" : "")
+					+ ". Phòng Thu mua QDAVY sẽ liên hệ nếu cần làm rõ thêm. Trân trọng cảm ơn Quý công ty.");
+				show("viewDone");
+				window.scrollTo(0, 0);
+			})
+			.catch(function (err) {
+				btn.disabled = false;
+				btn.textContent = data && data.submitted ? "Cập nhật báo giá" : "Gửi báo giá";
+				fb.appendChild(banner("err", err.message || "Không gửi được báo giá. Vui lòng thử lại."));
+			});
+	}
+
+	// ── Khoi dong ────────────────────────────────────────────────────────
+	if (!RFQ || !VENDOR || !TOKEN) {
+		fail("Đường dẫn không hợp lệ", "Vui lòng mở lại đúng đường dẫn trong email mời báo giá, hoặc liên hệ Phòng Thu mua QDAVY.");
+		return;
+	}
+
+	$("fPrice").addEventListener("input", updatePreview);
+	$("quoteForm").addEventListener("submit", submit);
+
+	fetch("/api/public/rfq/quote?rfq=" + encodeURIComponent(RFQ)
+		+ "&v=" + encodeURIComponent(VENDOR)
+		+ "&t=" + encodeURIComponent(TOKEN))
+		.then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
+		.then(function (res) {
+			if (!res.body || !res.body.success) {
+				fail("Không mở được yêu cầu báo giá", (res.body && res.body.message) || "Vui lòng liên hệ Phòng Thu mua QDAVY.");
+				return;
+			}
+			data = res.body;
+			render();
+		})
+		.catch(function () {
+			fail("Không kết nối được hệ thống", "Vui lòng thử lại sau ít phút hoặc trả lời trực tiếp email mời báo giá.");
+		});
+})();
+</script>
+</body>
+</html>

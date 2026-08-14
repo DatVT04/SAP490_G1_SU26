@@ -7,5 +7,8 @@
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/index.js" },
     { "src": "/(.*)", "dest": "/webapp/$1" }
+  ],
+  "crons": [
+    { "path": "/api/cron/rfq-reminders", "schedule": "0 2 * * *" }
   ]
 }
