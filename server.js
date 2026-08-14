@@ -1,3 +1,49 @@
+/* ══════════════════════════════════════════════════════════════════════════
+ * MUC LUC server.js — Ctrl+G <so dong> de nhay thang toi 1 muc.
+ * Ctrl+K Ctrl+0 gap het //#region lai (VS Code) → thay toan canh trong 1 man hinh.
+ * Ctrl+Shift+O tim function theo ten. Cac muc duoi day co thu tu dung nhu trong file.
+ * ──────────────────────────────────────────────────────────────────────────
+ *   01  KHOI TAO & CAU HINH ....................................... L46
+ *       express, nodemailer, ORG_DEFAULTS, timezone SAP
+ *   02  PERSIST + NGUONG DUYET + THONG BAO ........................ L164
+ *       data/*.json, getThresholdForIO, buildApprovalFlags
+ *   03  SAP AUTH & GUI THONG BAO THEO ROLE ........................ L309
+ *       sapAuth, EmployeeSet, notifyRequester/notifyCeos
+ *   04  MASTER DATA — Internal Order / GL / Cost Center ........... L354
+ *       fetchInternalOrderMaster + 3 route tra ve FE
+ *   05  MATERIAL MASTER (MM01) .................................... L521
+ *       value help + tao vat tu/dich vu
+ *   06  ROUTE NGUONG THEO INTERNAL ORDER .......................... L765
+ *       GET/PUT /api/thresholds
+ *   07  TAO PR TREN SAP ........................................... L804
+ *       defaultGLAccount + createPRInSAP
+ *   08  HELPER SAP OData DUNG CHUNG ............................... L925
+ *       odataEscape, CSRF token, sapRead/sapWrite
+ *   09  PrDraftSet — MAPPER + READER VENDOR & EMPLOYEE ............ L1001
+ *       map SAP<->client, fetchPrDraft*, VendorSet
+ *   10  CONFIG / LOGIN / VENDORS / AI GOI Y VENDOR ................ L1341
+ *       /api/config, login email + Google, recommend-vendor
+ *   11  LUONG DUYET PR ............................................ L1547
+ *       submit, pending, approved, history, PATCH /:id, alerts
+ *   12  TAO PO + EMAIL NCC ........................................ L2332
+ *       fetchPRItemsFromSAP, sendPOEmailToVendor, /api/po/create
+ *   13  BAO CAO TIEN DO PO ........................................ L2671
+ *       /api/po/report
+ *   14  RFQ — HA TANG ............................................. L2742
+ *       sinh ma RFQ, callClaude
+ *   15  PORTAL BAO GIA NCC — TOKEN & LINK ......................... L2828
+ *       HMAC token, rfqQuoteLink
+ *   16  EMAIL MOI BAO GIA + HELPER RFQ DUNG CHUNG ................. L2901
+ *       buildRfqEmail, promoteRfqAfterQuotation
+ *   17  ROUTE CONG KHAI PORTAL NCC ................................ L3283
+ *       GET/POST /api/public/rfq/quote — khong dang nhap
+ *   18  ROUTE RFQ ................................................. L3453
+ *       create / send / remind / quotation / compare / award
+ *   19  HOI DAP AI TUONG TAC + KHOI DONG SERVER ................... L4107
+ *       /api/ai/ask, app.listen
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+//#region ═══ 01. KHOI TAO & CAU HINH ══════════════════════════════════════════════
 require("dotenv").config();
 
 // nodemailer chỉ dùng cho tính năng phụ (gửi PO cho vendor qua email).
@@ -113,6 +159,9 @@ function describePaymentTerms(code) {
 	return found ? found.label : raw;
 }
 
+//#endregion
+
+//#region ═══ 02. PERSIST + NGUONG DUYET + THONG BAO ═══════════════════════════════
 // ============================================================================
 // PERSIST — lưu file JSON, không mất khi restart server
 // Trên Vercel, /var/task chỉ đọc (read-only) — chỉ /tmp mới ghi được (nhưng /tmp
@@ -255,6 +304,9 @@ function pushNotification(toEmail, prId, message) {
 	saveNotifications();
 }
 
+//#endregion
+
+//#region ═══ 03. SAP AUTH & GUI THONG BAO THEO ROLE ═══════════════════════════════
 function sapAuth() {
 	return {
 		username: process.env.SAP_USER,
@@ -297,6 +349,9 @@ async function notifyCeos(prId, message) {
 	});
 }
 
+//#endregion
+
+//#region ═══ 04. MASTER DATA — Internal Order / GL / Cost Center ══════════════════
 async function fetchInternalOrderMaster() {
 	const EMPTY = {
 		internalOrders: [],
@@ -461,6 +516,9 @@ app.get("/api/internal-orders", async (req, res) => {
 	});
 });
 
+//#endregion
+
+//#region ═══ 05. MATERIAL MASTER (MM01) ═══════════════════════════════════════════
 // ============================================================================
 // MATERIAL MASTER (MM01) — man "Tao vat tu/dich vu" cua nhanh An (PR #11), bi
 // git merge lam mat toan bo khi merge vao main 13/08 (merge bao "khong loi"
@@ -702,6 +760,9 @@ app.post("/api/material-master/create", async function (req, res) {
 	}
 });
 
+//#endregion
+
+//#region ═══ 06. ROUTE NGUONG THEO INTERNAL ORDER ═════════════════════════════════
 // --- Ngưỡng theo Internal Order ---
 app.get("/api/thresholds", (req, res) => {
 	return res.json({ success: true, byIO: thresholdStore.byIO });
@@ -738,6 +799,9 @@ app.put("/api/thresholds", (req, res) => {
 	return res.json({ success: true, byIO: thresholdStore.byIO });
 });
 
+//#endregion
+
+//#region ═══ 07. TAO PR TREN SAP ══════════════════════════════════════════════════
 /**
  * Tai khoan so cai mac dinh cho account assignment K (Cost Center) va F (Internal Order).
  *
@@ -856,6 +920,9 @@ async function createPRInSAP(record) {
 	}
 }
 
+//#endregion
+
+//#region ═══ 08. HELPER SAP OData DUNG CHUNG ══════════════════════════════════════
 // ============================================================================
 // HELPER SAP OData DUNG CHUNG CHO CAC ROUTE RFQ (RfqSet / QuotationSet)
 // Tai su dung dung pattern CSRF token da dung trong createPRInSAP() o tren.
@@ -929,6 +996,9 @@ async function sapRead(entityPath) {
 	);
 }
 
+//#endregion
+
+//#region ═══ 09. PrDraftSet — MAPPER + READER VENDOR & EMPLOYEE ═══════════════════
 // ============================================================================
 // PrDraftSet / PrDraftItemSet — thay the hoan toan approvalStore/approvals.json.
 // PR "nhap" (draft, chua sang SAP that) gio luu qua OData service ZG1_PROC_SRV_SRV
@@ -1266,6 +1336,9 @@ async function findActiveEmployeeByEmail(email) {
 	);
 }
 
+//#endregion
+
+//#region ═══ 10. CONFIG / LOGIN / VENDORS / AI GOI Y VENDOR ═══════════════════════
 // Cho frontend biet co the hien nut "Dang nhap voi Google" hay khong,
 // va lay dung Client ID (khong bi coi la bi mat, an toan de tra ve public).
 app.get("/api/config", (req, res) => {
@@ -1469,6 +1542,9 @@ app.post("/api/ai/recommend-vendor", async (req, res) => {
 	}
 });
 
+//#endregion
+
+//#region ═══ 11. LUONG DUYET PR ═══════════════════════════════════════════════════
 async function notifyPurchasing(prId, message) {
 	const emails = await findEmailsByRole("PURCHASING");
 	emails.forEach(function (email) {
@@ -2251,6 +2327,9 @@ app.patch("/api/approval/:id", async (req, res) => {
 
 	return res.status(400).json({ success: false, message: "Status không hợp lệ (chỉ nhận APPROVED/REJECTED)." });
 });
+//#endregion
+
+//#region ═══ 12. TAO PO + EMAIL NCC ═══════════════════════════════════════════════
 // 🎯 Lấy SỐ DÒNG (ItemNo) THẬT của PR trực tiếp từ SAP OData — không đoán, không hardcode.
 
 async function fetchPRItemsFromSAP(prNumber) {
@@ -2587,6 +2666,9 @@ app.post("/api/po/create", async (req, res) => {
 		});
 	}
 });
+//#endregion
+
+//#region ═══ 13. BAO CAO TIEN DO PO ═══════════════════════════════════════════════
 // ============================================================================
 // API BÁO CÁO TIẾN ĐỘ PO (REPORT) — MERGE TIMELINE & PHÂN QUYỀN VAI TRÒ (ROLE)
 // ============================================================================
@@ -2655,6 +2737,9 @@ app.get("/api/po/report", async (req, res) => {
 		});
 	}
 });
+//#endregion
+
+//#region ═══ 14. RFQ — HA TANG ════════════════════════════════════════════════════
 // ============================================================================
 // API RFQ (Request for Quotation) — Z-table ZG1_RFQ / ZG1_QUOTATION qua OData
 // RfqSet + QuotationSet, KHONG phai ME41 chuan cua SAP (quyet dinh da chot,
@@ -2738,6 +2823,9 @@ async function callClaude(promptText, maxTokens) {
 	return result.text;
 }
 
+//#endregion
+
+//#region ═══ 15. PORTAL BAO GIA NCC — TOKEN & LINK ════════════════════════════════
 // ============================================================================
 // PORTAL BAO GIA CHO NHA CUNG CAP (webapp/quote.html)
 //
@@ -2808,6 +2896,9 @@ function rfqQuoteLink(baseUrl, rfqId, vendorNo) {
 		+ "&t=" + rfqPortalToken(rfqId, vendorNo);
 }
 
+//#endregion
+
+//#region ═══ 16. EMAIL MOI BAO GIA + HELPER RFQ DUNG CHUNG ════════════════════════
 // ============================================================================
 // EMAIL MOI BAO GIA — template dung chung cho lan gui dau va lan nhac
 // ============================================================================
@@ -3187,6 +3278,9 @@ async function notifyPurchasingNewQuote(rfqId, prLabel, quotation) {
 	}
 }
 
+//#endregion
+
+//#region ═══ 17. ROUTE CONG KHAI PORTAL NCC ═══════════════════════════════════════
 // ── ROUTE CONG KHAI (KHONG DANG NHAP) — chi phuc vu trang quote.html ────────
 // Bao mat: moi request bat buoc co token dung cho dung cap (RfqId, VendorNo).
 // Tra ve DUY NHAT nhung gi NCC duoc phep thay: ma RFQ, han nop, mo ta + so
@@ -3354,6 +3448,9 @@ app.post("/api/public/rfq/quote", async (req, res) => {
 	}
 });
 
+//#endregion
+
+//#region ═══ 18. ROUTE RFQ ════════════════════════════════════════════════════════
 // 0) Danh sach RFQ (cho man RFQ-02 chon RFQ dang xu ly) — doc thang tu RfqSet
 app.get("/api/rfq", async (req, res) => {
 	if (!process.env.SAP_HOST) {
@@ -4005,6 +4102,9 @@ app.post("/api/ai/compare-quotations", async (req, res) => {
 	}
 });
 
+//#endregion
+
+//#region ═══ 19. HOI DAP AI TUONG TAC + KHOI DONG SERVER ══════════════════════════
 // ============================================================================
 // HOI DAP AI TUONG TAC (feedback QDAVY 13/08: "AI van chua the chat hay tuong
 // tac duoc nhi?"). Nguoi dung hoi them 1 cau tren nen du lieu dang xem:
@@ -4136,3 +4236,4 @@ if (require.main === module) {
 }
 
 module.exports = app;
+//#endregion
