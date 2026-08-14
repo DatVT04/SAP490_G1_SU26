@@ -34,6 +34,7 @@ sap.ui.define([
 				pendingCount: "–",
 				approvedCount: "–",
 				pendingValueText: "–",
+				pendingValueUnit: "VND",
 				tileCount: 1,
 				notifications: [],
 				unreadCount: 0,
@@ -56,6 +57,37 @@ sap.ui.define([
 			if (this._iGreetingInterval) {
 				clearInterval(this._iGreetingInterval);
 			}
+		},
+
+		// VBox khong ho tro su kien press nen gan click bang attachBrowserEvent —
+		// chi gan 1 lan (onAfterRendering chay lai moi lan re-render).
+		onAfterRendering: function () {
+			if (this._bKpiWired) { return; }
+			this._bKpiWired = true;
+
+			var that = this;
+			var oPending = this.byId("kpiPendingCard");
+			var oApproved = this.byId("kpiApprovedCard");
+			var oValue = this.byId("kpiValueCard");
+
+			if (oPending) { oPending.attachBrowserEvent("click", function () { that._navFromKpi("pending"); }); }
+			if (oApproved) { oApproved.attachBrowserEvent("click", function () { that._navFromKpi("approved"); }); }
+			if (oValue) { oValue.attachBrowserEvent("click", function () { that._navFromKpi("pending"); }); }
+		},
+
+		// Dieu huong theo vai tro: nguoi duyet -> man phe duyet PR-02 / tao PO;
+		// requester/ACC khong co quyen PR-02 -> ve Lich su de nghi.
+		_navFromKpi: function (sKind) {
+			var oRouter = this.getOwnerComponent().getRouter();
+			var sRole = String(this.getOwnerComponent().getModel("user").getProperty("/role") || "").toUpperCase();
+			var bApprover = sRole === "PURCHASING" || sRole === "CFO" || sRole === "CEO";
+
+			if (sKind === "approved") {
+				// PR da duyet: Purchasing tiep tuc tao PO tu day; role khac xem lich su.
+				oRouter.navTo(sRole === "PURCHASING" ? "po01" : "history");
+				return;
+			}
+			oRouter.navTo(bApprover ? "pr02" : "history");
 		},
 
 		_onRouteMatched: function () {
@@ -92,18 +124,42 @@ sap.ui.define([
 					var aPending  = (aResults[0] && aResults[0].data) || [];
 					var aApproved = (aResults[1] && aResults[1].data) || [];
 
-					var fTotal = aPending.reduce(function (sum, pr) {
-						return sum + (Number(pr.TotalValue) || 0);
-					}, 0);
+					// Cong don RIENG theo tung loai tien — truoc day cong thang TotalValue
+					// bat ke Currency nen PR 1.000 USD hien thanh "1.000 VND" (feedback
+					// QDAVY 13/08: "tien VND vs USD dang khong khop nhau").
+					var oTotals = {};
+					aPending.forEach(function (pr) {
+						var sCur = pr.Currency || "VND";
+						oTotals[sCur] = (oTotals[sCur] || 0) + (Number(pr.TotalValue) || 0);
+					});
+
+					var aCurrencies = Object.keys(oTotals);
+					var sText;
+					var sUnit;
+					if (aCurrencies.length === 0) {
+						sText = "0";
+						sUnit = "VND";
+					} else if (aCurrencies.length === 1) {
+						sText = this._formatCompact(oTotals[aCurrencies[0]]);
+						sUnit = aCurrencies[0];
+					} else {
+						// Nhieu loai tien: khong cong lan vao nhau, hien tung dong tien ro rang
+						sText = aCurrencies.map(function (sCur) {
+							return this._formatCompact(oTotals[sCur]) + " " + sCur;
+						}.bind(this)).join(" · ");
+						sUnit = "theo từng loại tiền";
+					}
 
 					oModel.setProperty("/pendingCount", String(aPending.length));
 					oModel.setProperty("/approvedCount", String(aApproved.length));
-					oModel.setProperty("/pendingValueText", this._formatCompact(fTotal));
+					oModel.setProperty("/pendingValueText", sText);
+					oModel.setProperty("/pendingValueUnit", sUnit);
 				}.bind(this))
 				.catch(function () {
 					oModel.setProperty("/pendingCount", "–");
 					oModel.setProperty("/approvedCount", "–");
 					oModel.setProperty("/pendingValueText", "–");
+					oModel.setProperty("/pendingValueUnit", "VND");
 				});
 		},
 
@@ -129,7 +185,10 @@ sap.ui.define([
 
 			oModel.setProperty("/notifBusy", true);
 
-			fetch(BACKEND + "/api/notifications?email=" + encodeURIComponent(oUser.email))
+			// Gui kem role de server sinh canh bao "PR treo lau" cho nguoi duyet
+			// (Purchasing/CFO/CEO) — xem buildAgingAlerts() phia server.
+			fetch(BACKEND + "/api/notifications?email=" + encodeURIComponent(oUser.email)
+				+ "&role=" + encodeURIComponent(oUser.role || ""))
 				.then(function (r) { return r.json(); })
 				.then(function (oResult) {
 					oModel.setProperty("/notifBusy", false);
@@ -168,6 +227,10 @@ sap.ui.define([
 
 		_markRead: function (nId) {
 			if (!nId) { return; }
+			// Canh bao aging (id "aging-...") khong nam trong notificationStore —
+			// tu tinh lai moi lan tu trang thai PR, xu ly xong PR la tu bien mat,
+			// nen khong co gi de PATCH read ca.
+			if (String(nId).indexOf("aging-") === 0) { return; }
 			var that = this;
 			fetch(BACKEND + "/api/notifications/" + nId + "/read", {
 				method: "PATCH",
@@ -182,7 +245,7 @@ sap.ui.define([
 
 		onMarkAllRead: function () {
 			var aList = this.getView().getModel("dash").getProperty("/notifications") || [];
-			var aUnread = aList.filter(function (n) { return !n.read; });
+			var aUnread = aList.filter(function (n) { return !n.read && String(n.id).indexOf("aging-") !== 0; });
 			if (aUnread.length === 0) {
 				MessageToast.show("Không còn thông báo chưa đọc.");
 				return;

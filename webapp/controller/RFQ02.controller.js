@@ -265,6 +265,50 @@ sap.ui.define([
 				});
 		},
 
+		// ── 4b. HOI THEM AI — chat tuong tac tren cac bao gia cua RFQ dang chon ──
+		onAiAskPress: function () {
+			var oModel = this.getView().getModel();
+			var oInput = this.getView().byId("inAiQuestion");
+			var sQuestion = (oInput.getValue() || "").trim();
+
+			if (!sQuestion) {
+				MessageToast.show("Hãy nhập câu hỏi trước.");
+				return;
+			}
+			if (!this._currentRfqId) {
+				MessageToast.show("Hãy chọn một RFQ trước.");
+				return;
+			}
+
+			oModel.setProperty("/busyAi", true);
+
+			fetch(BACKEND + "/api/ai/ask", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					context: "compare-quotations",
+					rfqId: this._currentRfqId,
+					question: sQuestion
+				})
+			})
+				.then(function (r) { return r.json(); })
+				.then(function (res) {
+					oModel.setProperty("/busyAi", false);
+					if (res && res.success) {
+						var sPrev = oModel.getProperty("/aiText") || "";
+						oModel.setProperty("/aiText",
+							sPrev + "\n\n— Hỏi: " + sQuestion + "\n— AI: " + (res.answer || ""));
+						oInput.setValue("");
+					} else {
+						MessageToast.show((res && res.message) || "AI không phản hồi.");
+					}
+				})
+				.catch(function () {
+					oModel.setProperty("/busyAi", false);
+					MessageToast.show("Không gọi được AI.");
+				});
+		},
+
 		// ── 5. CHOT NCC THANG — PR goc chuyen sang PENDING_CFO, gia cap nhat theo bao gia that ──
 		onAwardPress: function () {
 			var that = this;
@@ -387,12 +431,20 @@ sap.ui.define([
 			return s.slice(6, 8) + "/" + s.slice(4, 6) + "/" + s.slice(0, 4);
 		},
 
-		// Chuoi SAP YYYYMMDDHHMMSS -> dd/MM/yyyy HH:mm
+		// Timestamp -> dd/MM/yyyy HH:mm THEO GIO NGUOI XEM.
+		// Server nay tra ve ISO UTC (da quy doi tu chuoi 14 ky tu) — new Date() se tu
+		// doi sang gio dia phuong. Van giu nhanh 14 ky tu cho du lieu cu chua quy doi.
 		formatSapTimestamp: function (s) {
 			s = String(s || "");
-			if (!/^\d{14}$/.test(s)) { return s; }
-			return s.slice(6, 8) + "/" + s.slice(4, 6) + "/" + s.slice(0, 4)
-				+ " " + s.slice(8, 10) + ":" + s.slice(10, 12);
+			if (/^\d{14}$/.test(s)) {
+				return s.slice(6, 8) + "/" + s.slice(4, 6) + "/" + s.slice(0, 4)
+					+ " " + s.slice(8, 10) + ":" + s.slice(10, 12);
+			}
+			var d = new Date(s);
+			if (!s || isNaN(d.getTime())) { return s; }
+			var pad = function (n) { return String(n).padStart(2, "0"); };
+			return pad(d.getDate()) + "/" + pad(d.getMonth() + 1) + "/" + d.getFullYear()
+				+ " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
 		},
 
 		onNavBack: function () {

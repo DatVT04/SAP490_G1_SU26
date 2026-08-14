@@ -148,6 +148,30 @@
 								class="sapUiSmallMarginBottom"
 							/>
 
+							<!-- Hoi dap AI tuong tac tren cac bao gia dang so sanh (feedback QDAVY 13/08:
+							     "AI van chua the chat hay tuong tac duoc"). Server tu doc bao gia theo RfqId
+							     va van an danh hoa ten NCC truoc khi goi AI. -->
+							<HBox
+								alignItems="Center"
+								visible="{= !!${/aiText} }"
+								class="sapUiSmallMarginBottom"
+							>
+								<Input
+									id="inAiQuestion"
+									placeholder="Hỏi thêm AI về các báo giá này..."
+									width="100%"
+									maxLength="500"
+									submit=".onAiAskPress"
+									class="sapUiTinyMarginEnd"
+								/>
+								<Button
+									text="Hỏi AI"
+									icon="sap-icon://discussion"
+									press=".onAiAskPress"
+									busy="{/busyAi}"
+								/>
+							</HBox>
+
 							<Table
 								items="{/quotations}"
 								noDataText="Chưa có báo giá nào được nhập cho RFQ này."

@@ -351,12 +351,11 @@
 									</Select>
 
 									<Label text="Điều khoản thanh toán" required="true"/>
-									<Select id="inPaymentTerms">
-										<core:Item key="IMMEDIATE" text="Thanh toán ngay"/>
-										<core:Item key="ADVANCE" text="Thanh toán trước"/>
-										<core:Item key="ON_DELIVERY" text="Thanh toán khi giao hàng"/>
-										<core:Item key="AFTER_ACCEPTANCE" text="Thanh toán sau nghiệm thu"/>
-										<core:Item key="NET45" text="Thanh toán sau 45 ngày"/>
+									<!-- Danh muc lay tu /api/config (PAYMENT_TERMS server) — cung 1 bo ma voi bao gia
+									     RFQ-02, nen dieu khoan cua bao gia thang tu dien sang day duoc (feedback QDAVY
+									     13/08: thong tin tu luong truoc phai tu link sang PO, khong fill tay tung ty). -->
+									<Select id="inPaymentTerms" items="{/paymentTerms}">
+										<core:Item key="{code}" text="{label}"/>
 									</Select>
 								</f:content>
 							</f:SimpleForm>

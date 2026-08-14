@@ -21,12 +21,24 @@ sap.ui.define([
 			this.getView().setModel(new JSONModel({
 				PurchaseRequisitions: [],
 				poItems: [],
-				Vendors: []
+				Vendors: [],
+				paymentTerms: []
 			}));
 
 			this._loadOrgDefaults();
 			this._loadApprovedPRs();
 			this._loadVendors();
+
+			// Khong cho lap PO voi ngay trong qua khu (feedback QDAVY 13/08: "Cho tao PO
+			// van chon duoc ngay truoc a?") — ap cho ca Doc Date lan Ngay nhan hang.
+			var oToday = new Date();
+			oToday.setHours(0, 0, 0, 0);
+			var oDocDate = this.getView().byId("inDocDate");
+			var oDeliveryDate = this.getView().byId("inDeliveryDate");
+			oDocDate.setMinDate(oToday);
+			oDeliveryDate.setMinDate(oToday);
+			// Doc Date mac dinh hom nay — truong hop pho bien nhat, van sua duoc (ve sau).
+			oDocDate.setDateValue(new Date(oToday.getTime()));
 
 			this.getOwnerComponent().getRouter()
 				.getRoute("po01")
@@ -42,6 +54,9 @@ sap.ui.define([
 				.then(function (r) { return r.json(); })
 				.then(function (cfg) {
 					that._orgDefaults = (cfg && cfg.orgDefaults) || {};
+					// Danh muc dieu khoan thanh toan dung chung voi RFQ-02/backend —
+					// de dieu khoan tu bao gia thang chon tu dong dung o Select nay.
+					that.getView().getModel().setProperty("/paymentTerms", (cfg && cfg.paymentTerms) || []);
 				})
 				.catch(function () { /* im lang — van cho go tay neu khong lay duoc */ });
 		},
@@ -255,7 +270,12 @@ sap.ui.define([
 
 			if (oVendor) {
 				oView.byId("inVendorEmail").setValue(oVendor.Email || "");
+				this._fillVendorTaxCode(oVendor);
 			}
+
+			// Ke thua not DIEU KHOAN THANH TOAN + NGAY GIAO du kien tu bao gia thang
+			// (feedback QDAVY 13/08: moi thong tin tu luong truoc phai tu link sang PO).
+			this._applyAwardedQuotationTerms(oPRData);
 
 			if (oStrip) {
 				var sVendorLabel = oVendor
@@ -275,6 +295,47 @@ sap.ui.define([
 			}
 		},
 
+		// Ma so thue: lay tu Vendor Master neu SAP co tra ve (TaxCode/TaxNumber/Stcd1),
+		// khong co thi de trong cho nhap tay nhu cu.
+		_fillVendorTaxCode: function (oVendor) {
+			var sTax = (oVendor && (oVendor.TaxCode || oVendor.TaxNumber || oVendor.Stcd1 || oVendor.TaxNumber1)) || "";
+			if (sTax) {
+				this.getView().byId("inVendorTaxCode").setValue(sTax);
+			}
+		},
+
+		// Doc bao gia THANG cua RFQ da chot de tu dien: dieu khoan thanh toan (cung bo ma
+		// voi Select nho danh muc /api/config) va Ngay nhan hang du kien = hom nay +
+		// LeadTimeDays NCC da cam ket. Van sua tay duoc sau khi tu dien.
+		_applyAwardedQuotationTerms: function (oPRData) {
+			var oView = this.getView();
+			if (!oPRData || !oPRData.RfqId) { return; }
+
+			fetch(BACKEND + "/api/rfq/" + encodeURIComponent(oPRData.RfqId) + "/compare")
+				.then(function (r) { return r.json(); })
+				.then(function (res) {
+					if (!res || !res.success) { return; }
+					var aQuotes = res.quotations || [];
+					var oWin = aQuotes.filter(function (q) {
+						return q.QuoteStatus === "AWARDED"
+							|| String(q.VendorNo) === String(oPRData.RfqAwardedVendor);
+					})[0];
+					if (!oWin) { return; }
+
+					if (oWin.PaymentTerms) {
+						oView.byId("inPaymentTerms").setSelectedKey(oWin.PaymentTerms);
+					}
+					var iLeadDays = Number(oWin.LeadTimeDays) || 0;
+					if (iLeadDays > 0) {
+						var oEta = new Date();
+						oEta.setHours(0, 0, 0, 0);
+						oEta.setDate(oEta.getDate() + iLeadDays);
+						oView.byId("inDeliveryDate").setDateValue(oEta);
+					}
+				})
+				.catch(function () { /* im lang — nguoi dung van dien tay duoc */ });
+		},
+
 		// ── 4. CHỌN VENDOR -> LẤY EMAIL TỪ ODATA ──
 		onVendorChange: function (oEvent) {
 			var oSelectedItem = oEvent.getParameter("selectedItem");
@@ -286,6 +347,7 @@ sap.ui.define([
 
 				if (oVendor) {
 					oView.byId("inVendorEmail").setValue(oVendor.Email || "");
+					this._fillVendorTaxCode(oVendor);
 				}
 			}
 		},

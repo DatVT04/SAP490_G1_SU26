@@ -103,12 +103,62 @@
 								class="sapUiSmallMarginBottom"
 							/>
 
+							<!-- Hoi dap AI tuong tac: sau khi co goi y ban dau, nguoi dung hoi them
+							     ("NCC nao giao nhanh nhat?", "vi sao khong chon V2?"...) thay vi chi
+							     doc 1 chieu (feedback QDAVY 13/08: "AI van chua chat/tuong tac duoc"). -->
+							<HBox
+								alignItems="Center"
+								visible="{= !!${/aiText} }"
+								class="sapUiSmallMarginBottom"
+							>
+								<Input
+									id="inAiQuestion"
+									placeholder="Hỏi thêm AI về các nhà cung cấp này..."
+									width="100%"
+									maxLength="500"
+									submit=".onAiAskPress"
+									class="sapUiTinyMarginEnd"
+								/>
+								<Button
+									text="Hỏi AI"
+									icon="sap-icon://discussion"
+									press=".onAiAskPress"
+									busy="{/busyAi}"
+								/>
+							</HBox>
+
+							<!-- Nguon du lieu NCC + huong xu ly khi thieu NCC (feedback QDAVY 13/08:
+							     "Thong tin NCC lay o dau? Sao co moi 3? NCC can moi khong co thi sao?") -->
+							<MessageStrip
+								text="Danh sách lấy trực tiếp từ Vendor Master trên SAP (bảng LFA1) — hiển thị đủ toàn bộ NCC đã khai báo trên hệ thống. Nếu NCC cần mời chưa có: tạo Vendor Master mới trên SAP (BP/XK01) hoặc bổ sung email cho NCC, rồi bấm nút tải lại bên cạnh ô tìm kiếm."
+								type="Information"
+								showIcon="true"
+								class="sapUiSmallMarginBottom"
+							/>
+
+							<OverflowToolbar class="sapUiTinyMarginBottom">
+								<SearchField
+									id="sfVendorSearch"
+									placeholder="Tìm theo mã, tên hoặc email NCC..."
+									liveChange=".onVendorSearch"
+									search=".onVendorSearch"
+									width="100%"
+								/>
+								<Button
+									icon="sap-icon://refresh"
+									tooltip="Tải lại danh sách NCC từ SAP"
+									press=".onReloadVendorsPress"
+								/>
+							</OverflowToolbar>
+
 							<Table
 								id="vendorTable"
 								items="{/Vendors}"
 								mode="MultiSelect"
 								selectionChange=".onVendorSelectionChange"
 								sticky="ColumnHeaders"
+								growing="true"
+								growingThreshold="10"
 								noDataText="Không tải được danh sách Nhà cung cấp từ SAP."
 							>
 								<columns>

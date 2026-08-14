@@ -11,11 +11,15 @@ sap.ui.define([
 	"sap/m/VBox",
 	"sap/m/Label",
 	"sap/m/Text",
+	"sap/m/List",
+	"sap/m/StandardListItem",
+	"sap/m/MessageStrip",
 	"com/qdavy/procurement/model/Config"
 ], function (
 	Controller, JSONModel, MessageBox, MessageToast,
 	Dialog, DialogType, Button, ButtonType,
 	TextArea, VBox, Label, Text,
+	List, StandardListItem, MessageStrip,
 	Config
 ) {
 	"use strict";
@@ -75,11 +79,16 @@ sap.ui.define([
 					var aData = (oResult.data || []).sort(function (a, b) {
 						var aScore = (a.needsProcurementHeadReview ? 2 : 0) + (a.needsLegalReview ? 1 : 0);
 						var bScore = (b.needsProcurementHeadReview ? 2 : 0) + (b.needsLegalReview ? 1 : 0);
-						return bScore - aScore;
+						if (bScore !== aScore) { return bScore - aScore; }
+						// Cung muc uu tien thi don MOI nhat len tren — de nguoi duyet
+						// khong phai keo xuong tan cuoi tim don vua gui.
+						return new Date(b.CreatedAt || 0) - new Date(a.CreatedAt || 0);
 					});
 
-					oModel.setProperty("/pending", aData);
-				})
+					// Giu ban day du de SearchField loc client-side (khong goi lai server)
+					this._aAllPending = aData;
+					this._applyPendingFilter();
+				}.bind(this))
 				.catch(function (oError) {
 					oView.setBusy(false);
 					oModel.setProperty("/loading", false);
@@ -89,6 +98,35 @@ sap.ui.define([
 
 		onRefreshPress: function () {
 			this._loadPending();
+		},
+
+		// ── TIM KIEM NHANH TRONG DANH SACH CHO DUYET ──
+		// (feedback QDAVY 13/08: man kho phan biet cac don PR, nhieu don phai keo luot)
+		onPendingSearch: function (oEvent) {
+			this._sPendingQuery = (oEvent.getParameter("newValue") !== undefined
+				? oEvent.getParameter("newValue")
+				: oEvent.getParameter("query")) || "";
+			this._applyPendingFilter();
+		},
+
+		_applyPendingFilter: function () {
+			var aAll = this._aAllPending || [];
+			var sQuery = (this._sPendingQuery || "").trim().toLowerCase();
+			var aShown = aAll;
+
+			if (sQuery) {
+				aShown = aAll.filter(function (pr) {
+					if (String(pr.PRId || "").toLowerCase().indexOf(sQuery) !== -1) { return true; }
+					if (String(pr.SapPRId || "").toLowerCase().indexOf(sQuery) !== -1) { return true; }
+					if (String(pr.RequesterEmail || "").toLowerCase().indexOf(sQuery) !== -1) { return true; }
+					return (pr.items || []).some(function (it) {
+						return String(it.Description || "").toLowerCase().indexOf(sQuery) !== -1
+							|| String(it.MaterialNo || "").toLowerCase().indexOf(sQuery) !== -1;
+					});
+				});
+			}
+
+			this.getView().getModel().setProperty("/pending", aShown);
 		},
 
 		getPendingCount: function (aPending) {
@@ -121,6 +159,118 @@ sap.ui.define([
 			if (fEstimated === undefined || fEstimated === null || fEstimated === "") { return ""; }
 			return "(ước tính ban đầu: "
 				+ Number(fEstimated).toLocaleString("vi-VN") + " " + (sCurrency || "VND") + ")";
+		},
+
+		// dd-MM-yyyy HH:mm theo gio nguoi xem — truoc day view hien nguyen chuoi ISO
+		// "2026-08-13T10:25:00.000Z" (feedback QDAVY 13/08: gio giac sai/kho doc).
+		formatDateTime: function (sIso) {
+			if (!sIso) { return ""; }
+			var d = new Date(sIso);
+			if (isNaN(d.getTime())) { return String(sIso); }
+			var pad = function (n) { return String(n).padStart(2, "0"); };
+			return pad(d.getHours()) + ":" + pad(d.getMinutes()) + " "
+				+ pad(d.getDate()) + "-" + pad(d.getMonth() + 1) + "-" + d.getFullYear();
+		},
+
+		// ── DIALOG SO SANH BAO GIA CHO NGUOI DUYET (CFO/CEO) ──
+		// Hien de xuat cua nhan vien (gia uoc tinh luc lap PR) canh tung bao gia NCC
+		// tra ve, kem ly do Purchasing chot — nguoi duyet khong phai mo RFQ-02 (man
+		// ho khong co quyen vao) de biet bang so sanh trong nhu the nao.
+		onViewComparePress: function (oEvent) {
+			var oPR = oEvent.getSource().getBindingContext().getObject();
+			if (!oPR || !oPR.RfqId) {
+				MessageBox.error("Đề nghị này không có RFQ để so sánh.");
+				return;
+			}
+			var that = this;
+			var oView = this.getView();
+			oView.setBusy(true);
+
+			this._fetchWithTimeout(BACKEND + "/api/rfq/" + encodeURIComponent(oPR.RfqId) + "/compare")
+				.then(function (oResult) {
+					oView.setBusy(false);
+					if (!oResult || !oResult.success) {
+						MessageBox.error((oResult && oResult.message) || "Không tải được bảng so sánh báo giá.");
+						return;
+					}
+					that._openCompareDialog(oPR, oResult);
+				})
+				.catch(function (oError) {
+					oView.setBusy(false);
+					MessageBox.error(oError.message || "Không thể kết nối tới máy chủ.");
+				});
+		},
+
+		_openCompareDialog: function (oPR, oResult) {
+			var that = this;
+			var aQuotes = oResult.quotations || [];
+			var aPendingVendors = oResult.pendingVendors || [];
+			var oRfq = oResult.rfq || {};
+
+			var oContent = new VBox({ renderType: "Bare" }).addStyleClass("sapUiSmallMargin");
+
+			// 1. De xuat cua nhan vien (can cu de doi chieu)
+			oContent.addItem(new MessageStrip({
+				text: "Đề xuất của nhân viên " + (oPR.RequesterEmail || "")
+					+ ": giá trị ước tính " + this.formatValue(
+						oPR.EstimatedTotalValue != null ? oPR.EstimatedTotalValue : oPR.TotalValue,
+						oPR.Currency)
+					+ ((oPR.items && oPR.items.length)
+						? " — " + oPR.items.map(function (it) {
+							return (it.Description || it.MaterialNo || "?") + " × " + it.Quantity + " " + (it.UoM || "");
+						}).join(", ")
+						: ""),
+				type: "Information",
+				showIcon: true
+			}).addStyleClass("sapUiSmallMarginBottom"));
+
+			// 2. Tung bao gia NCC tra ve (NCC thang danh dau ro)
+			var oList = new List({ showSeparators: "Inner" });
+			aQuotes.forEach(function (q) {
+				var bAwarded = String(q.VendorNo) === String(oPR.RfqAwardedVendor)
+					|| q.QuoteStatus === "AWARDED";
+				oList.addItem(new StandardListItem({
+					title: (q.VendorName || "NCC") + " (" + q.VendorNo + ")" + (bAwarded ? "  ✓ ĐÃ CHỐT" : ""),
+					description: "Giá: " + Number(q.QuotedPrice || 0).toLocaleString("vi-VN") + " " + (q.Currency || "VND")
+						+ " · Giao: " + (q.LeadTimeDays || 0) + " ngày"
+						+ " · Thanh toán: " + (q.PaymentTermsLabel || q.PaymentTerms || "—")
+						+ " · BH: " + (q.WarrantyMonths || 0) + " tháng"
+						+ " · Pháp lý: " + (q.LegalDocsOk === "X" ? "đủ hồ sơ" : "THIẾU hồ sơ")
+						+ (q.SourceNote ? " · Căn cứ: " + q.SourceNote : ""),
+					icon: bAwarded ? "sap-icon://accept" : "sap-icon://supplier",
+					infoState: bAwarded ? "Success" : "None",
+					info: bAwarded ? "NCC thắng" : "",
+					wrapping: true
+				}));
+			});
+			oContent.addItem(oList);
+
+			// 3. NCC duoc moi nhung khong gui bao gia + ly do chot
+			if (aPendingVendors.length > 0) {
+				oContent.addItem(new Text({
+					text: "Không gửi báo giá: " + aPendingVendors.map(function (v) {
+						return (v.VendorName || "") + " (" + v.VendorNo + ")";
+					}).join(", ")
+				}).addStyleClass("sapUiSmallMarginTop"));
+			}
+			if (oRfq.AwardReason || oPR.RfqAwardReason) {
+				oContent.addItem(new Text({
+					text: "Lý do Purchasing chọn: " + (oRfq.AwardReason || oPR.RfqAwardReason)
+				}).addStyleClass("sapUiTinyMarginTop"));
+			}
+
+			var oDialog = new Dialog({
+				title: "So sánh báo giá — " + oPR.RfqId,
+				contentWidth: "42rem",
+				content: [oContent],
+				endButton: new Button({
+					text: "Đóng",
+					press: function () { oDialog.close(); }
+				}),
+				afterClose: function () { oDialog.destroy(); }
+			});
+			this.getView().addDependent(oDialog);
+			oDialog.open();
 		},
 
 		onDetailPress: function (oEvent) {
@@ -283,14 +433,14 @@ sap.ui.define([
 						});
 					}
 
-					var oModel = oView.getModel();
-					var aFiltered = (oModel.getProperty("/pending") || [])
-						.filter(function (pr) {
-							return pr.PRId !== sPRId
-								&& pr.InternalId !== sPRId
-								&& !(oResult.approval && pr.PRId === oResult.approval.PRId);
-						});
-					oModel.setProperty("/pending", aFiltered);
+					var fnKeep = function (pr) {
+						return pr.PRId !== sPRId
+							&& pr.InternalId !== sPRId
+							&& !(oResult.approval && pr.PRId === oResult.approval.PRId);
+					};
+					// Loc ca ban day du (nguon cua SearchField) lan ban dang hien
+					this._aAllPending = (this._aAllPending || []).filter(fnKeep);
+					this._applyPendingFilter();
 				}.bind(this))
 				.catch(function (oError) {
 					oView.setBusy(false);
