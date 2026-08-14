@@ -63,6 +63,21 @@ const ORG_DEFAULTS = {
 // Chỉ cảnh báo “giá trị lớn” — KHÔNG dùng để leo CEO
 const LEGAL_ESCALATION_THRESHOLD = 100000000;
 
+// ============================================================================
+// MUI GIO (TIMEZONE) — vi sao can offset:
+// Cac field *At tren ZPR_DRAFT (CreatedAt/UpdatedAt/PurchasingAt/CfoAt/CeoAt)
+// do ABAP dong dau bang sy-datum/sy-uzeit — tuc GIO HE THONG SAP (server TUM
+// o Duc, CEST = UTC+2), KHONG phai UTC. Truoc day sapTsToIso() gan thang "Z"
+// vao nen FE (VN, UTC+7) hien lech +2h: PR tao luc 15:25 VN -> SAP ghi 10:25
+// -> FE hien 17:25 (feedback QDAVY 13/08: "Gio giac dang sai").
+// SAP_TZ_OFFSET_MIN = so phut SAP server di truoc UTC (CEST = 120; mua dong
+// CET = 60 — chinh bang env khi doi mua).
+// Cac field RFQ/Quotation (CreatedAt/SentAt/AwardedAt/EnteredAt) thi do Node
+// tu dong dau — sapTimestamp() nay ghi UTC (getUTC*) nen khi doc ra dung
+// offset 0. Hai loai field, hai offset — dung tron lan.
+// ============================================================================
+const SAP_TZ_OFFSET_MIN = Number(process.env.SAP_TZ_OFFSET_MIN || 120);
+
 /**
  * Danh muc dieu khoan thanh toan dung chung cho RFQ-02.
  * Truoc day o nhap tu do nen moi nguoi go moi kieu ("net5", "NET30", "50/50"...),
@@ -854,16 +869,19 @@ function odataEscape(v) {
  * la Edm.String 14 ky tu YYYYMMDDHHMMSS, KHONG phai Edm.DateTime — xem CLAUDE.md.
  */
 function sapTimestamp(date) {
+	// Ghi UTC (getUTC*) chu khong phai gio local cua may chay Node: tren Vercel
+	// local = UTC nen khong khac gi, nhung chay dev tren may Windows VN (UTC+7)
+	// ma dung getHours() thi cung 1 field se khi UTC khi VN — khong doc lai duoc.
 	const d = date || new Date();
 	const p = (n) => String(n).padStart(2, "0");
-	return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+	return `${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}${p(d.getUTCHours())}${p(d.getUTCMinutes())}${p(d.getUTCSeconds())}`;
 }
 
 /** Field Deadline la DATS 8 ky tu YYYYMMDD (khac 14 ky tu cua 4 field TIMESTAMP con lai). */
 function sapDateOnly(date) {
 	const d = date || new Date();
 	const p = (n) => String(n).padStart(2, "0");
-	return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`;
+	return `${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}`;
 }
 
 /** Chuan hoa deadline FE gui len (vd "2026-08-20" hoac da la "20260820") ve 8 ky tu, hoac "" neu khong hop le. */
@@ -943,13 +961,38 @@ function boolToSapX(b) {
 	return b ? "X" : "";
 }
 
-/** Chuoi 14 ky tu YYYYMMDDHHMMSS cua SAP -> ISO 8601 (de FE dung duoc new Date()). */
-function sapTsToIso(ts) {
+/**
+ * Chuoi 14 ky tu YYYYMMDDHHMMSS -> ISO 8601 UTC (de FE dung duoc new Date()).
+ * offsetMin = so phut ma dong ho DA GHI chuoi nay di truoc UTC:
+ *   - field do ABAP dong dau (ZPR_DRAFT *At) -> SAP_TZ_OFFSET_MIN (SAP server CEST)
+ *   - field do Node dong dau (RFQ/Quotation) -> 0 (sapTimestamp() ghi UTC)
+ */
+function sapTsToIso(ts, offsetMin) {
 	const s = String(ts || "").trim();
 	if (!/^\d{14}$/.test(s)) { return s || null; }
-	const iso = `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}T${s.slice(8, 10)}:${s.slice(10, 12)}:${s.slice(12, 14)}.000Z`;
-	const d = new Date(iso);
-	return isNaN(d.getTime()) ? null : iso;
+	const ms = Date.UTC(
+		Number(s.slice(0, 4)), Number(s.slice(4, 6)) - 1, Number(s.slice(6, 8)),
+		Number(s.slice(8, 10)), Number(s.slice(10, 12)), Number(s.slice(12, 14))
+	) - (Number(offsetMin) || 0) * 60000;
+	const d = new Date(ms);
+	return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+/** Timestamp do ABAP dong dau (gio he thong SAP) -> ISO UTC. */
+function abapTsToIso(ts) {
+	return sapTsToIso(ts, SAP_TZ_OFFSET_MIN);
+}
+
+/** Doi timestamp 14 ky tu (do Node ghi, UTC) trong 1 object RFQ/Quotation ve ISO — tra ve ban sao. */
+function rfqTimesToIso(obj) {
+	if (!obj) { return obj; }
+	const out = Object.assign({}, obj);
+	["CreatedAt", "SentAt", "AwardedAt", "EnteredAt"].forEach(function (f) {
+		if (/^\d{14}$/.test(String(out[f] || ""))) {
+			out[f] = sapTsToIso(out[f], 0);
+		}
+	});
+	return out;
 }
 
 /** 1 dong item tu PrDraftItemSet (SAP) -> shape cu FE dang doc (isFreeText la boolean). */
@@ -998,7 +1041,14 @@ function mapClientItemToSapDeep(item) {
 
 /** 1 entity PrDraft (SAP, da $expand=PrDraftToItems) -> shape cu approvalStore ma FE dang doc. */
 function mapSapPrToClient(sap) {
-	const items = ((sap.PrDraftToItems && sap.PrDraftToItems.results) || []).map(mapSapItemToClient);
+	const headerCurrency = sap.Currency || "VND";
+	// Gan Currency cua header vao tung item: ZPR_DRAFT_ITEM khong co field Currency,
+	// nen FE (PR-02 danh sach vat tu) truoc day binding {Currency} trong context item
+	// ra undefined va formatter fallback ve "VND" — PR tinh bang USD hien dong item
+	// "1.000 VND" ngay duoi tong "1.000 USD" (feedback QDAVY 13/08).
+	const items = ((sap.PrDraftToItems && sap.PrDraftToItems.results) || [])
+		.map(mapSapItemToClient)
+		.map(function (it) { return Object.assign({}, it, { Currency: headerCurrency }); });
 	return {
 		PRId: sap.PRId || sap.InternalId,
 		InternalId: sap.InternalId,
@@ -1007,21 +1057,21 @@ function mapSapPrToClient(sap) {
 		TotalValue: Number(sap.TotalValue) || 0,
 		Currency: sap.Currency || "VND",
 		Status: sap.Status || "",
-		CreatedAt: sapTsToIso(sap.CreatedAt),
-		UpdatedAt: sapTsToIso(sap.UpdatedAt),
+		CreatedAt: abapTsToIso(sap.CreatedAt),
+		UpdatedAt: abapTsToIso(sap.UpdatedAt),
 		items: items,
 		Comment: sap.Comment || "",
 		DecidedByEmail: sap.DecidedByEmail || "",
 		DecidedByRole: sap.DecidedByRole || "",
 		PurchasingApprovedBy: sap.PurchasingApprovedBy || "",
 		PurchasingAction: sap.PurchasingAction || "",
-		PurchasingAt: sapTsToIso(sap.PurchasingAt),
+		PurchasingAt: abapTsToIso(sap.PurchasingAt),
 		CfoProcessedBy: sap.CfoProcessedBy || "",
 		CfoAction: sap.CfoAction || "",
-		CfoAt: sapTsToIso(sap.CfoAt),
+		CfoAt: abapTsToIso(sap.CfoAt),
 		CeoProcessedBy: sap.CeoProcessedBy || "",
 		CeoAction: sap.CeoAction || "",
-		CeoAt: sapTsToIso(sap.CeoAt),
+		CeoAt: abapTsToIso(sap.CeoAt),
 		EscalationReason: sap.EscalationReason || "",
 		needsProcurementHeadReview: sapXToBool(sap.NeedsProcurementHeadReview),
 		needsLegalReview: sapXToBool(sap.NeedsLegalReview),
@@ -1183,7 +1233,7 @@ async function enrichWithRfqAward(prList) {
 			if (rfq) {
 				pr.RfqAwardReason = rfq.AwardReason || "";
 				pr.RfqAwardedBy = rfq.AwardedBy || "";
-				pr.RfqAwardedAt = rfq.AwardedAt || "";
+				pr.RfqAwardedAt = sapTsToIso(rfq.AwardedAt, 0) || "";
 				pr.RfqStatus = rfq.Status || "";
 			}
 		} catch (error) {
@@ -1390,7 +1440,7 @@ app.post("/api/ai/recommend-vendor", async (req, res) => {
 		+ `không render được markdown.`;
 
 	try {
-		const aiText = await callClaude(prompt, 500);
+		const aiText = await callClaude(prompt, 1200);
 
 		// Dich nguoc ma an danh ve VendorNo that; dung word boundary de V1 khong khop nham trong V10.
 		// Ham thay the thay vi chuoi — xem ghi chu o /api/ai/compare-quotations.
@@ -1746,15 +1796,82 @@ app.get("/api/approval/:id", async (req, res) => {
 	}
 });
 
-app.get("/api/notifications", (req, res) => {
+// So ngay PR duoc phep "nam" o 1 buoc truoc khi canh bao nguoi duyet (feedback QDAVY
+// 13/08: "PR de tren he thong bao lau? Lam thong bao cho Purchasing/CEO/CFO biet don
+// nay da cho bao lau roi"). PR KHONG tu xoa — thay vao do sinh canh bao aging.
+const AGING_ALERT_DAYS = Number(process.env.AGING_ALERT_DAYS || 2);
+
+// Trang thai nao la "dang cho" cua role nao + nhan buoc de ghi vao message.
+const AGING_STATUS_BY_ROLE = {
+	PURCHASING: {
+		PENDING_PURCHASING: "chờ Purchasing duyệt",
+		PENDING_RFQ: "đã duyệt nhưng chưa tạo RFQ",
+		RFQ_SENT: "đã gửi RFQ, chờ nhập báo giá",
+		QUOTATIONS_RECEIVED: "đã có báo giá, chờ chốt NCC"
+	},
+	CFO: { PENDING_CFO: "chờ CFO duyệt" },
+	CEO: { PENDING_CEO: "chờ CEO duyệt" }
+};
+
+/**
+ * Sinh danh sach canh bao "PR treo lau" cho 1 role — KHONG luu vao notificationStore
+ * (tinh lai moi lan goi tu trang thai that tren SAP nen khong bao gio lech/mo coi;
+ * PR duoc xu ly xong la canh bao tu bien mat). id dang "aging-<PRId>" de FE biet
+ * day khong phai thong bao thuong (khong goi PATCH read cho no).
+ */
+async function buildAgingAlerts(role, email) {
+	const statusMap = AGING_STATUS_BY_ROLE[role];
+	if (!statusMap || !process.env.SAP_HOST) { return []; }
+
+	const alerts = [];
+	try {
+		const allDrafts = await fetchPrDraftList();
+		const now = Date.now();
+		allDrafts.forEach(function (pr) {
+			const stepLabel = statusMap[String(pr.Status || "").toUpperCase()];
+			if (!stepLabel) { return; }
+			// UpdatedAt = luc PR buoc vao trang thai hien tai (moi lan doi trang thai
+			// ABAP deu dong dau lai) — do chinh la "da cho bao lau o buoc nay".
+			const refTime = new Date(pr.UpdatedAt || pr.CreatedAt || 0).getTime();
+			if (!refTime) { return; }
+			const waitedDays = Math.floor((now - refTime) / 86400000);
+			if (waitedDays < AGING_ALERT_DAYS) { return; }
+
+			const totalDays = Math.floor((now - new Date(pr.CreatedAt || 0).getTime()) / 86400000);
+			alerts.push({
+				id: "aging-" + pr.PRId,
+				toEmail: email,
+				prId: pr.PRId,
+				message: "PR " + pr.PRId + " của " + (pr.RequesterEmail || "?")
+					+ " đã " + waitedDays + " ngày ở bước " + stepLabel
+					+ (totalDays > waitedDays ? " (tổng " + totalDays + " ngày trên hệ thống)" : "")
+					+ ". Giá trị: " + Number(pr.TotalValue || 0).toLocaleString("vi-VN")
+					+ " " + (pr.Currency || "VND") + " — cần xử lý.",
+				createdAt: new Date().toISOString(),
+				read: false,
+				aging: true
+			});
+		});
+	} catch (error) {
+		// Loi doc SAP khong duoc lam mat thong bao thuong — chi bo qua phan aging.
+		console.error("[buildAgingAlerts] Bo qua canh bao aging:", extractSapErrorMessage(error));
+	}
+	return alerts;
+}
+
+app.get("/api/notifications", async (req, res) => {
 	const { email } = req.query;
+	const role = String(req.query.role || "").toUpperCase();
 	if (!email) {
 		return res.status(400).json({ success: false, message: "Thieu email." });
 	}
 	const list = notificationStore
 		.filter((n) => n.toEmail.toLowerCase() === String(email).toLowerCase())
 		.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-	return res.json({ success: true, data: list });
+
+	// Canh bao aging dat len dau danh sach — la viec can xu ly ngay, khong phai lich su.
+	const agingAlerts = await buildAgingAlerts(role, String(email));
+	return res.json({ success: true, data: agingAlerts.concat(list) });
 });
 
 app.patch("/api/notifications/:id/read", (req, res) => {
@@ -2110,8 +2227,7 @@ async function sendPOEmailToVendor(vendorEmail, poNumber, data) {
 	}).join("");
 
 	const html = `
-        <img src="cid:companyLogo" alt="Company Logo" style="max-width:200px;height:auto;display:block;margin-bottom:16px;">
-
+  <img src="cid:companyLogo" alt="Company Logo" style="max-width:200px;height:auto;display:block;margin-bottom:16px;">
         <h2>Purchase Order Notification</h2>
 
         <p>Dear Vendor,</p>
@@ -2186,8 +2302,7 @@ async function sendPOEmailToVendor(vendorEmail, poNumber, data) {
 			subject: `Purchase Order ${poNumber}`,
 
 			html,
-
-			attachments: getLogoAttachment()
+      attachments: getLogoAttachment()
 
 		});
 
@@ -2480,12 +2595,12 @@ async function generateNextRfqId() {
 }
 
 /** Goi Anthropic Messages API (khong them SDK moi, dung axios cho dong bo voi phan con lai cua file). */
-async function callClaude(promptText, maxTokens) {
+async function callClaudeOnce(promptText, maxTokens) {
 	const response = await axios.post(
 		"https://api.anthropic.com/v1/messages",
 		{
 			model: "claude-sonnet-5",
-			max_tokens: maxTokens || 800,
+			max_tokens: maxTokens,
 			messages: [{ role: "user", content: promptText }]
 		},
 		{
@@ -2494,7 +2609,7 @@ async function callClaude(promptText, maxTokens) {
 				"anthropic-version": "2023-06-01",
 				"Content-Type": "application/json"
 			},
-			timeout: 30000
+			timeout: 60000
 		}
 	);
 	const content = response.data && response.data.content;
@@ -2502,16 +2617,37 @@ async function callClaude(promptText, maxTokens) {
 	// bi chen block khac truoc no) thi se ra chuoi rong ma khong bao loi gi ca, FE nhan
 	// success:true nhung khong hien thi duoc gi. Doi sang tim dung block type "text".
 	const textBlock = Array.isArray(content) && content.find((c) => c && c.type === "text" && c.text);
-	if (!textBlock) {
-		console.error(
-			"[callClaude] Khong tim thay text block trong phan hoi Claude. stop_reason="
-			+ (response.data && response.data.stop_reason) + " content=" + JSON.stringify(content)
-		);
-		throw new Error(
-			"Claude khong tra ve noi dung text (stop_reason=" + (response.data && response.data.stop_reason) + ")."
-		);
+	return {
+		text: textBlock ? textBlock.text : "",
+		stopReason: response.data && response.data.stop_reason
+	};
+}
+
+/**
+ * callClaude voi xu ly stop_reason=max_tokens (feedback QDAVY 13/08: FE hien toast
+ * "Claude khong tra ve noi dung text (stop_reason=max_tokens)"):
+ * - Budget mac dinh nang tu 800 -> 1500: tieng Viet co dau ton token hon tieng Anh nhieu,
+ *   500-800 token rat de bi cat giua chung.
+ * - Neu van bi cat NHUNG da co text -> tra ve phan text da co (do hon la nem loi).
+ * - Neu bi cat ma CHUA co text nao (model chua kip viet) -> thu lai 1 lan voi budget gap doi.
+ */
+async function callClaude(promptText, maxTokens) {
+	const budget = maxTokens || 1500;
+	let result = await callClaudeOnce(promptText, budget);
+
+	if (!result.text && result.stopReason === "max_tokens") {
+		console.error("[callClaude] Bi cat max_tokens truoc khi co text — thu lai voi budget x2 (" + budget * 2 + ").");
+		result = await callClaudeOnce(promptText, budget * 2);
 	}
-	return textBlock.text;
+
+	if (!result.text) {
+		console.error("[callClaude] Khong tim thay text block trong phan hoi Claude. stop_reason=" + result.stopReason);
+		throw new Error("AI không trả về được nội dung (stop_reason=" + result.stopReason + "). Vui lòng thử lại.");
+	}
+	if (result.stopReason === "max_tokens") {
+		console.error("[callClaude] Tra loi bi cat o max_tokens — van tra ve phan da co.");
+	}
+	return result.text;
 }
 
 // 0) Danh sach RFQ (cho man RFQ-02 chon RFQ dang xu ly) — doc thang tu RfqSet
@@ -2531,7 +2667,8 @@ app.get("/api/rfq", async (req, res) => {
 		// Moi nhat len dau — CreatedAt la chuoi YYYYMMDDHHMMSS nen so sanh chuoi la du
 		results.sort((a, b) => String(b.CreatedAt || "").localeCompare(String(a.CreatedAt || "")));
 
-		return res.json({ success: true, data: results });
+		// Doi timestamp 14 ky tu ve ISO UTC de FE format ve gio dia phuong nguoi xem
+		return res.json({ success: true, data: results.map(rfqTimesToIso) });
 	} catch (error) {
 		const message = extractSapErrorMessage(error);
 		console.error("[GET /api/rfq] THAT BAI:", message);
@@ -2690,7 +2827,6 @@ app.post("/api/rfq/:id/send", async (req, res) => {
 						to: q.VendorEmail,
 						subject: `Yeu cau bao gia ${id}`,
 						html: `
-							<img src="cid:companyLogo" alt="Company Logo" style="max-width:200px;height:auto;display:block;margin-bottom:16px;">
 							<p>Kinh gui ${q.VendorName || q.VendorNo},</p>
 							<p>Chung toi de nghi Quy vi gui bao gia cho yeu cau mua sam lien quan:</p>
 							<table border="1" cellpadding="6" cellspacing="0">
@@ -2701,7 +2837,7 @@ app.post("/api/rfq/:id/send", async (req, res) => {
 							<p>Vui long phan hoi truoc han neu co the.</p>
 							<p>Tran trong,<br>Purchasing Department</p>
 						`,
-						attachments: getLogoAttachment()
+            attachments: getLogoAttachment()
 					});
 					sentCount++;
 				} catch (mailError) {
@@ -2832,9 +2968,16 @@ app.get("/api/rfq/:id/compare", async (req, res) => {
 
 		return res.json({
 			success: true,
-			rfq,
+			rfq: rfqTimesToIso(rfq),
 			pr,
-			quotations: received,
+			// PaymentTermsLabel: dich san ma dieu khoan (NET30...) sang nhan tieng Viet
+			// de PR-02 (dialog so sanh cho CFO) va PO-01 dung duoc ma khong phai tu tra
+			// danh muc /api/config.
+			quotations: received.map(function (q) {
+				return Object.assign(rfqTimesToIso(q), {
+					PaymentTermsLabel: describePaymentTerms(q.PaymentTerms)
+				});
+			}),
 			pendingVendors: pending.map((q) => ({ VendorNo: q.VendorNo, VendorName: q.VendorName }))
 		});
 	} catch (error) {
@@ -3032,7 +3175,7 @@ app.post("/api/ai/compare-quotations", async (req, res) => {
 			+ `Chỉ viết văn xuôi thuần túy, KHÔNG dùng markdown (không dùng #, ##, **, gạch đầu dòng, `
 			+ `đánh số thứ tự) vì kết quả sẽ hiển thị nguyên văn trong một ô text thường không render được markdown.`;
 
-		const aiText = await callClaude(prompt, 500);
+		const aiText = await callClaude(prompt, 1200);
 
 		// Dich nguoc ma an danh (V1/V2/...) trong cau tra loi ve VendorNo that, dung word boundary
 		// de tranh the V1 khop nham vao trong V10 khi co >=10 NCC.
@@ -3057,6 +3200,125 @@ app.post("/api/ai/compare-quotations", async (req, res) => {
 		const message = extractSapErrorMessage(error);
 		console.error("[POST /api/ai/compare-quotations] THAT BAI:", message);
 		return res.status(502).json({ success: false, message });
+	}
+});
+
+// ============================================================================
+// HOI DAP AI TUONG TAC (feedback QDAVY 13/08: "AI van chua the chat hay tuong
+// tac duoc nhi?"). Nguoi dung hoi them 1 cau tren nen du lieu dang xem:
+//   context = "recommend-vendor"  -> FE gui kem danh sach vendors (nhu RFQ-01)
+//   context = "compare-quotations" -> FE gui kem rfqId, server tu doc bao gia
+// Van AN DANH HOA het ten/email NCC truoc khi goi AI va dich nguoc sau khi co
+// cau tra loi — dung co che word-boundary nhu 2 route AI co dinh o tren.
+// KHONG gui cau tra loi truoc do cua AI len lai (trong do da co ten NCC that
+// sau buoc dich nguoc) — moi cau hoi la 1 luot doc lap tren du lieu an danh.
+// ============================================================================
+app.post("/api/ai/ask", async (req, res) => {
+	const { context, question, rfqId, vendors, materialName, materialGroup, quantity, budget } = req.body || {};
+
+	if (!process.env.ANTHROPIC_API_KEY) {
+		return res.status(500).json({ success: false, message: "Thieu ANTHROPIC_API_KEY." });
+	}
+	const sQuestion = String(question || "").trim();
+	if (!sQuestion) {
+		return res.status(400).json({ success: false, message: "Thieu cau hoi (question)." });
+	}
+	if (sQuestion.length > 500) {
+		return res.status(400).json({ success: false, message: "Cau hoi qua dai (toi da 500 ky tu)." });
+	}
+
+	try {
+		const anonMap = {};
+		let dataDescription = "";
+
+		if (context === "compare-quotations") {
+			if (!rfqId) {
+				return res.status(400).json({ success: false, message: "Thieu rfqId." });
+			}
+			if (!process.env.SAP_HOST) {
+				return res.status(503).json({ success: false, message: "He thong SAP chua duoc cau hinh (thieu SAP_HOST)." });
+			}
+			const quotationsResp = await sapRead(`RfqSet('${odataEscape(rfqId)}')/RfqToQuotations`);
+			const allQuotations = (quotationsResp.data && quotationsResp.data.d && quotationsResp.data.d.results) || [];
+			const received = allQuotations.filter((q) => q.QuoteStatus === "RECEIVED" || q.QuoteStatus === "AWARDED");
+			if (received.length === 0) {
+				return res.status(400).json({ success: false, message: "Chua co bao gia nao de hoi AI." });
+			}
+			const anonymized = received.map(function (q, idx) {
+				const code = "V" + (idx + 1);
+				const vendorName = String(q.VendorName || "").trim();
+				anonMap[code] = vendorName ? `${vendorName} (${q.VendorNo})` : String(q.VendorNo);
+				return {
+					vendorCode: code,
+					quotedPrice: Number(q.QuotedPrice) || 0,
+					currency: q.Currency || "VND",
+					leadTimeDays: Number(q.LeadTimeDays) || 0,
+					paymentTerms: describePaymentTerms(q.PaymentTerms),
+					warrantyMonths: Number(q.WarrantyMonths) || 0,
+					legalDocsOk: q.LegalDocsOk === "X"
+				};
+			});
+			dataDescription = `Các báo giá đã ẩn danh hóa cho RFQ ${rfqId}:\n`
+				+ JSON.stringify(anonymized, null, 2);
+		} else if (context === "recommend-vendor") {
+			if (!Array.isArray(vendors) || vendors.length === 0) {
+				return res.status(400).json({ success: false, message: "Thieu danh sach nha cung cap (vendors)." });
+			}
+			const anonymized = vendors.map(function (v, idx) {
+				const code = "V" + (idx + 1);
+				const vendorNo = String(v.VendorNo || v.Lifnr || "");
+				const vendorName = String(v.VendorName || v.Name1 || "").trim();
+				anonMap[code] = vendorName ? `${vendorName} (${vendorNo})` : vendorNo;
+				return {
+					vendorCode: code,
+					country: v.Country || v.Land1 || "",
+					city: v.City || v.Ort01 || "",
+					paymentTerms: describePaymentTerms(v.PaymentTerms || v.Zterm),
+					currency: v.Currency || v.Waers || ""
+				};
+			});
+			dataDescription = `Nhu cầu mua sắm:\n`
+				+ `- Vật tư: ${materialName || "Không rõ"} (nhóm: ${materialGroup || "Không rõ"})\n`
+				+ `- Số lượng: ${quantity || "Không rõ"}\n`
+				+ `- Ngân sách dự kiến: ${budget || "Không rõ"} VND\n`
+				+ `- Danh sách nhà cung cấp đã ẩn danh hóa: ${JSON.stringify(anonymized, null, 2)}`;
+		} else {
+			return res.status(400).json({ success: false, message: "context khong hop le (recommend-vendor | compare-quotations)." });
+		}
+
+		const prompt = `Bạn là chuyên gia mua hàng đang hỗ trợ nhân viên Purchasing. `
+			+ `Dưới đây là dữ liệu (đã ẩn danh hóa, không có tên/email nhà cung cấp thật):\n`
+			+ `${dataDescription}\n\n`
+			+ `Câu hỏi của người dùng: "${sQuestion}"\n\n`
+			+ `Trả lời đúng trọng tâm câu hỏi, dựa trên dữ liệu ở trên. Nếu dữ liệu không đủ để trả lời, `
+			+ `nói rõ thiếu gì thay vì suy đoán. Khi nhắc tới nhà cung cấp thì dùng mã vendorCode (V1, V2...).\n\n`
+			+ `QUAN TRỌNG VỀ HÌNH THỨC TRẢ LỜI: viết bằng TIẾNG VIỆT CÓ DẤU đầy đủ. Chỉ viết văn xuôi `
+			+ `thuần túy, KHÔNG dùng markdown (không dùng #, ##, **, gạch đầu dòng, đánh số thứ tự). `
+			+ `Tối đa 5-6 câu. Kết quả hiển thị nguyên văn trong một ô text thường không render được markdown.`;
+
+		const aiText = await callClaude(prompt, 1500);
+
+		let translatedText = aiText;
+		Object.keys(anonMap).forEach(function (code) {
+			if (anonMap[code]) {
+				translatedText = translatedText.replace(
+					new RegExp("\\b" + code + "\\b", "g"),
+					function () { return anonMap[code]; }
+				);
+			}
+		});
+
+		console.log(
+			"[AI ask] " + new Date().toISOString()
+			+ " context=" + context + (rfqId ? " rfqId=" + rfqId : "")
+			+ " doDaiCauHoi=" + sQuestion.length + " soNCCGuiVaoAI=" + Object.keys(anonMap).length
+		);
+
+		return res.json({ success: true, answer: translatedText });
+	} catch (error) {
+		const message = extractSapErrorMessage(error);
+		console.error("[POST /api/ai/ask] THAT BAI:", message);
+		return res.status(502).json({ success: false, message: "Khong the goi AI: " + message });
 	}
 });
 

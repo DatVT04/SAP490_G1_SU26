@@ -58,32 +58,36 @@
 					<Title text="{i18n>dashOverviewTitle}" level="H2" class="qdSectionH2"/>
 				</VBox>
 
+			<!-- 3 the KPI bam duoc: dan sang man lien quan theo vai tro (feedback QDAVY
+				     13/08: "May con so nay co the cho an vao roi link ra cac trang lien quan
+				     khong?"). VBox khong co su kien press nen controller gan click qua
+				     attachBrowserEvent trong onAfterRendering — xem _wireKpiClicks(). -->
 				<HBox wrap="Wrap" class="qdKpiRow">
-					<VBox class="qdKpiCard qdKpiAmber">
+					<VBox id="kpiPendingCard" class="qdKpiCard qdKpiAmber qdKpiClickable" tooltip="Bấm để mở danh sách đề nghị đang chờ">
 						<HBox justifyContent="SpaceBetween" alignItems="Center">
-							<Text text="{i18n>dashKpiPending}" class="qdKpiLabel"/>
+							<Text text="{dash>/kpiPendingLabel}" class="qdKpiLabel"/>
 							<core:Icon src="sap-icon://pending" class="qdKpiIcon"/>
 						</HBox>
 						<Title text="{dash>/pendingCount}" level="H1" class="qdKpiValue"/>
 						<Text text="{i18n>dashKpiUnit}" class="qdKpiUnit"/>
 					</VBox>
 
-					<VBox class="qdKpiCard qdKpiGreen">
+					<VBox id="kpiApprovedCard" class="qdKpiCard qdKpiGreen qdKpiClickable" tooltip="Bấm để xem các đề nghị đã duyệt">
 						<HBox justifyContent="SpaceBetween" alignItems="Center">
-							<Text text="{i18n>dashKpiApproved}" class="qdKpiLabel"/>
+							<Text text="{dash>/kpiApprovedLabel}" class="qdKpiLabel"/>
 							<core:Icon src="sap-icon://accept" class="qdKpiIcon"/>
 						</HBox>
 						<Title text="{dash>/approvedCount}" level="H1" class="qdKpiValue"/>
 						<Text text="{i18n>dashKpiUnit}" class="qdKpiUnit"/>
 					</VBox>
 
-					<VBox class="qdKpiCard qdKpiBlue">
+					<VBox id="kpiValueCard" class="qdKpiCard qdKpiBlue qdKpiClickable" tooltip="Bấm để xem chi tiết các đề nghị đang chờ">
 						<HBox justifyContent="SpaceBetween" alignItems="Center">
-							<Text text="{i18n>dashKpiValue}" class="qdKpiLabel"/>
+							<Text text="{dash>/kpiValueLabel}" class="qdKpiLabel"/>
 							<core:Icon src="sap-icon://money-bills" class="qdKpiIcon"/>
 						</HBox>
 						<Title text="{dash>/pendingValueText}" level="H1" class="qdKpiValue qdKpiValueSm"/>
-						<Text text="VND" class="qdKpiUnit"/>
+						<Text text="{dash>/pendingValueUnit}" class="qdKpiUnit"/>
 					</VBox>
 				</HBox>
 			</VBox>

@@ -3,8 +3,10 @@ sap.ui.define([
 	"sap/ui/model/json/JSONModel",
 	"sap/m/MessageBox",
 	"sap/m/MessageToast",
+	"sap/ui/model/Filter",
+	"sap/ui/model/FilterOperator",
 	"com/qdavy/procurement/model/Config"
-], function (Controller, JSONModel, MessageBox, MessageToast, Config) {
+], function (Controller, JSONModel, MessageBox, MessageToast, Filter, FilterOperator, Config) {
 	"use strict";
 
 	var BACKEND = Config.BACKEND;
@@ -127,6 +129,34 @@ sap.ui.define([
 			this.getView().getModel().setProperty("/selectedVendorCount", iCount);
 		},
 
+		// Loc danh sach NCC theo ma / ten / email — loc phia client tren binding,
+		// khong goi lai SAP (feedback QDAVY 13/08: kho tim NCC khi danh sach dai).
+		onVendorSearch: function (oEvent) {
+			var sQuery = (oEvent.getParameter("newValue") !== undefined
+				? oEvent.getParameter("newValue")
+				: oEvent.getParameter("query")) || "";
+			var oBinding = this.getView().byId("vendorTable").getBinding("items");
+			if (!oBinding) { return; }
+			if (!sQuery.trim()) {
+				oBinding.filter([]);
+				return;
+			}
+			oBinding.filter(new Filter({
+				filters: [
+					new Filter("VendorNo", FilterOperator.Contains, sQuery),
+					new Filter("VendorName", FilterOperator.Contains, sQuery),
+					new Filter("Email", FilterOperator.Contains, sQuery)
+				],
+				and: false
+			}));
+		},
+
+		// NCC vua duoc tao them tren SAP (BP/XK01) -> tai lai ma khong can F5 ca trang.
+		onReloadVendorsPress: function () {
+			this._loadVendors();
+			MessageToast.show("Đang tải lại danh sách Nhà cung cấp từ SAP...");
+		},
+
 		onPRSelect: function (oEvent) {
 			var oSelectedItem = oEvent.getParameter("listItem");
 			if (!oSelectedItem) { return; }
@@ -180,6 +210,58 @@ sap.ui.define([
 				.catch(function () {
 					oModel.setProperty("/busyAi", false);
 					MessageToast.show("Không gọi được AI gợi ý.");
+				});
+		},
+
+		// ── 3b. HOI THEM AI (chat tuong tac tren nen du lieu NCC dang xem) ──
+		// Server van an danh hoa ten/email NCC truoc khi goi AI nhu nut goi y chinh.
+		onAiAskPress: function () {
+			var oModel = this.getView().getModel();
+			var oInput = this.getView().byId("inAiQuestion");
+			var sQuestion = (oInput.getValue() || "").trim();
+
+			if (!sQuestion) {
+				MessageToast.show("Hãy nhập câu hỏi trước.");
+				return;
+			}
+			var aVendors = oModel.getProperty("/Vendors") || [];
+			if (aVendors.length === 0) {
+				MessageToast.show("Chưa có danh sách Nhà cung cấp để hỏi AI.");
+				return;
+			}
+
+			var firstItem = ((this._currentPR && this._currentPR._items) || [])[0] || {};
+			oModel.setProperty("/busyAi", true);
+
+			fetch(BACKEND + "/api/ai/ask", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					context: "recommend-vendor",
+					question: sQuestion,
+					vendors: aVendors,
+					materialName: firstItem.Description || "",
+					materialGroup: firstItem.MaterialType || "",
+					quantity: firstItem.Quantity || "",
+					budget: (this._currentPR && this._currentPR.TotalValue) || ""
+				})
+			})
+				.then(function (r) { return r.json(); })
+				.then(function (res) {
+					oModel.setProperty("/busyAi", false);
+					if (res && res.success) {
+						// Noi Q/A vao van ban goi y dang hien de giu mach hoi dap
+						var sPrev = oModel.getProperty("/aiText") || "";
+						oModel.setProperty("/aiText",
+							sPrev + "\n\n— Hỏi: " + sQuestion + "\n— AI: " + (res.answer || ""));
+						oInput.setValue("");
+					} else {
+						MessageToast.show((res && res.message) || "AI không phản hồi.");
+					}
+				})
+				.catch(function () {
+					oModel.setProperty("/busyAi", false);
+					MessageToast.show("Không gọi được AI.");
 				});
 		},
 

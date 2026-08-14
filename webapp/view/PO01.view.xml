@@ -201,6 +201,17 @@
 								</VBox>
 							</HBox>
 
+							<!-- Bao cho nguoi mua biet vendor + gia ben duoi lay tu dong tu bao gia da chot
+							     o RFQ-02. Dat NGOAI SimpleForm vi SimpleForm chi nhan Label + field. -->
+							<MessageStrip
+								id="msRfqInherited"
+								text=""
+								type="Success"
+								showIcon="true"
+								visible="false"
+								class="sapUiSmallMarginBottom"
+							/>
+
 							<f:SimpleForm
 								editable="true"
 								layout="ColumnLayout"
@@ -242,6 +253,13 @@
 									/>
 
 									<Label text="Email gửi thông báo (Tự động lấy từ SAP Vendor)" required="true"/>
+									<Input
+										id="inVendorEmail"
+										placeholder="Email nhà cung cấp sẽ tự động hiển thị tại đây"
+										editable="true"
+									/>
+
+									<Label text="Email gửi thông báo"/>
 									<Input
 										id="inVendorEmail"
 										placeholder="Email nhà cung cấp sẽ tự động hiển thị tại đây"
@@ -332,6 +350,21 @@
 										placeholder="Ngày dự kiến nhận hàng (khác ngày lập PO)"
 										required="true"
 									/>
+
+									<core:Title text="Thanh toán" class="qdFormSectionTitle qdFormSectionTitlePurple"/>
+
+									<Label text="Hình thức thanh toán" required="true"/>
+									<Select id="inPaymentMethod">
+										<core:Item key="TRANSFER" text="Chuyển khoản"/>
+										<core:Item key="CASH" text="Tiền mặt"/>
+									</Select>
+
+									<Label text="Điều khoản thanh toán" required="true"/>
+									<!-- Danh muc lay tu /api/config (PAYMENT_TERMS server) — cung 1 bo ma voi bao gia
+									     RFQ-02, nen dieu khoan cua bao gia thang tu dien sang duoc (feedback QDAVY 13/08). -->
+									<Select id="inPaymentTerms" items="{/paymentTerms}">
+										<core:Item key="{code}" text="{label}"/>
+									</Select>
 								
 								</f:content>
 							</f:SimpleForm>

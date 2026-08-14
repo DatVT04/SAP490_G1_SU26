@@ -43,6 +43,18 @@
 					<Title text="Đề nghị đang chờ quyết định ({= ${/pending}.length })" level="H3" class="qdCardTitle"/>
 				</HBox>
 
+				<!-- Tim nhanh 1 don giua danh sach dai (feedback QDAVY 13/08: "kho nhin
+				     phan biet cac don PR, nhieu don qua thi keo luot xuong duoi a?") -->
+				<OverflowToolbar class="sapUiSmallMarginBeginEnd sapUiTinyMarginBottom">
+					<SearchField
+						id="sfPendingSearch"
+						placeholder="Tìm theo mã PR, người đề nghị, tên vật tư..."
+						liveChange=".onPendingSearch"
+						search=".onPendingSearch"
+						width="100%"
+					/>
+				</OverflowToolbar>
+
 				<VBox
 					class="qdEmptyState"
 					alignItems="Center"
@@ -58,6 +70,9 @@
 					items="{/pending}"
 					mode="None"
 					showSeparators="None"
+					growing="true"
+					growingThreshold="5"
+					growingScrollToLoad="false"
 					visible="{= ${/pending}.length > 0 }"
 					class="qdApprovalList"
 				>
@@ -69,7 +84,7 @@
 									<core:Icon src="sap-icon://request" class="qdPRIcon sapUiTinyMarginEnd"/>
 									<VBox>
 										<ObjectIdentifier title="{PRId}" text="Người đề nghị: {RequesterEmail}"/>
-										<Text text="Gửi lúc: {CreatedAt}" class="qdCellHint sapUiTinyMarginTop"/>
+										<Text text="Gửi lúc: {path: 'CreatedAt', formatter: '.formatDateTime'}" class="qdCellHint sapUiTinyMarginTop"/>
 										<Text
 											text="{= ${SapPRId} ? ('SAP: ' + ${SapPRId}) : 'Chưa ghi SAP (sau khi duyệt cuối)' }"
 											class="qdCellHint"
@@ -140,6 +155,17 @@
 								<Text
 									text="Người chốt: {= ${RfqAwardedBy} || '—' }"
 									class="qdCellHint"
+								/>
+								<!-- CFO xem duoc toan bo bang so sanh: de xuat cua nhan vien (gia uoc tinh)
+								     dat canh tung bao gia NCC tra ve — khong chi con so tong (feedback QDAVY
+								     13/08: "muon ghi ro chi tiet so sanh nhan vien de xuat the nao, NCC tra
+								     loi the nao de CFO duyet"). -->
+								<Button
+									text="Xem so sánh báo giá chi tiết"
+									icon="sap-icon://compare-2"
+									type="Transparent"
+									press=".onViewComparePress"
+									class="sapUiTinyMarginTop qdCompareBtn"
 								/>
 							</VBox>
 
