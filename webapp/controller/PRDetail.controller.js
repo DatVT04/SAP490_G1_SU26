@@ -194,18 +194,28 @@ sap.ui.define([
 			});
 		}
 
-		// 6. Kết thúc
+		// 6. Kết thúc.
+		// PO_CREATED PHAI tinh la da hoan tat: ngay sau khi tao PO, backend doi
+		// Status APPROVED -> PO_CREATED (de PR bien khoi danh sach cho tao PO cua
+		// PO-01), nen neu chi check APPROVED thi PR cang di xa (da co PO) buoc cuoi
+		// lai cang hien "Chua hoan tat" (feedback 14/08). Voi pham vi do an
+		// (GR/Invoice khong code), PO_CREATED chinh la trang thai ket thuc.
 		var isApproved = status === "APPROVED" || status === "OPENED" || status === "OPEN";
+		var isPoCreated = status === "PO_CREATED";
 		var isRejected = status === "REJECTED";
-		var finalDone = isApproved || isRejected;
+		var finalDone = isApproved || isPoCreated || isRejected;
 		var finalTime = finalDone ? (pr.UpdatedAt || pr.CeoAt || pr.CfoAt || pr.PurchasingAt || "") : "";
 		var finalTitle = "Hoàn tất";
 		var finalSub = "Chưa hoàn tất";
 		var finalIcon = "sap-icon://complete";
 
-		if (isApproved) {
+		if (isPoCreated) {
+			finalTitle = "Hoàn tất — Đã tạo PO";
+			finalSub = pr.SapPRId ? ("PR SAP: " + pr.SapPRId) : "Đã tạo Purchase Order";
+			finalIcon = "sap-icon://sales-order";
+		} else if (isApproved) {
 			finalTitle = "Đã phê duyệt";
-			finalSub = pr.SapPRId ? ("SAP: " + pr.SapPRId) : "Đã duyệt";
+			finalSub = (pr.SapPRId ? ("SAP: " + pr.SapPRId) : "Đã duyệt") + " — chờ tạo PO";
 			finalIcon = "sap-icon://accept";
 		} else if (isRejected) {
 			finalTitle = "Từ chối";
