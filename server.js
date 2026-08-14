@@ -2077,6 +2077,20 @@ function pickRealItemNo(row) {
 	return row.ItemNo || row.PRItem || row.ReqItem || row.PrItem || row.Item || row.LineNo || null;
 }
 
+// Logo cong ty gan vao mail bang inline attachment (cid), KHONG dung link anh
+// public — nhieu mail client (Outlook, Gmail) mac dinh chan tai anh tu URL
+// ngoai nen link se hien o dang "vo anh". attachments rong neu thieu file thi
+// mail van gui binh thuong, chi la khong co logo.
+const COMPANY_LOGO_PATH = path.join(__dirname, "webapp", "images", "LogoCty.png");
+function getLogoAttachment() {
+	if (!fs.existsSync(COMPANY_LOGO_PATH)) { return []; }
+	return [{
+		filename: "LogoCty.png",
+		path: COMPANY_LOGO_PATH,
+		cid: "companyLogo"
+	}];
+}
+
 // gửi mail Vendor
 async function sendPOEmailToVendor(vendorEmail, poNumber, data) {
 
@@ -2096,6 +2110,8 @@ async function sendPOEmailToVendor(vendorEmail, poNumber, data) {
 	}).join("");
 
 	const html = `
+        <img src="cid:companyLogo" alt="Company Logo" style="max-width:200px;height:auto;display:block;margin-bottom:16px;">
+
         <h2>Purchase Order Notification</h2>
 
         <p>Dear Vendor,</p>
@@ -2169,7 +2185,9 @@ async function sendPOEmailToVendor(vendorEmail, poNumber, data) {
 
 			subject: `Purchase Order ${poNumber}`,
 
-			html
+			html,
+
+			attachments: getLogoAttachment()
 
 		});
 
@@ -2672,6 +2690,7 @@ app.post("/api/rfq/:id/send", async (req, res) => {
 						to: q.VendorEmail,
 						subject: `Yeu cau bao gia ${id}`,
 						html: `
+							<img src="cid:companyLogo" alt="Company Logo" style="max-width:200px;height:auto;display:block;margin-bottom:16px;">
 							<p>Kinh gui ${q.VendorName || q.VendorNo},</p>
 							<p>Chung toi de nghi Quy vi gui bao gia cho yeu cau mua sam lien quan:</p>
 							<table border="1" cellpadding="6" cellspacing="0">
@@ -2681,7 +2700,8 @@ app.post("/api/rfq/:id/send", async (req, res) => {
 							</table>
 							<p>Vui long phan hoi truoc han neu co the.</p>
 							<p>Tran trong,<br>Purchasing Department</p>
-						`
+						`,
+						attachments: getLogoAttachment()
 					});
 					sentCount++;
 				} catch (mailError) {

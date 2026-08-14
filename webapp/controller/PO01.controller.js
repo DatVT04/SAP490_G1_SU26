@@ -28,9 +28,31 @@ sap.ui.define([
 			this._loadApprovedPRs();
 			this._loadVendors();
 
+			// Khong cho chon ngay qua khu tren ca 2 DatePicker (Doc Date / Delivery Date).
+			// minDate chi chan duoc thao tac qua lich; van go tay duoc ngay qua khu nen
+			// onConfirmCreatePO ben duoi phai validate lai lan nua truoc khi gui SAP.
+			var oToday = this._todayDateOnly();
+			this.getView().byId("inDocDate").setMinDate(oToday);
+			this.getView().byId("inDeliveryDate").setMinDate(oToday);
+
 			this.getOwnerComponent().getRouter()
 				.getRoute("po01")
 				.attachPatternMatched(this._onRouteMatched, this);
+		},
+
+		// Tra ve Date() tai 00:00 gio dia phuong (khong dung new Date().toISOString()
+		// vi no quy ve UTC, co the lech 1 ngay tuy timezone nguoi dung).
+		_todayDateOnly: function () {
+			var d = new Date();
+			d.setHours(0, 0, 0, 0);
+			return d;
+		},
+
+		_todayIso: function () {
+			var d = this._todayDateOnly();
+			var sMonth = String(d.getMonth() + 1).padStart(2, "0");
+			var sDay = String(d.getDate()).padStart(2, "0");
+			return d.getFullYear() + "-" + sMonth + "-" + sDay;
 		},
 
 		// Org data (Company Code / Purch Org / Purch Group) khong duoc luu tren ban ghi PR,
@@ -48,6 +70,12 @@ sap.ui.define([
 
 		_onRouteMatched: function () {
 			this.getView().byId("poCreationArea").setVisible(false);
+			// Bang Table giu trang thai "selected" tren tung control theo VI TRI (index),
+			// khong dong bo voi model. Khong xoa o day thi lan sau quay lai, dong o
+			// cung vi tri van mang co selected=true tu truoc -> bam lai KHONG bao
+			// selectionChange (vi UI5 thay "khong co gi thay doi") -> panel ben phai
+			// khong mo. Phai xoa tay moi lan vao lai man.
+			this.getView().byId("approvedPRTable").removeSelections(true);
 			this._loadApprovedPRs();
 		},
 
@@ -100,8 +128,12 @@ sap.ui.define([
 						var oModel = oView.getModel();
 						oModel.setProperty("/PurchaseRequisitions", aMappedPRs);
 						oModel.setProperty("/poItems", []);
+
+						if (aMappedPRs.length > 0) {
+							this._autoSelectFirstPR();
+						}
 					}
-				})
+				}.bind(this))
 				.catch(function () {
 					oView.setBusy(false);
 					MessageToast.show("Không thể lấy danh sách PR từ máy chủ.");
@@ -132,12 +164,37 @@ sap.ui.define([
 			this.getOwnerComponent().getRouter().navTo("dashboard");
 		},
 
+		// Tu dong chon dong PR dau tien sau khi danh sach load xong, de khung ben phai
+		// (Card 2-6) hien ra ngay khi vao man PO thay vi bat nguoi dung phai bam chon.
+		// JSONModel.setProperty() cap nhat binding DONG BO nen "updateFinished" thuong
+		// da ban ra TRUOC khi ham nay kip attachEventOnce() -> listener gan sau khong
+		// bao gio duoc goi (day la ly do ban dau khong hoat dung). Kiem tra getItems()
+		// ngay lap tuc truoc, chi cho vao "updateFinished" khi thuc su chua co du lieu.
+		_autoSelectFirstPR: function () {
+			var oTable = this.getView().byId("approvedPRTable");
+			var fnSelectFirst = function () {
+				var aItems = oTable.getItems();
+				if (aItems.length === 0) { return; }
+				oTable.setSelectedItem(aItems[0], true);
+				this._applyPRSelection(aItems[0]);
+			}.bind(this);
+
+			if (oTable.getItems().length > 0) {
+				fnSelectFirst();
+			} else {
+				oTable.attachEventOnce("updateFinished", fnSelectFirst);
+			}
+		},
+
 		// ── 3. SỰ KIỆN KHI CHỌN DÒNG PR (FIX KHÔNG CRASH) ──
 		onPRSelect: function (oEvent) {
-			try {
-				var oSelectedItem = oEvent.getParameter("listItem");
-				if (!oSelectedItem) { return; }
+			var oSelectedItem = oEvent.getParameter("listItem");
+			if (!oSelectedItem) { return; }
+			this._applyPRSelection(oSelectedItem);
+		},
 
+		_applyPRSelection: function (oSelectedItem) {
+			try {
 				var oContext = oSelectedItem.getBindingContext();
 				var oPRData = oContext ? oContext.getObject() : null;
 
@@ -177,7 +234,10 @@ sap.ui.define([
 				var fQty = Number(firstItem.Quantity || oPRData.Quantity || 1);
 				var bFromRfq = oPRData.RfqFinalValue != null && Number(oPRData.RfqFinalValue) > 0;
 				var fBaseValue = bFromRfq ? Number(oPRData.RfqFinalValue) : Number(oPRData.EstimatedValue || 0);
-				var fUnitPrice = fQty > 0 ? (fBaseValue / fQty) : fBaseValue;
+				// VND khong co phan thap phan. Lam tron ngay tai day de tranh dau "."
+				// bi regex \D o onRecalculateTotal/onConfirmCreatePO nuot mat, khien
+				// Net Price bi thoi phong gap boi (vd 333333.33 -> 33333333).
+				var fUnitPrice = fQty > 0 ? Math.round(fBaseValue / fQty) : Math.round(fBaseValue);
 				oView.byId("inNetPrice").setValue(fUnitPrice);
 
 				// 5. Kế thừa nhà cung cấp đã thắng thầu (nếu PR này đi qua RFQ)
@@ -197,7 +257,10 @@ sap.ui.define([
 						UoM: it.UoM || "",
 						NetPrice: fUnitPrice,
 						Currency: oPRData.Currency || "",
-						Plant: it.Plant || "",
+						// PrDraftItemSet ben SAP khong co truong Plant (PR luon hardcode
+						// plant='QDPL' phia ABAP, xem create_pr_deep.abap) nen it.Plant
+						// luon rong — dien san QDPL tu ORG_DEFAULTS, van cho sua tay o bang.
+						Plant: it.Plant || oOrg.plant || "QDPL",
 						CostCenter: it.CostCenter || ""
 					};
 				});
@@ -212,7 +275,7 @@ sap.ui.define([
 						UoM: oPRData.UoM || "",
 						NetPrice: fUnitPrice,
 						Currency: oPRData.Currency || "",
-						Plant: oPRData.Plant || "",
+						Plant: oPRData.Plant || oOrg.plant || "QDPL",
 						CostCenter: oPRData.CostCenter || ""
 					});
 				}
@@ -290,6 +353,28 @@ sap.ui.define([
 			}
 		},
 
+		// So dien thoai VN: bo het ky tu khong phai so (khoang trang, dau -, ngoac...)
+		// roi kiem tra dang 0xxxxxxxxx (10 so) hoac +84xxxxxxxxx (9 so sau ma vung).
+		// Cho phep rong vi khong phai field nao cung bat buoc (vd inBuyerAddress).
+		_isValidPhone: function (sPhone) {
+			if (!sPhone || !sPhone.trim()) { return true; }
+			var sDigitsOnly = sPhone.replace(/[\s\-().]/g, "");
+			return /^(0\d{9}|\+84\d{9})$/.test(sDigitsOnly);
+		},
+
+		// ── 4b. VALIDATE SỐ ĐIỆN THOẠI (LIVE) ──
+		onPhoneChange: function (oEvent) {
+			var oInput = oEvent.getSource();
+			var sValue = oEvent.getParameter("value");
+
+			if (this._isValidPhone(sValue)) {
+				oInput.setValueState("None");
+			} else {
+				oInput.setValueState("Error");
+				oInput.setValueStateText("Số điện thoại không hợp lệ. VD: 0912345678 hoặc +84912345678.");
+			}
+		},
+
 		// ── 5. TÍNH TOÁN TIỀN TỰ ĐỘNG ──
 		onRecalculateTotal: function () {
 			var oView = this.getView();
@@ -334,16 +419,43 @@ sap.ui.define([
 			var sPurchGroup = oView.byId("inPurchGroup").getValue();
 			var sDocType = oView.byId("inDocType").getValue();
 			var sDocDate = oView.byId("inDocDate").getValue();
+			var sDeliveryDate = oView.byId("inDeliveryDate").getValue();
 			var sCurrency = oView.byId("inCurrency").getValue();
+			var sBuyerPhone = oView.byId("inBuyerAddress").getValue();
+			var sReceiverPhone = oView.byId("inReceiverPhone").getValue();
 
 			var sNetPriceRaw = oView.byId("inNetPrice").getValue() || "0";
 			var fNetPrice = Number(sNetPriceRaw.toString().replace(/\D/g, "")) || 0;
+
+			// minDate tren DatePicker chi chan qua thao tac click lich, nguoi dung van go
+			// tay duoc chuoi ngay qua khu (hoac ngay sai dinh dang khien getValue() tra ve
+			// gia tri khong khop valueFormat) — validate lai bang string so sanh ISO
+			// (yyyy-MM-dd so sanh duoc truc tiep nhu chuoi vi cung do dai, cung thu tu).
+			var sTodayIso = this._todayIso();
+			if (sDocDate && sDocDate < sTodayIso) {
+				MessageBox.error("Ngày lập chứng từ (Doc Date) không được là ngày trong quá khứ.");
+				return;
+			}
+			if (sDeliveryDate && sDeliveryDate < sTodayIso) {
+				MessageBox.error("Ngày nhận hàng dự kiến không được là ngày trong quá khứ.");
+				return;
+			}
+
+			if (!this._isValidPhone(sReceiverPhone)) {
+				MessageBox.error("Số điện thoại người nhận không hợp lệ. VD: 0912345678 hoặc +84912345678.");
+				return;
+			}
+			if (!this._isValidPhone(sBuyerPhone)) {
+				MessageBox.error("Số điện thoại (người đại diện) không hợp lệ. VD: 0912345678 hoặc +84912345678.");
+				return;
+			}
 
 			if (!sCompanyCode) { MessageBox.error("Vui lòng nhập Mã công ty (Company Code)."); return; }
 			if (!sPurchOrg) { MessageBox.error("Vui lòng nhập Tổ chức mua hàng (Purchasing Org)."); return; }
 			if (!sPurchGroup) { MessageBox.error("Vui lòng nhập Nhóm mua hàng (Purchasing Group)."); return; }
 			if (!sDocDate) { MessageBox.error("Vui lòng chọn Ngày lập chứng từ (Doc Date)."); return; }
 			if (!sVendorNo) { MessageBox.error("Vui lòng chọn Nhà cung cấp (Vendor)."); return; }
+			if (!sReceiverPhone || !sReceiverPhone.trim()) { MessageBox.error("Vui lòng nhập Số điện thoại người nhận."); return; }
 			if (!sVendorEmail || !sVendorEmail.trim()) { MessageBox.error("Vui lòng nhập Email Nhà cung cấp."); return; }
 			if (fNetPrice <= 0) { MessageBox.error("Đơn giá thương lượng phải lớn hơn 0."); return; }
 
@@ -400,6 +512,7 @@ sap.ui.define([
 							onClose: function () {
 								this._currentPR = null;
 								oView.byId("poCreationArea").setVisible(false);
+								oView.byId("approvedPRTable").removeSelections(true);
 								this._loadApprovedPRs();
 							}.bind(this)
 						});

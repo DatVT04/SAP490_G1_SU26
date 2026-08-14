@@ -183,7 +183,9 @@
 									<Label text="Số điện thoại"/>
 									<Input
 										id="inBuyerAddress"
-										placeholder=""
+										placeholder="VD: 0912 345 678"
+										type="Tel"
+										change=".onPhoneChange"
 									/>
 								</f:content>
 							</f:SimpleForm>
@@ -237,7 +239,14 @@
 										id="inVendorTaxCode"
 										placeholder="Tự động lấy từ trường Tax Code trong Business Partner (BP)"
 										editable="true"
-									/>							
+									/>
+
+									<Label text="Email gửi thông báo (Tự động lấy từ SAP Vendor)" required="true"/>
+									<Input
+										id="inVendorEmail"
+										placeholder="Email nhà cung cấp sẽ tự động hiển thị tại đây"
+										editable="true"
+									/>
 
 									<core:Title text="Giá mua (Pricing)" class="qdFormSectionTitle qdFormSectionTitlePurple"/>
 
@@ -312,6 +321,7 @@
 										id="inReceiverPhone"
 										placeholder="VD: 0912 345 678"
 										type="Tel"
+										change=".onPhoneChange"
 									/>
 
 									<Label text="Ngày nhận hàng dự kiến" required="true"/>
