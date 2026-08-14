@@ -35,6 +35,9 @@ sap.ui.define([
 				approvedCount: "–",
 				pendingValueText: "–",
 				pendingValueUnit: "VND",
+				kpiPendingLabel: "PR chờ duyệt",
+				kpiApprovedLabel: "PR đã duyệt",
+				kpiValueLabel: "Giá trị chờ duyệt",
 				tileCount: 1,
 				notifications: [],
 				unreadCount: 0,
@@ -92,9 +95,28 @@ sap.ui.define([
 
 		_onRouteMatched: function () {
 			var sRole = this.getOwnerComponent().getModel("user").getProperty("/role");
+			var oModel = this.getView().getModel("dash");
 			var aTiles = TILES_BY_ROLE[sRole] || [];
-			this.getView().getModel("dash").setProperty("/tileCount", aTiles.length);
-			this.getView().getModel("dash").setProperty("/greeting", this._buildGreeting());
+			oModel.setProperty("/tileCount", aTiles.length);
+			oModel.setProperty("/greeting", this._buildGreeting());
+
+			// Nhan KPI noi dung ro dem cai gi theo tung vai tro — de con so tren the
+			// khop voi man hinh mo ra khi bam (feedback 14/08).
+			var sUpper = String(sRole || "").toUpperCase();
+			if (sUpper === "PURCHASING") {
+				oModel.setProperty("/kpiPendingLabel", "PR chờ tôi duyệt");
+				oModel.setProperty("/kpiApprovedLabel", "PR đã duyệt — chờ tạo PO");
+				oModel.setProperty("/kpiValueLabel", "Giá trị chờ duyệt");
+			} else if (sUpper === "CFO" || sUpper === "CEO") {
+				oModel.setProperty("/kpiPendingLabel", "PR chờ tôi duyệt");
+				oModel.setProperty("/kpiApprovedLabel", "PR tôi đã xử lý");
+				oModel.setProperty("/kpiValueLabel", "Giá trị chờ duyệt");
+			} else {
+				oModel.setProperty("/kpiPendingLabel", "Đề nghị của tôi đang xử lý");
+				oModel.setProperty("/kpiApprovedLabel", "Đề nghị của tôi đã duyệt");
+				oModel.setProperty("/kpiValueLabel", "Giá trị đang chờ của tôi");
+			}
+
 			this._loadStats();
 			this._loadNotifications();
 		},
@@ -107,60 +129,113 @@ sap.ui.define([
 			return "Chào buổi tối";
 		},
 
+		// ============================================================
+		// KPI phai khop DUNG voi danh sach ma the do dan toi khi bam
+		// (feedback 14/08: "cac con so dang sai — link vao thi phai
+		// the hien dung con so cua trang thai do").
+		// - PURCHASING: cho duyet = hang cho cua PR-02, da duyet = danh
+		//   sach cho tao PO cua PO-01.
+		// - CFO/CEO:    cho duyet = hang cho cua PR-02, "da xu ly" = so
+		//   PR chinh ho da quyet (tab lich su cua ho).
+		// - REQUESTER/ACC: chi tinh PR CUA CHINH HO (truoc day dem toan
+		//   he thong nen hien ca PR test 1.000 USD cua nguoi khac).
+		// ============================================================
 		_loadStats: function () {
 			var oModel = this.getView().getModel("dash");
-			var sRole = String(this.getOwnerComponent().getModel("user").getProperty("/role") || "").toUpperCase();
+			var oUser = this.getOwnerComponent().getModel("user").getData() || {};
+			var sRole = String(oUser.role || "").toUpperCase();
 
-			var sPendingUrl = BACKEND + "/api/approval/pending";
-			if (sRole === "CFO" || sRole === "CEO" || sRole === "PURCHASING") {
-				sPendingUrl += "?role=" + encodeURIComponent(sRole);
+			// Trang thai "dang xu ly" tren duong di cua 1 PR (chua ket thuc)
+			var A_INFLIGHT = ["PENDING_PURCHASING", "PENDING_RFQ", "RFQ_SENT", "QUOTATIONS_RECEIVED", "PENDING_CFO", "PENDING_CEO"];
+			var A_DONE_OK = ["APPROVED", "PO_CREATED", "OPENED", "OPEN"];
+
+			var fnFail = function () {
+				oModel.setProperty("/pendingCount", "–");
+				oModel.setProperty("/approvedCount", "–");
+				oModel.setProperty("/pendingValueText", "–");
+				oModel.setProperty("/pendingValueUnit", "VND");
+			};
+
+			if (sRole === "PURCHASING" || sRole === "CFO" || sRole === "CEO") {
+				var aRequests = [
+					fetch(BACKEND + "/api/approval/pending?role=" + encodeURIComponent(sRole))
+						.then(function (r) { return r.json(); })
+				];
+				if (sRole === "PURCHASING") {
+					// KPI2 = dung danh sach PO-01 dang doc (APPROVED cho tao PO)
+					aRequests.push(fetch(BACKEND + "/api/approval/approved").then(function (r) { return r.json(); }));
+				} else {
+					// KPI2 cua CFO/CEO = so PR chinh ho DA XU LY (khop tab lich su cua ho)
+					aRequests.push(
+						fetch(BACKEND + "/api/approval/history?email=" + encodeURIComponent(oUser.email || "")
+							+ "&role=" + encodeURIComponent(sRole))
+							.then(function (r) { return r.json(); })
+					);
+				}
+
+				Promise.all(aRequests)
+					.then(function (aResults) {
+						var aPending = (aResults[0] && aResults[0].data) || [];
+						var iSecond = sRole === "PURCHASING"
+							? ((aResults[1] && aResults[1].data) || []).length
+							: ((aResults[1] && aResults[1].history) || []).length;
+
+						oModel.setProperty("/pendingCount", String(aPending.length));
+						oModel.setProperty("/approvedCount", String(iSecond));
+						this._setPendingValue(aPending);
+					}.bind(this))
+					.catch(fnFail);
+				return;
 			}
 
-			Promise.all([
-				fetch(sPendingUrl).then(function (r) { return r.json(); }),
-				fetch(BACKEND + "/api/approval/approved").then(function (r) { return r.json(); })
-			])
-				.then(function (aResults) {
-					var aPending  = (aResults[0] && aResults[0].data) || [];
-					var aApproved = (aResults[1] && aResults[1].data) || [];
-
-					// Cong don RIENG theo tung loai tien — truoc day cong thang TotalValue
-					// bat ke Currency nen PR 1.000 USD hien thanh "1.000 VND" (feedback
-					// QDAVY 13/08: "tien VND vs USD dang khong khop nhau").
-					var oTotals = {};
-					aPending.forEach(function (pr) {
-						var sCur = pr.Currency || "VND";
-						oTotals[sCur] = (oTotals[sCur] || 0) + (Number(pr.TotalValue) || 0);
+			// REQUESTER / ACC: dem tren dung nguon cua man "Lich su de nghi"
+			// (/api/approval/history) — voi requester la PR cua chinh ho.
+			fetch(BACKEND + "/api/approval/history?email=" + encodeURIComponent(oUser.email || "")
+				+ "&role=" + encodeURIComponent(sRole || "REQUESTER"))
+				.then(function (r) { return r.json(); })
+				.then(function (oResult) {
+					var aAll = ((oResult && oResult.history) || []).concat((oResult && oResult.pending) || []);
+					var aInflight = aAll.filter(function (pr) {
+						return A_INFLIGHT.indexOf(String(pr.Status || "").toUpperCase()) !== -1;
+					});
+					var aDone = aAll.filter(function (pr) {
+						return A_DONE_OK.indexOf(String(pr.Status || "").toUpperCase()) !== -1;
 					});
 
-					var aCurrencies = Object.keys(oTotals);
-					var sText;
-					var sUnit;
-					if (aCurrencies.length === 0) {
-						sText = "0";
-						sUnit = "VND";
-					} else if (aCurrencies.length === 1) {
-						sText = this._formatCompact(oTotals[aCurrencies[0]]);
-						sUnit = aCurrencies[0];
-					} else {
-						// Nhieu loai tien: khong cong lan vao nhau, hien tung dong tien ro rang
-						sText = aCurrencies.map(function (sCur) {
-							return this._formatCompact(oTotals[sCur]) + " " + sCur;
-						}.bind(this)).join(" · ");
-						sUnit = "theo từng loại tiền";
-					}
-
-					oModel.setProperty("/pendingCount", String(aPending.length));
-					oModel.setProperty("/approvedCount", String(aApproved.length));
-					oModel.setProperty("/pendingValueText", sText);
-					oModel.setProperty("/pendingValueUnit", sUnit);
+					oModel.setProperty("/pendingCount", String(aInflight.length));
+					oModel.setProperty("/approvedCount", String(aDone.length));
+					this._setPendingValue(aInflight);
 				}.bind(this))
-				.catch(function () {
-					oModel.setProperty("/pendingCount", "–");
-					oModel.setProperty("/approvedCount", "–");
-					oModel.setProperty("/pendingValueText", "–");
-					oModel.setProperty("/pendingValueUnit", "VND");
-				});
+				.catch(fnFail);
+		},
+
+		// Tong gia tri cua danh sach dang cho — cong don RIENG theo tung loai tien
+		// (truoc day cong thang bat ke Currency nen 1.000 USD hien thanh "1.000 VND").
+		_setPendingValue: function (aPending) {
+			var oModel = this.getView().getModel("dash");
+			var oTotals = {};
+			aPending.forEach(function (pr) {
+				var sCur = pr.Currency || "VND";
+				oTotals[sCur] = (oTotals[sCur] || 0) + (Number(pr.TotalValue) || 0);
+			});
+
+			var aCurrencies = Object.keys(oTotals);
+			var sText;
+			var sUnit;
+			if (aCurrencies.length === 0) {
+				sText = "0";
+				sUnit = "VND";
+			} else if (aCurrencies.length === 1) {
+				sText = this._formatCompact(oTotals[aCurrencies[0]]);
+				sUnit = aCurrencies[0];
+			} else {
+				sText = aCurrencies.map(function (sCur) {
+					return this._formatCompact(oTotals[sCur]) + " " + sCur;
+				}.bind(this)).join(" · ");
+				sUnit = "theo từng loại tiền";
+			}
+			oModel.setProperty("/pendingValueText", sText);
+			oModel.setProperty("/pendingValueUnit", sUnit);
 		},
 
 		_formatCompact: function (fValue) {
