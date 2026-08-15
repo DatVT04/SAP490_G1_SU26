@@ -297,6 +297,32 @@ async function notifyCeos(prId, message) {
 	});
 }
 
+// ============================================================================
+// TEN BO PHAN TIENG VIET
+//
+// SAP tra ve ten Cost Center bang tieng Anh ("Technology Div") vi master data
+// tao bang tieng Anh. Requester la nhan vien nghiep vu, khong phai ai cung doc
+// duoc "OPS" hay "ADM" la bo phan nao cua minh.
+//
+// Map o day chu KHONG doi ten tren SAP (KS02): doi ben SAP thi anh huong ca
+// bao cao CO, tat ca tài liệu da nop hoi dong deu dang ghi ten tieng Anh.
+// Ma nao khong co trong map thi giu nguyen ten SAP - them Cost Center moi ma
+// quen khai bao o day thi chi mat phan dich, khong vo dropdown.
+// ============================================================================
+const COST_CENTER_LABEL_VI = Object.freeze({
+	CCADM: "Phòng Hành chính",
+	CCBUS: "Phòng Kinh doanh",
+	CCFIN: "Phòng Tài chính",
+	CCOPS: "Phòng Vận hành",
+	CCPUR: "Phòng Thu mua",
+	CCTEC: "Phòng Công nghệ"
+});
+
+function costCenterLabelVi(code, sapName) {
+	const key = String(code || "").trim().toUpperCase();
+	return COST_CENTER_LABEL_VI[key] || String(sapName || code || "").trim();
+}
+
 async function fetchInternalOrderMaster() {
 	const EMPTY = {
 		internalOrders: [],
@@ -407,9 +433,13 @@ async function fetchInternalOrderMaster() {
 		console.error("⚠️ PR history CC/IO THAT BAI:", error.response?.status || error.message);
 	}
 
-	const internalOrders = Object.keys(ioMap).sort().map(function (k) { return ioMap[k]; });
+	const internalOrders = Object.keys(ioMap).sort().map(function (k) {
+		const io = ioMap[k];
+		io.CostCenterName = costCenterLabelVi(io.CostCenter, io.CostCenterName);
+		return io;
+	});
 	const costCenters = Object.keys(ccMap).sort().map(function (code) {
-		return { CostCenter: code, Description: ccMap[code] };
+		return { CostCenter: code, Description: costCenterLabelVi(code, ccMap[code]) };
 	});
 
 	console.log("[SAP] Master ket qua: IO=", internalOrders.length, "CC=", costCenters.length);

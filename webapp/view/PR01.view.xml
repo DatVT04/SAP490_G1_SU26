@@ -46,12 +46,11 @@
 						<Text text="{user>/position}" class="qdInfoValue"/>
 						<Text text="{= ${user>/costCenter} ? 'Cost Center: ' + ${user>/costCenter} : 'Chưa gán Cost Center' }" class="qdInfoHint"/>
 					</VBox>
+					<!-- Nhom chot chi mua sam bang VND. Giu nguyen /header/currency trong model
+					     (server, PR-02, PO-01 deu doc field nay) — chi bo o cho chon. -->
 					<VBox class="qdInfoCell">
 						<Label text="{i18n>prCurrencyLabel}" class="qdInfoLabel"/>
-						<Select selectedKey="{/header/currency}" width="9rem" class="sapUiTinyMarginTop">
-							<core:Item key="VND" text="VND"/>
-							<core:Item key="USD" text="USD"/>
-						</Select>
+						<Text text="{/header/currency}" class="qdInfoValue"/>
 					</VBox>
 				</HBox>
 			</VBox>
@@ -99,9 +98,8 @@
 							<!-- Đây là ĐƠN GIÁ, không phải thành tiền: lineTotal = quantity × estimatedValue.
 							     Ghi "Giá trị ước tính" khiến người nhập tưởng phải gõ thành tiền → PR sai gấp n lần. -->
 							<Column width="7.5rem" hAlign="End"><Text text="Đơn giá *"/></Column>
-							<Column width="9rem"><Text text="Đối tượng chi phí *"/></Column>
-							<Column width="9rem"><Text text="Cost Center"/></Column>
-							<Column width="9rem"><Text text="Internal Order"/></Column>
+							<Column width="10rem"><Text text="Bộ phận *"/></Column>
+							<Column width="11rem"><Text text="Internal Order"/></Column>
 							<Column width="7rem"><Text text="Asset"/></Column>
 							<Column width="3rem" hAlign="Center"><Text text=""/></Column>
 						</columns>
@@ -153,31 +151,15 @@
 										width="100%"
 									/>
 
-									<VBox>
-										<!-- ZAST → account assignment luôn là Asset (Cat A), khóa lựa chọn -->
-										<Select
-											selectedKey="{acctAssignCat}"
-											change=".onAcctAssignCatChange"
-											width="100%"
-											visible="{= ${materialType} !== 'ZAST' }"
-										>
-											<core:Item key="K" text="Cost Center"/>
-											<core:Item key="F" text="Internal Order"/>
-										</Select>
-										<Text
-											text="Tài sản (Asset)"
-											class="qdInfoValue"
-											visible="{= ${materialType} === 'ZAST' }"
-										/>
-									</VBox>
-
+									<!-- Bộ phận (Cost Center) — bắt buộc với vật tư thường.
+									     Vật tư Tài sản (ZAST) ghi thẳng vào Asset nên ẩn cả 2 ô này. -->
 									<ComboBox
 										selectedKey="{costCenter}"
 										items="{path: '/costCenters', templateShareable: false}"
-										placeholder="CC *"
+										placeholder="Chọn bộ phận *"
 										selectionChange=".onCostCenterSelect"
 										width="100%"
-										visible="{= ${materialType} !== 'ZAST' &amp;&amp; ${acctAssignCat} !== 'F' }"
+										visible="{= ${materialType} !== 'ZAST' }"
 									>
 										<core:Item
 											key="{CostCenter}"
@@ -185,13 +167,17 @@
 										/>
 									</ComboBox>
 
+									<!-- Internal Order TÙY CHỌN, chỉ liệt kê IO thuộc đúng bộ phận vừa chọn
+									     (filteredInternalOrders do controller bơm vào theo từng dòng).
+									     Bỏ trống = chi phí về Cost Center; chọn = chi phí về ngân sách IO. -->
 									<ComboBox
 										selectedKey="{internalOrder}"
-										items="{path: '/internalOrders', templateShareable: false}"
-										placeholder="IO *"
+										items="{path: 'filteredInternalOrders', templateShareable: false}"
+										placeholder="{= (${filteredInternalOrders} || []).length ? '— Không dùng IO —' : 'Bộ phận này chưa có IO' }"
 										selectionChange=".onInternalOrderSelect"
+										enabled="{= (${filteredInternalOrders} || []).length > 0 }"
 										width="100%"
-										visible="{= ${materialType} !== 'ZAST' &amp;&amp; ${acctAssignCat} === 'F' }"
+										visible="{= ${materialType} !== 'ZAST' }"
 									>
 										<core:Item
 											key="{InternalOrder}"
@@ -220,7 +206,7 @@
 				</ScrollContainer>
 
 				<Text
-					text="Bạn không cần biết cấu hình SAP: Vật tư, Cost Center, Internal Order đều CHỌN TỪ DANH SÁCH có sẵn (hệ thống tự kéo từ SAP về, kèm mô tả tiếng Việt). Đối tượng chi phí là nơi ghi nhận khoản chi: Cost Center = mua dùng chung cho bộ phận (hệ thống tự điền bộ phận của bạn nếu đã được gán); Internal Order = mua theo ngân sách được cấp riêng — vượt ngân sách sẽ cần CEO duyệt; Asset = mua tài sản cố định, nhập mã tài sản do Kế toán tạo trước trên SAP (chưa có mã thì liên hệ Kế toán). GL Account hệ thống tự xác định, không phải điền."
+					text="Bạn không cần biết cấu hình SAP: Vật tư, Bộ phận, Internal Order đều CHỌN TỪ DANH SÁCH có sẵn (hệ thống tự kéo từ SAP về). Bộ phận là nơi ghi nhận khoản chi, hệ thống tự điền bộ phận của bạn. Internal Order để trống nếu đây là chi phí dùng chung của bộ phận; chỉ chọn khi khoản mua này lấy từ một ngân sách được cấp riêng — danh sách chỉ hiện những Internal Order thuộc đúng bộ phận bạn vừa chọn, và vượt ngân sách sẽ cần CEO duyệt. Vật tư loại Tài sản thì thay 2 ô trên bằng mã tài sản do Kế toán tạo trước trên SAP (chưa có mã thì liên hệ Kế toán). GL Account hệ thống tự xác định, không phải điền."
 					class="qdInfoHint sapUiTinyMarginTop"
 				/>
 

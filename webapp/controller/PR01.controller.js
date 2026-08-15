@@ -21,17 +21,35 @@ sap.ui.define([
 			isFreeText: false,
 			materialNo: "",
 			materialType: "",
-			// Account assignment: K = Cost Center, F = Internal Order, A = Asset (khoa tu dong khi vat tu la ZAST).
-			// Chi 1 trong 3 duoc dung that tren SAP - khong con bat CC+IO+GL cung luc nhu truoc.
+			// Account assignment KHONG con la o nhap tay. Nguoi dung chi chon Cost Center
+			// (bat buoc) va Internal Order (tuy chon, loc theo dung CC vua chon). Category
+			// duoc SUY RA trong syncAcctAssignCat(): ZAST -> A, co IO -> F, con lai -> K.
 			acctAssignCat: "K",
 			description: "",
 			uom: "",
 			quantity: null,
 			estimatedValue: null,
 			costCenter: defaults.costCenter || "",
-			internalOrder: defaults.internalOrder || "",
+			// KHONG prefill Internal Order: prefill la moi dong tu dong thanh Cat 'F',
+			// nguoi dung khong he chon ma chi phi lai ghi vao ngan sach IO.
+			internalOrder: "",
+			// Danh sach IO cua rieng dong nay, bom vao khi chon Cost Center.
+			filteredInternalOrders: [],
 			assetNo: ""
 		};
+	}
+
+	// Suy ra Account Assignment Category tu nhung gi nguoi dung THUC SU da chon.
+	// Server (mapClientItemToSapDeep + validate) van doc field nay nen bat buoc phai
+	// dong bo truoc khi submit — goi trong _recalcTotal() de moi thay doi deu chay qua.
+	function syncAcctAssignCat(aItems) {
+		(aItems || []).forEach(function (it) {
+			if (it.materialType === "ZAST") {
+				it.acctAssignCat = "A";
+			} else {
+				it.acctAssignCat = String(it.internalOrder || "").trim() ? "F" : "K";
+			}
+		});
 	}
 
 	function lineTotal(item) {
@@ -81,7 +99,7 @@ sap.ui.define([
 			var oModel = this.getView().getModel();
 			var aItems = oModel.getProperty("/items") || [];
 			if (aItems.length === 0) {
-				oModel.setProperty("/items", [emptyCatalogItem(this._getDefaults())]);
+				oModel.setProperty("/items", [this._newItem()]);
 				this._recalcTotal();
 			}
 		},
@@ -113,12 +131,16 @@ sap.ui.define([
 					estimatedValue: Number(it.EstimatedValue) || null,
 					costCenter: it.CostCenter || "",
 					internalOrder: it.InternalOrder || "",
+					filteredInternalOrders: [],
 					assetNo: it.AssetNo || ""
 				};
 			});
 			if (aOldItems.length === 0) {
-				aOldItems = [emptyCatalogItem(this._getDefaults())];
+				aOldItems = [this._newItem()];
 			}
+			// Bom danh sach IO cho tung dong cu, khong thi o Internal Order hien trong
+			// du ban nuong da chon IO trong lan gui truoc.
+			aOldItems.forEach(function (item) { this._refreshIOListOfItem(item); }, this);
 
 			oModel.setProperty("/header/currency", oData.currency || "VND");
 			oModel.setProperty("/items", aOldItems);
@@ -132,29 +154,63 @@ sap.ui.define([
 			);
 		},
 
+		// Dong vat tu moi: luon kem san danh sach IO cua Cost Center mac dinh, khong
+		// thi o Internal Order trong tro cho den khi nguoi dung dong CC ra roi chon lai.
+		_newItem: function () {
+			var oItem = emptyCatalogItem(this._getDefaults());
+			this._refreshIOListOfItem(oItem);
+			return oItem;
+		},
+
+		// Chi con Cost Center: Internal Order co y de trong cho nguoi dung tu chon.
 		_getDefaults: function () {
-			return {
-				internalOrder: this._defaultIO || "",
-				costCenter: this._defaultCC || ""
-			};
+			return { costCenter: this._defaultCC || "" };
+		},
+
+		// Danh sach Internal Order thuoc ve DUNG mot Cost Center. Nguon la
+		// costCenterToIOs do /api/internal-orders tra ve (server suy tu InternalOrderSet
+		// + lich su PR). CC chua co IO nao -> tra mang rong, o IO se trong.
+		_ioListFor: function (sCostCenter) {
+			var sCC = String(sCostCenter || "").trim();
+			if (!sCC) { return []; }
+
+			var aCodes = (this._costCenterToIOs && this._costCenterToIOs[sCC]) || [];
+			var aAllIO = this.getView().getModel().getProperty("/internalOrders") || [];
+
+			return aAllIO.filter(function (io) {
+				return aCodes.indexOf(io.InternalOrder) !== -1;
+			});
+		},
+
+		// Bom lai danh sach IO cho 1 dong sau khi CC doi. Neu IO dang chon khong con
+		// thuoc CC moi thi xoa di — de nguyen la gui len SAP mot cap CC/IO khong khop.
+		_refreshIOListOfItem: function (item) {
+			item.filteredInternalOrders = this._ioListFor(item.costCenter);
+
+			var sIO = String(item.internalOrder || "").trim();
+			if (sIO) {
+				var bStillValid = item.filteredInternalOrders.some(function (io) {
+					return io.InternalOrder === sIO;
+				});
+				if (!bStillValid) { item.internalOrder = ""; }
+			}
 		},
 
 		_applyDefaultsToEmptyItems: function () {
 			var oModel = this.getView().getModel();
 			var aItems = oModel.getProperty("/items") || [];
 			var bChanged = false;
-			var sIO = this._defaultIO;
 			var sCC = this._defaultCC;
+			var that = this;
 
 			aItems.forEach(function (item) {
-				if (!item.internalOrder && sIO) {
-					item.internalOrder = sIO;
-					bChanged = true;
-				}
 				if (!item.costCenter && sCC) {
 					item.costCenter = sCC;
 					bChanged = true;
 				}
+				var iBefore = (item.filteredInternalOrders || []).length;
+				that._refreshIOListOfItem(item);
+				if ((item.filteredInternalOrders || []).length !== iBefore) { bChanged = true; }
 			});
 			if (bChanged) {
 				oModel.setProperty("/items", aItems.slice());
@@ -268,6 +324,9 @@ sap.ui.define([
 						var aIO = oResult.data || [];
 						oModel.setProperty("/internalOrders", aIO);
 						that._ioToCostCenter = oResult.ioToCostCenter || {};
+						// Map nguoc CC -> [IO]: day la cai lam cho o Internal Order chi
+						// hien nhung IO thuoc dung bo phan vua chon.
+						that._costCenterToIOs = oResult.costCenterToIOs || {};
 
 						// Budget từ SAP (nếu API trả kèm trên từng IO)
 						var oTh = oModel.getProperty("/ioThresholds") || {};
@@ -293,32 +352,29 @@ sap.ui.define([
 				.catch(function () { /* im lang */ });
 		},
 
-		// Cost Center va Internal Order gio la 2 lua chon LOAI TRU NHAU theo acctAssignCat
-		// (K hoac F) - khong con tu dien cheo sang nhau nhu truoc, vi tren SAP that chi 1
-		// trong 2 duoc dung lam account assignment that su.
+		// Chon Internal Order = dong nay ghi vao ngan sach IO (Cat 'F'). Bo trong =
+		// ghi vao Cost Center cua bo phan (Cat 'K'). Nguoi dung khong phai biet chu
+		// K/F nao het — syncAcctAssignCat() trong _recalcTotal() tu suy ra.
 		onInternalOrderSelect: function () {
 			this._recalcTotal();
 		},
 
-		onCostCenterSelect: function () {
-			this._recalcTotal();
-		},
-
-		// User doi giua "Cost Center" / "Internal Order" cho 1 dong - xoa gia tri cua truong
-		// vua bi an di de khong gui nham len SAP mot gia tri khong con hien thi tren UI.
-		onAcctAssignCatChange: function (oEvent) {
+		// Doi Cost Center thi danh sach Internal Order phai loc lai theo bo phan moi.
+		onCostCenterSelect: function (oEvent) {
 			var oCtx = oEvent.getSource().getBindingContext();
-			if (!oCtx) { return; }
+			if (!oCtx) {
+				this._recalcTotal();
+				return;
+			}
 
 			var sPath = oCtx.getPath();
 			var oModel = this.getView().getModel();
-			var sCat = oModel.getProperty(sPath + "/acctAssignCat");
+			var oItem = oModel.getProperty(sPath);
 
-			if (sCat === "K") {
-				oModel.setProperty(sPath + "/internalOrder", "");
-			} else if (sCat === "F") {
-				oModel.setProperty(sPath + "/costCenter", "");
-			}
+			this._refreshIOListOfItem(oItem);
+			oModel.setProperty(sPath, oItem);
+			oModel.refresh(true);
+
 			this._recalcTotal();
 		},
 
@@ -329,6 +385,11 @@ sap.ui.define([
 		_recalcTotal: function () {
 			var oModel = this.getView().getModel();
 			var aItems = oModel.getProperty("/items") || [];
+
+			// Suy lai Category truoc khi tinh bat cu thu gi: nguong IO ben duoi va
+			// payload gui len SAP deu doc acctAssignCat.
+			syncAcctAssignCat(aItems);
+
 			var fTotal = sumItems(aItems);
 			var oTh = oModel.getProperty("/ioThresholds") || {};
 
@@ -407,7 +468,7 @@ sap.ui.define([
 		onAddItem: function () {
 			var oModel = this.getView().getModel();
 			var aItems = oModel.getProperty("/items").slice();
-			aItems.push(emptyCatalogItem(this._getDefaults()));
+			aItems.push(this._newItem());
 			oModel.setProperty("/items", aItems);
 			this._recalcTotal();
 		},
@@ -460,16 +521,20 @@ sap.ui.define([
 				oModel.setProperty(sPath + "/uom", oMaterial.BaseUoM || "PC");
 
 				if (oMaterial.MaterialType === "ZAST") {
-					// Vật tư Tài sản → account assignment luôn là Asset (Cat A), khóa Cost Center/Internal Order.
-					oModel.setProperty(sPath + "/acctAssignCat", "A");
+					// Vật tư Tài sản → account assignment luôn là Asset (Cat A), xóa Cost Center/Internal Order.
 					oModel.setProperty(sPath + "/costCenter", "");
 					oModel.setProperty(sPath + "/internalOrder", "");
+					oModel.setProperty(sPath + "/filteredInternalOrders", []);
 				} else {
-					var sCurrentCat = oModel.getProperty(sPath + "/acctAssignCat");
-					if (sCurrentCat === "A" || !sCurrentCat) {
-						oModel.setProperty(sPath + "/acctAssignCat", "K");
-					}
 					oModel.setProperty(sPath + "/assetNo", "");
+					// Doi tu ZAST ve vat tu thuong: tra lai Cost Center mac dinh cua nguoi
+					// dung, khong de trong roi de server chan o buoc validate.
+					if (!oModel.getProperty(sPath + "/costCenter") && this._defaultCC) {
+						oModel.setProperty(sPath + "/costCenter", this._defaultCC);
+					}
+					var oItem = oModel.getProperty(sPath);
+					this._refreshIOListOfItem(oItem);
+					oModel.setProperty(sPath, oItem);
 				}
 			}
 			this._recalcTotal();
@@ -485,7 +550,7 @@ sap.ui.define([
 				onClose: function (sAction) {
 					if (sAction === MessageBox.Action.YES) {
 						this.getView().getModel().setProperty("/items", [
-							emptyCatalogItem(this._getDefaults())
+							this._newItem()
 						]);
 						this._recalcTotal();
 					}
@@ -497,8 +562,12 @@ sap.ui.define([
 			var oView = this.getView();
 			var oModel = oView.getModel();
 			var aItems = oModel.getProperty("/items");
-			var sCurrency = oModel.getProperty("/header/currency");
+			var sCurrency = oModel.getProperty("/header/currency") || "VND";
 			var oUser = this.getOwnerComponent().getModel("user").getData();
+
+			// Chot lai Category ngay truoc khi gui, khong tin vao lan _recalcTotal cuoi:
+			// day la field server dung de quyet dinh ghi chi phi vao CC hay vao IO.
+			syncAcctAssignCat(aItems);
 
 			if (!aItems || aItems.length === 0) {
 				MessageBox.warning("Vui lòng thêm ít nhất 1 vật tư vào danh sách.");
@@ -525,23 +594,18 @@ sap.ui.define([
 					MessageBox.warning("Dòng " + idx + ": Vui lòng nhập giá trị ước tính hợp lệ.");
 					return;
 				}
-				// Account assignment: chỉ 1 trong 3 áp dụng theo dòng, không còn bắt điền cả CC+IO+GL cùng lúc.
-				// GL Account không còn là input của user — server tự tính theo category (xem defaultGLAccount()).
+				// Account assignment: ZAST bắt buộc Asset No, còn lại bắt buộc Cost Center.
+				// Internal Order là TÙY CHỌN — chọn thì dòng đó ghi vào ngân sách IO (Cat 'F'),
+				// bỏ trống thì ghi vào Cost Center của bộ phận (Cat 'K'). GL Account không còn
+				// là input của user — server tự tính theo category (xem defaultGLAccount()).
 				if (item.materialType === "ZAST") {
 					if (!String(item.assetNo || "").trim()) {
 						MessageBox.warning("Dòng " + idx + ": Vật tư loại Tài sản (ZAST) bắt buộc nhập Asset No.");
 						return;
 					}
-				} else if (item.acctAssignCat === "F") {
-					if (!String(item.internalOrder || "").trim()) {
-						MessageBox.warning("Dòng " + idx + ": Vui lòng chọn Internal Order.");
-						return;
-					}
-				} else {
-					if (!item.costCenter) {
-						MessageBox.warning("Dòng " + idx + ": Vui lòng chọn Cost Center.");
-						return;
-					}
+				} else if (!item.costCenter) {
+					MessageBox.warning("Dòng " + idx + ": Vui lòng chọn Bộ phận (Cost Center).");
+					return;
 				}
 			}
 
@@ -604,7 +668,7 @@ sap.ui.define([
 					MessageBox.success(sMsg, {
 						title: "Đã gửi đề nghị — " + sPrNumber,
 						onClose: function () {
-							oModel.setProperty("/items", [emptyCatalogItem(this._getDefaults())]);
+							oModel.setProperty("/items", [this._newItem()]);
 							this._recalcTotal();
 							this.getOwnerComponent().getRouter().navTo("dashboard");
 						}.bind(this)
