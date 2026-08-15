@@ -19,7 +19,9 @@ sap.ui.define([
 				Vendors: [],
 				aiText: "",
 				busyAi: false,
-				selectedVendorCount: 0
+				selectedVendorCount: 0,
+				hasSelectedPR: false,
+				selectedPRLabel: ""
 			}));
 
 			// Hien vong xoay NGAY khi bat busy. Mac dinh UI5 tre 1 giay: trong 1 giay do
@@ -53,10 +55,25 @@ sap.ui.define([
 		},
 
 		_onRouteMatched: function () {
-			this.getView().byId("rfqCreationArea").setVisible(false);
-			this._currentPR = null;
-			this.getView().getModel().setProperty("/aiText", "");
+			this._clearPRSelection();
 			this._loadPendingPRs();
+		},
+
+		// Xoa trang thai PR dang chon. KHONG con setVisible(false) tren vung ben phai:
+		// vung do la mot contentArea cua sap.ui.layout.Splitter, ma Splitter chi chia lai
+		// be rong cho cac area o lan render dau. Neu area bat dau bang visible="false"
+		// thi luc setVisible(true) sau nay Splitter khong tinh lai layout -> cot phai ra
+		// mot mang trang, phai bam qua lai giua 2 PR (ep invalidate them lan nua) moi hien.
+		// Nay vung phai LUON duoc render, chi doi noi dung theo PR dang chon.
+		_clearPRSelection: function () {
+			var oView = this.getView();
+			this._currentPR = null;
+			oView.getModel().setProperty("/aiText", "");
+			oView.getModel().setProperty("/hasSelectedPR", false);
+			oView.getModel().setProperty("/selectedPRLabel", "");
+			oView.getModel().setProperty("/selectedVendorCount", 0);
+			var oVendorTable = oView.byId("vendorTable");
+			if (oVendorTable) { oVendorTable.removeSelections(true); }
 		},
 
 		// ── 1. PR DA DUOC PURCHASING DUYET HOP LE (PENDING_RFQ) — chi trang thai nay
@@ -64,6 +81,7 @@ sap.ui.define([
 		// Purchasing phai bam Duyet tren PR-02 truoc, PR moi xuat hien o day.) ──
 		_loadPendingPRs: function () {
 			var oView = this.getView();
+			var that = this;
 			// CHI khoa rieng bang PR, khong khoa ca view: truoc day dung oView.setBusy(true)
 			// nen trong suot thoi gian goi API (SAP OData + cold start cua serverless co the
 			// vai giay) thi DatePicker va nut "Tao & Gui RFQ" o card 3 cung bi khoa theo,
@@ -97,6 +115,7 @@ sap.ui.define([
 							};
 						});
 						oView.getModel().setProperty("/PendingPRs", aMapped);
+						that._autoSelectFirstPR();
 					}
 				})
 				.catch(function () {
@@ -183,15 +202,48 @@ sap.ui.define([
 		onPRSelect: function (oEvent) {
 			var oSelectedItem = oEvent.getParameter("listItem");
 			if (!oSelectedItem) { return; }
-			var oContext = oSelectedItem.getBindingContext();
+			this._applyPRSelection(oSelectedItem);
+		},
+
+		_applyPRSelection: function (oSelectedItem) {
+			var oContext = oSelectedItem && oSelectedItem.getBindingContext();
 			var oPRData = oContext ? oContext.getObject() : null;
 			if (!oPRData) { return; }
 
+			var oView = this.getView();
 			this._currentPR = oPRData;
-			this.getView().byId("rfqCreationArea").setVisible(true);
-			this.getView().getModel().setProperty("/aiText", "");
-			this.getView().byId("vendorTable").removeSelections(true);
-			this.getView().getModel().setProperty("/selectedVendorCount", 0);
+			oView.getModel().setProperty("/aiText", "");
+			oView.getModel().setProperty("/hasSelectedPR", true);
+			oView.getModel().setProperty(
+				"/selectedPRLabel",
+				"PR " + (oPRData.PRId || "") + " · " + (oPRData.Description || "")
+			);
+			oView.byId("vendorTable").removeSelections(true);
+			oView.getModel().setProperty("/selectedVendorCount", 0);
+		},
+
+		// Tu dong chon dong PR dau tien khi vao man / sau khi tai lai danh sach, de cot
+		// phai co noi dung ngay thay vi bat nguoi dung phai bam. JSONModel.setProperty()
+		// cap nhat binding DONG BO nen "updateFinished" thuong da ban ra TRUOC khi ham
+		// nay kip attachEventOnce -> phai kiem tra getItems() trong luc truoc.
+		_autoSelectFirstPR: function () {
+			var oTable = this.getView().byId("pendingPRTable");
+			if (!oTable) { return; }
+			var fnSelectFirst = function () {
+				var aItems = oTable.getItems();
+				if (aItems.length === 0) {
+					this._clearPRSelection();
+					return;
+				}
+				oTable.setSelectedItem(aItems[0], true);
+				this._applyPRSelection(aItems[0]);
+			}.bind(this);
+
+			if (oTable.getItems().length > 0) {
+				fnSelectFirst();
+			} else {
+				oTable.attachEventOnce("updateFinished", fnSelectFirst);
+			}
 		},
 
 		// ── 3. AI GOI Y NCC (dua tren vat tu dong dau + ngan sach cua PR dang chon) ──
@@ -402,9 +454,7 @@ sap.ui.define([
 					MessageBox.success(sMsg, {
 						title: "Tạo RFQ thành công — " + oSendResult.rfqId,
 						onClose: function () {
-							oView.byId("rfqCreationArea").setVisible(false);
-							that._currentPR = null;
-							oView.getModel().setProperty("/selectedVendorCount", 0);
+							that._clearPRSelection();
 							that._loadPendingPRs();
 						}
 					});

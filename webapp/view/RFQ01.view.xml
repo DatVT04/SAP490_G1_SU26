@@ -85,14 +85,33 @@
 						</VBox>
 					</VBox>
 
-					<!-- KHU VUC LAP RFQ -->
-					<VBox id="rfqCreationArea" width="100%" visible="false">
+					<!-- KHU VUC LAP RFQ — LUON render, khong dung visible="false".
+					     Truoc day vung nay bat dau an; sap.ui.layout.Splitter chi chia be rong
+					     cho cac contentArea o lan render dau, nen khi setVisible(true) sau do
+					     Splitter khong tinh lai -> cot phai ra mang trang, phai bam qua lai
+					     giua 2 PR moi hien. Nay chi doi noi dung theo PR dang chon. -->
+					<VBox id="rfqCreationArea" width="100%">
 						<layoutData>
 							<l:SplitterLayoutData size="65%" minSize="450"/>
 						</layoutData>
 
+						<!-- Chua chon PR nao (danh sach rong): huong dan thay vi cot phai trong tron -->
+						<MessageStrip
+							text="Chọn một PR ở cột bên trái để bắt đầu lập Yêu cầu báo giá."
+							type="Information"
+							showIcon="true"
+							visible="{= !${/hasSelectedPR} }"
+							class="sapUiSmallMargin"
+						/>
+
 						<!-- CARD 2: CHON NHA CUNG CAP MOI BAO GIA -->
-						<VBox class="qdContentCard qdCardAccentPurple">
+						<VBox class="qdContentCard qdCardAccentPurple" visible="{/hasSelectedPR}">
+							<MessageStrip
+								text="Đang lập RFQ cho: {/selectedPRLabel}"
+								type="Success"
+								showIcon="true"
+								class="sapUiSmallMarginBottom"
+							/>
 							<HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
 								<HBox alignItems="Center">
 									<Text text="2" class="qdStepBadge qdStepBadgePurple"/>
@@ -206,7 +225,7 @@
 						</VBox>
 
 						<!-- CARD 3: HAN NOP & GUI -->
-						<VBox class="qdContentCard qdCardAccentPurple qdRfqSendCard">
+						<VBox class="qdContentCard qdCardAccentPurple qdRfqSendCard" visible="{/hasSelectedPR}">
 							<HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
 								<HBox alignItems="Center">
 									<Text text="3" class="qdStepBadge qdStepBadgePurple"/>
