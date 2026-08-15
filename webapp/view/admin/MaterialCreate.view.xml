@@ -1,5 +1,5 @@
 <mvc:View
-    controllerName="com.qdavy.procurement.controller.MaterialCreate"
+    controllerName="com.qdavy.procurement.controller.admin.MaterialCreate"
     xmlns="sap.m"
     xmlns:mvc="sap.ui.core.mvc"
     xmlns:core="sap.ui.core"

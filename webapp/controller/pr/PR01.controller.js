@@ -58,7 +58,7 @@ sap.ui.define([
 		}, 0);
 	}
 
-	return Controller.extend("com.qdavy.procurement.controller.PR01", {
+	return Controller.extend("com.qdavy.procurement.controller.pr.PR01", {
 
 		onInit: function () {
 			var oModel = new JSONModel({

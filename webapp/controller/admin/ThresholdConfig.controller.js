@@ -9,7 +9,7 @@ sap.ui.define([
 
 	var BACKEND = Config.BACKEND;
 
-	return Controller.extend("com.qdavy.procurement.controller.ThresholdConfig", {
+	return Controller.extend("com.qdavy.procurement.controller.admin.ThresholdConfig", {
 
 		onInit: function () {
 			this.getView().setModel(new JSONModel({ rows: [] }), "thresholdModel");

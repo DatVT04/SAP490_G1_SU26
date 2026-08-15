@@ -34,7 +34,7 @@
   },
   "sap.ui5": {
     "rootView": {
-      "viewName": "com.qdavy.procurement.view.App",
+      "viewName": "com.qdavy.procurement.view.common.App",
       "type": "XML",
       "id": "app"
     },
@@ -145,47 +145,47 @@
       ],
       "targets": {
         "login": {
-          "viewName": "Login",
+          "viewName": "common.Login",
           "viewId": "login",
           "viewLevel": 0
         },
         "dashboard": {
-          "viewName": "Dashboard",
+          "viewName": "common.Dashboard",
           "viewId": "dashboard",
           "viewLevel": 1
         },
         "pr01": {
-          "viewName": "PR01",
+          "viewName": "pr.PR01",
           "viewId": "pr01",
           "viewLevel": 2
         },
         "pr02": {
-          "viewName": "PR02",
+          "viewName": "pr.PR02",
           "viewId": "pr02",
           "viewLevel": 2
         },
         "prdetail": {
-          "viewName": "PRDetail",
+          "viewName": "pr.PRDetail",
           "viewId": "prdetail",
           "viewLevel": 3
         },
         "history": {
-          "viewName": "History",
+          "viewName": "common.History",
           "viewId": "history",
           "viewLevel": 2
         },
         "po01": {
-          "viewName": "PO01",
+          "viewName": "po.PO01",
           "viewId": "po01",
           "viewLevel": 2
         },
         "rfq01": {
-          "viewName": "RFQ01",
+          "viewName": "rfq.RFQ01",
           "viewId": "rfq01",
           "viewLevel": 2
         },
         "rfq02": {
-          "viewName": "RFQ02",
+          "viewName": "rfq.RFQ02",
           "viewId": "rfq02",
           "viewLevel": 2
         },
@@ -193,16 +193,16 @@
           "viewType": "XML",
           "transition": "slide",
           "clearControlAggregation": true,
-          "viewName": "ThresholdConfig"
+          "viewName": "admin.ThresholdConfig"
         },
         "targetPOReport": {
           "viewType": "XML",
           "transition": "slide",
           "clearControlAggregation": true,
-          "viewName": "POReport"
+          "viewName": "po.POReport"
         },
         "materialCreate": {
-          "viewName": "MaterialCreate",
+          "viewName": "admin.MaterialCreate",
           "viewId": "materialCreate",
           "viewLevel": 2
         }

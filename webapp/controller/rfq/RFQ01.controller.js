@@ -11,7 +11,7 @@ sap.ui.define([
 
 	var BACKEND = Config.BACKEND;
 
-	return Controller.extend("com.qdavy.procurement.controller.RFQ01", {
+	return Controller.extend("com.qdavy.procurement.controller.rfq.RFQ01", {
 
 		onInit: function () {
 			this.getView().setModel(new JSONModel({

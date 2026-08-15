@@ -25,7 +25,7 @@ sap.ui.define([
         purchasingGroups: []
     };
 
-    return Controller.extend("com.qdavy.procurement.controller.MaterialCreate", {
+    return Controller.extend("com.qdavy.procurement.controller.admin.MaterialCreate", {
         onInit: function () {
             this.getView().setModel(new JSONModel(this._buildFormData(DEFAULTS)), "form");
 

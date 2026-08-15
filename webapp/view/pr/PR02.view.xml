@@ -1,5 +1,5 @@
 <mvc:View
-	controllerName="com.qdavy.procurement.controller.PR02"
+	controllerName="com.qdavy.procurement.controller.pr.PR02"
 	xmlns="sap.m"
 	xmlns:mvc="sap.ui.core.mvc"
 	xmlns:core="sap.ui.core"

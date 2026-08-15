@@ -18,7 +18,7 @@ sap.ui.define([
 		AWARDED: "Đã chốt NCC"
 	};
 
-	return Controller.extend("com.qdavy.procurement.controller.RFQ02", {
+	return Controller.extend("com.qdavy.procurement.controller.rfq.RFQ02", {
 
 		onInit: function () {
 			this.getView().setModel(new JSONModel({

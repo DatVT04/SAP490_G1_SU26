@@ -1,5 +1,5 @@
 <mvc:View
-	controllerName="com.qdavy.procurement.controller.Login"
+	controllerName="com.qdavy.procurement.controller.common.Login"
 	xmlns="sap.m"
 	xmlns:mvc="sap.ui.core.mvc"
 	xmlns:core="sap.ui.core"
