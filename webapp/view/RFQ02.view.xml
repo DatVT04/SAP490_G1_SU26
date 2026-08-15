@@ -179,20 +179,28 @@
 								/>
 							</HBox>
 
-							<MessageStrip
-								text="{/aiText}"
-								type="Information"
-								showIcon="true"
-								visible="{= !!${/aiText} }"
-								class="sapUiSmallMarginBottom"
-							/>
+							<!-- Khung chat AI: bong bong cuon rieng, y het RFQ-01 (feedback 15/08: "hoi
+							     xong khong nhin het duoc doan chat", o hoi qua nho). aiChatHtml duoc
+							     controller ve san tu aiMessages — xem _renderAiChat trong
+							     RFQ02.controller.js. -->
+							<ScrollContainer
+								id="aiChatScroll"
+								height="300px"
+								width="100%"
+								vertical="true"
+								horizontal="false"
+								visible="{= ${/aiMessages}.length > 0 }"
+								class="qdAiChatPanel sapUiSmallMarginBottom"
+							>
+								<core:HTML content="{/aiChatHtml}"/>
+							</ScrollContainer>
 
 							<!-- Hoi dap AI tuong tac tren cac bao gia dang so sanh (feedback QDAVY 13/08:
 							     "AI van chua the chat hay tuong tac duoc"). Server tu doc bao gia theo RfqId
 							     va van an danh hoa ten NCC truoc khi goi AI. -->
 							<HBox
 								alignItems="Center"
-								visible="{= !!${/aiText} }"
+								visible="{= ${/aiMessages}.length > 0 }"
 								class="sapUiSmallMarginBottom"
 							>
 								<Input
@@ -201,7 +209,7 @@
 									width="100%"
 									maxLength="500"
 									submit=".onAiAskPress"
-									class="sapUiTinyMarginEnd"
+									class="sapUiTinyMarginEnd qdAiChatInput"
 								/>
 								<Button
 									text="Hỏi AI"

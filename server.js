@@ -94,6 +94,7 @@ const SAP_TZ_OFFSET_MIN = Number(process.env.SAP_TZ_OFFSET_MIN || 120);
 const PAYMENT_TERMS = [
 	{ code: "IMMEDIATE", label: "Trả ngay khi nhận hàng", days: 0 },
 	{ code: "ADVANCE50", label: "Trả trước 50%, còn lại khi giao", days: 0 },
+	{ code: "NET7", label: "Trả trong 7 ngày (NET7)", days: 7 },
 	{ code: "NET15", label: "Trả trong 15 ngày (NET15)", days: 15 },
 	{ code: "NET30", label: "Trả trong 30 ngày (NET30)", days: 30 },
 	{ code: "NET45", label: "Trả trong 45 ngày (NET45)", days: 45 },
@@ -101,16 +102,32 @@ const PAYMENT_TERMS = [
 	{ code: "AFTER_ACCEPT", label: "Trả sau khi nghiệm thu", days: 30 }
 ];
 
+// Ma dieu khoan thanh toan cua SAP (bang T052, vd LFM1-ZTERM cua Vendor master) -> ma
+// noi bo cua app o tren. VendorSet HIEN CHUA tra ve PaymentTerms (xem
+// PHU_LUC_KY_THUAT_VendorSet.md) nen bang nay chua co du lieu de chay qua — chuan bi san
+// de khi SEGW/ABAP xong thi describePaymentTerms() tu dong hieu duoc ma that cua SAP,
+// khong phai sua gi them o day. Doi chieu F4 tren he thong 14/08/2026 — nhom chi dung dai NT.
+const SAP_ZTERM_TO_APP = {
+	"NT00": "IMMEDIATE",
+	"NT07": "NET7",
+	"NT30": "NET30",
+	"NT45": "NET45",
+	"NT60": "NET60"
+};
+
 /**
  * Doi ma dieu khoan thanh toan sang chuoi nguoi/AI doc hieu.
- * Bao gia cu nhap tay ("net5", "net10") khong khop danh muc thi tra ve nguyen van
- * de khong lam mat du lieu lich su.
+ * Thu map ma SAP (NT..) sang ma noi bo truoc, khong khop thi coi nhu da la ma noi bo
+ * (giu nguyen hanh vi cu cho route POST quotation cua RFQ-02 — noi Purchasing nhap thang ma noi bo
+ * NET30... chu khong phai ma SAP). Bao gia cu nhap tay ("net5", "net10") khong khop
+ * danh muc nao thi tra ve nguyen van de khong lam mat du lieu lich su.
  */
 function describePaymentTerms(code) {
 	const raw = String(code || "").trim();
 	if (!raw) { return "Không nêu"; }
-	const found = PAYMENT_TERMS.find((t) => t.code.toUpperCase() === raw.toUpperCase());
-	return found ? found.label : raw;
+	const mapped = SAP_ZTERM_TO_APP[raw.toUpperCase()] || raw;
+	const found = PAYMENT_TERMS.find((t) => t.code.toUpperCase() === mapped.toUpperCase());
+	return found ? found.label : mapped;
 }
 
 // ============================================================================
@@ -1507,6 +1524,137 @@ app.get("/api/vendors", async (req, res) => {
 	}
 });
 
+/**
+ * An danh hoa danh sach NCC truoc khi gui cho AI. Ten/email/MST khong bao gio roi khoi
+ * he thong; anonMap giu anh xa nguoc de dich lai sau khi co ket qua. Dung chung cho ca
+ * /api/ai/recommend-vendor va /api/ai/ask (context recommend-vendor) — truoc day 2 route
+ * nay copy y het doan nay, sua 1 cho quen cho kia la bug chac chan dinh (xem
+ * PHU_LUC_KY_THUAT_VendorSet.md muc 4.1).
+ *
+ * Cac field country/city/category/incoterms/leadTimeDays doc tu VendorSet HIEN CHUA co
+ * (VendorSet 15/08/2026 moi chi tra CompanyCode/VendorNo/VendorName/AccountGroup/Email/
+ * Rating — da kiem chung truc tiep qua OData that) nen se ra chuoi rong/0 cho toi khi
+ * SEGW+ABAP+nhap lieu 34 NCC lam xong. Code van dung duoc luon tu bay gio, khong can sua
+ * lai lan 2 khi SAP-side xong.
+ */
+function anonymizeVendorsForAI(vendors, anonMap, performanceStats) {
+	performanceStats = performanceStats || {};
+	return vendors.map(function (v, idx) {
+		const code = "V" + (idx + 1);
+		const vendorNo = String(v.VendorNo || v.Lifnr || "");
+		const vendorName = String(v.VendorName || v.Name1 || "").trim();
+		anonMap[code] = vendorName ? `${vendorName} (${vendorNo})` : vendorNo;
+		const perf = performanceStats[vendorNo] || null;
+		return {
+			vendorCode: code,
+			country: v.Country || v.Land1 || "",
+			city: v.City || v.Ort01 || "",
+			category: v.Category || v.Sortl || "",
+			paymentTerms: describePaymentTerms(v.PaymentTerms || v.Zterm),
+			currency: v.Currency || v.Waers || "",
+			incoterms: v.Incoterms || v.Inco1 || "",
+			leadTimeDays: Number(v.PlanDelivTime || v.Plifz || 0) || 0,
+			// Lich su tu cac RFQ DA HOAN TAT truoc do (doc tu ZG1_QUOTATION qua RfqSet — xem
+			// computeVendorPerformanceStats). null/0 nghia la NCC nay chua tung tham gia RFQ
+			// nao trong he thong, KHONG phai NCC kem — prompt ben duoi co nhac AI dieu nay.
+			pastQuoteCount: perf ? perf.quoteCount : 0,
+			pastAwardedCount: perf ? perf.awardedCount : 0,
+			pastAvgLeadTimeDays: perf ? perf.avgLeadTimeDays : null,
+			pastLegalDocsOkRate: perf ? perf.legalDocsOkRate : null
+		};
+	});
+}
+
+/**
+ * Tinh "diem hieu suat" NCC tu cac RFQ DA CO BAO GIA truoc do (ZG1_QUOTATION, doc qua
+ * RfqSet('X')/RfqToQuotations) — khong dung master data tinh (LFA1/LFM1) ma dung chinh
+ * hanh vi thuc te trong app: da tung duoc moi may lan, thang thau may lan, giao co dung
+ * han khong, co nop du chung tu phap ly khong. Nguon nay KHONG can SEGW/ABAP gi them vi
+ * da nam san trong OData model hien co — chay duoc ngay ke ca khi VendorSet chua mo rong.
+ *
+ * CO Y bo qua gia trung binh: gia phu thuoc rat nhieu vao loai vat tu (mua thep khac mua
+ * laptop), tinh trung binh chung tren nhieu RFQ khac nhau se sai lech, danh gia sau nay
+ * neu can (theo tung nhom vat tu) — nam ngoai scope lan sua nay.
+ *
+ * Loi doc lich su KHONG duoc lam hong luong AI goi y chinh — luon tra ve {} thay vi nem
+ * loi, AI se chi thieu phan "hieu suat" chu khong crash ca request.
+ */
+async function computeVendorPerformanceStats() {
+	if (!process.env.SAP_HOST) { return {}; }
+	try {
+		const rfqResp = await sapRead("RfqSet");
+		const allRfqs = (rfqResp.data && rfqResp.data.d && rfqResp.data.d.results) || [];
+		// Chi can RFQ da tung nhan bao gia — RFQ moi tao (DRAFT/SENT, chua ai bao gia) khong
+		// co gi de gom, doc them cung phi thoi gian. Dung dung 2 gia tri Status that cua
+		// RfqSet (xem cac cho MERGE Status trong file nay: DRAFT/SENT/QUOTATIONS_RECEIVED/
+		// AWARDED) — KHONG phai QuoteStatus cua tung dong Quotation (RECEIVED/AWARDED/PENDING).
+		const relevantRfqs = allRfqs.filter((r) => ["QUOTATIONS_RECEIVED", "AWARDED"].indexOf(r.Status) !== -1);
+		if (!relevantRfqs.length) { return {}; }
+
+		const quotationLists = await Promise.all(relevantRfqs.map(async function (rfq) {
+			try {
+				const resp = await sapRead(`RfqSet('${odataEscape(rfq.RfqId)}')/RfqToQuotations`);
+				return (resp.data && resp.data.d && resp.data.d.results) || [];
+			} catch (error) {
+				console.error(
+					"[computeVendorPerformanceStats] Doc quotations RFQ " + rfq.RfqId + " that bai:",
+					extractSapErrorMessage(error)
+				);
+				return [];
+			}
+		}));
+
+		const raw = {};
+		quotationLists.forEach(function (quotations) {
+			quotations.forEach(function (q) {
+				// Bo qua PENDING (NCC chua bao gia — khong phan anh gi ve hieu suat).
+				if (q.QuoteStatus !== "RECEIVED" && q.QuoteStatus !== "AWARDED") { return; }
+				const key = String(q.VendorNo || "");
+				if (!key) { return; }
+				if (!raw[key]) {
+					raw[key] = { quoteCount: 0, awardedCount: 0, leadTimeSum: 0, leadTimeCount: 0, legalDocsOkCount: 0 };
+				}
+				const s = raw[key];
+				s.quoteCount += 1;
+				if (q.QuoteStatus === "AWARDED") { s.awardedCount += 1; }
+				const leadTime = Number(q.LeadTimeDays);
+				if (leadTime > 0) { s.leadTimeSum += leadTime; s.leadTimeCount += 1; }
+				if (q.LegalDocsOk === "X") { s.legalDocsOkCount += 1; }
+			});
+		});
+
+		const result = {};
+		Object.keys(raw).forEach(function (vendorNo) {
+			const s = raw[vendorNo];
+			result[vendorNo] = {
+				quoteCount: s.quoteCount,
+				awardedCount: s.awardedCount,
+				avgLeadTimeDays: s.leadTimeCount ? Math.round(s.leadTimeSum / s.leadTimeCount) : null,
+				legalDocsOkRate: s.quoteCount ? Math.round((s.legalDocsOkCount / s.quoteCount) * 100) : null
+			};
+		});
+		return result;
+	} catch (error) {
+		console.error("[computeVendorPerformanceStats] That bai:", extractSapErrorMessage(error));
+		return {};
+	}
+}
+
+// Doan giai thich y nghia field, dung chung cho ca 2 route AI ve NCC — xem ghi chu o
+// anonymizeVendorsForAI ve field nao co the rong/0.
+const VENDOR_FIELD_EXPLANATION =
+	`- Ý nghĩa các trường: category là ngành hàng nhà cung cấp đang kinh doanh (ưu tiên khớp với `
+	+ `vật tư đang cần mua), leadTimeDays là số ngày giao hàng dự kiến theo master data SAP, `
+	+ `incoterms là điều kiện giao hàng, country/city là nơi đặt trụ sở. `
+	+ `pastQuoteCount/pastAwardedCount/pastAvgLeadTimeDays/pastLegalDocsOkRate là lịch sử thực tế `
+	+ `từ các RFQ đã hoàn tất trước đó trong hệ thống (số lần từng được mời báo giá, số lần trúng `
+	+ `thầu, thời gian giao trung bình theo ngày, tỉ lệ phần trăm lần nộp đủ chứng từ pháp lý) — `
+	+ `giá trị 0 hoặc null có nghĩa là nhà cung cấp đó CHƯA TỪNG tham gia RFQ nào trong hệ thống, `
+	+ `KHÔNG có nghĩa là nhà cung cấp kém, đừng loại nhà cung cấp chỉ vì thiếu lịch sử.\n`
+	+ `Nếu nhiều trường đang trống hoặc bằng 0 (dữ liệu nhà cung cấp trên SAP chưa được bổ sung `
+	+ `đầy đủ), hãy nói rõ đang thiếu dữ liệu gì thay vì suy đoán, và chỉ dựa vào những trường `
+	+ `thực sự có giá trị.\n`;
+
 // Goi y NCC TRUOC khi gui RFQ (khac /api/ai/compare-quotations la sau khi da co gia that).
 // Truoc day route nay gui thang ten/email/ma so thue NCC that len Groq — cung mot lo hong
 // ma B2 da vá cho compare-quotations nhung bo sot o day. Nay dung chung 1 co che: an danh
@@ -1522,37 +1670,38 @@ app.post("/api/ai/recommend-vendor", async (req, res) => {
 	}
 
 	// An danh hoa: chi gui cho AI nhung thuoc tinh phuc vu viec chon NCC, tuyet doi khong
-	// gui VendorName / Email / TaxCode / dia chi ra ngoai he thong.
+	// gui VendorName / Email / TaxCode / dia chi ra ngoai he thong. Kem lich su hieu suat
+	// tu cac RFQ da hoan tat (xem computeVendorPerformanceStats).
 	const anonMap = {};
-	const anonymized = candidateVendors.map(function (v, idx) {
-		const code = "V" + (idx + 1);
-		// Dich nguoc ve "Ten NCC (ma)" — ten khong duoc gui cho AI, chi ghep lai sau.
-		const vendorNo = String(v.VendorNo || v.Lifnr || "");
-		const vendorName = String(v.VendorName || v.Name1 || "").trim();
-		anonMap[code] = vendorName ? `${vendorName} (${vendorNo})` : vendorNo;
-		return {
-			vendorCode: code,
-			country: v.Country || v.Land1 || "",
-			city: v.City || v.Ort01 || "",
-			paymentTerms: describePaymentTerms(v.PaymentTerms || v.Zterm),
-			currency: v.Currency || v.Waers || ""
-		};
-	});
+	const performanceStats = await computeVendorPerformanceStats();
+	const anonymized = anonymizeVendorsForAI(candidateVendors, anonMap, performanceStats);
 
-	// Prompt viet tieng Viet CO DAU — xem ghi chu o /api/ai/compare-quotations.
+	// Prompt viet tieng Viet CO DAU — xem ghi chu o /api/ai/compare-quotations. Dinh dang tra
+	// loi (dong "NCC DE XUAT UU TIEN:" + gach dau dong "- ") duoc FE parse rieng de ve bong bong
+	// co ket luan noi bat + danh sach tieu chi ro rang, thay vi 1 doan van xuoi dai (feedback
+	// 15/08: "muon no ket luan gop y NCC nao luon", "format de nhin hon") — xem
+	// _formatAiMessageHtml trong RFQ01.controller.js.
 	const prompt = `Bạn là chuyên gia mua hàng. Dưới đây là danh sách nhà cung cấp đã ẩn danh hóa `
 		+ `(không có tên/email thật) cho nhu cầu mua sắm:\n`
 		+ `- Vật tư: ${materialName || "Không rõ"} (nhóm: ${materialGroup || "Không rõ"})\n`
 		+ `- Số lượng: ${quantity || "Không rõ"}\n`
 		+ `- Ngân sách dự kiến: ${budget || "Không rõ"} VND\n`
-		+ `- Danh sách nhà cung cấp: ${JSON.stringify(anonymized, null, 2)}\n\n`
-		+ `Hãy đề xuất các mã nhà cung cấp (vendorCode) nên mời báo giá và giải thích ngắn gọn. `
-		+ `Lưu ý đây chỉ là gợi ý để mời báo giá, chưa phải quyết định chọn nhà cung cấp.\n\n`
-		+ `QUAN TRỌNG VỀ HÌNH THỨC TRẢ LỜI: viết bằng TIẾNG VIỆT CÓ DẤU đầy đủ (ví dụ viết `
-		+ `"đề xuất mời báo giá", tuyệt đối không viết "de xuat moi bao gia"). Chỉ viết văn xuôi `
-		+ `thuần túy, KHÔNG dùng markdown (không dùng #, ##, **, gạch đầu dòng, đánh số thứ tự). `
-		+ `Tối đa 4-5 câu. Kết quả sẽ được hiển thị nguyên văn trong một ô text thường trên giao diện, `
-		+ `không render được markdown.`;
+		+ `- Danh sách nhà cung cấp: ${JSON.stringify(anonymized, null, 2)}\n`
+		+ VENDOR_FIELD_EXPLANATION
+		+ `\nLưu ý đây chỉ là gợi ý để mời báo giá (nên mời tối thiểu 2 NCC để có cơ sở so sánh sau `
+		+ `này), chưa phải quyết định chọn nhà cung cấp cuối cùng.\n\n`
+		+ `QUAN TRỌNG VỀ ĐỊNH DẠNG TRẢ LỜI — bám sát đúng cấu trúc sau, không thêm ký tự trang trí `
+		+ `nào khác (không #, ##, **, đánh số thứ tự):\n`
+		+ `Dòng 1: viết đúng "NCC ĐỀ XUẤT ƯU TIÊN: " theo sau là đúng 1 mã vendorCode (ví dụ `
+		+ `"NCC ĐỀ XUẤT ƯU TIÊN: V2") — chọn nhà cung cấp bạn đánh giá nên mời trước nhất.\n`
+		+ `Dòng 2: để trống.\n`
+		+ `Từ dòng 3: viết 3-5 dòng, MỖI dòng bắt đầu bằng "- " rồi tới 1 câu ngắn gọn — có thể là `
+		+ `lý do chọn NCC ưu tiên, hoặc nhắc thêm mã NCC khác cũng nên mời kèm lý do. Nêu rõ đánh đổi `
+		+ `(giá/thời gian giao/điều khoản thanh toán/lịch sử) giữa các lựa chọn nếu dữ liệu cho phép.\n\n`
+		+ `Toàn bộ nội dung viết bằng TIẾNG VIỆT CÓ DẤU đầy đủ (ví dụ viết "đề xuất mời báo giá", `
+		+ `tuyệt đối không viết "de xuat moi bao gia"). Kết quả sẽ được hiển thị trong khung chat trên `
+		+ `giao diện, đã tự động tô đậm dòng "NCC ĐỀ XUẤT ƯU TIÊN" và các gạch đầu dòng — không viết `
+		+ `markdown nào khác ngoài đúng 2 quy ước trên.`;
 
 	try {
 		const aiText = await callClaude(prompt, 1200);
@@ -4188,22 +4337,33 @@ app.post("/api/ai/compare-quotations", async (req, res) => {
 		// Prompt PHAI viet tieng Viet co dau: truoc day prompt viet khong dau nen Claude
 		// bat chuoc van phong do va tra ve nguyen doan tieng Viet khong dau, nguoi dung
 		// doc rat kho. Yeu cau co dau mot cach tuong minh o cuoi.
+		//
+		// Dinh dang tra loi (dong "NCC DE XUAT:" + gach dau dong "- ") duoc FE parse rieng de
+		// ve bong bong co ket luan noi bat + danh sach tieu chi ro rang, thay vi 1 doan van xuoi
+		// dai kho doc (feedback 15/08: "muon no ket luan gop y NCC nao luon", "format de nhin
+		// hon") — xem _formatAiMessageHtml trong RFQ02.controller.js (giong het RFQ01).
 		const prompt = `Bạn là chuyên gia mua hàng. Dưới đây là các báo giá đã ẩn danh hóa `
 			+ `(không có tên/email nhà cung cấp thật) cho RFQ ${rfqId}:\n`
 			+ `${JSON.stringify(anonymized, null, 2)}\n\n`
-			+ `Hãy đề xuất 1 mã nhà cung cấp (vendorCode) nên chọn. Đánh giá lần lượt theo 5 tiêu chí, `
-			+ `xếp theo mức độ quan trọng giảm dần:\n`
+			+ `Hãy đánh giá lần lượt theo 5 tiêu chí, xếp theo mức độ quan trọng giảm dần, rồi kết `
+			+ `luận nên chọn nhà cung cấp nào:\n`
 			+ `1. Giá báo (quotedPrice) — thấp hơn thì tốt hơn, nêu rõ chênh lệch bao nhiêu tiền.\n`
 			+ `2. Thời gian giao hàng (leadTimeDays) — ngắn hơn thì tốt hơn.\n`
 			+ `3. Công nợ / điều khoản thanh toán (paymentTerms) — được trả càng chậm thì càng có lợi cho dòng tiền.\n`
 			+ `4. Bảo hành (warrantyMonths) — dài hơn thì tốt hơn.\n`
 			+ `5. Hồ sơ pháp lý (legalDocsOk) — thiếu hồ sơ là rủi ro đáng kể.\n\n`
-			+ `Dòng đầu tiên chỉ ghi đúng mã vendorCode được chọn (ví dụ: "V2"), không thêm gì khác. `
-			+ `Các dòng sau giải thích ngắn gọn 3-5 câu, bám vào 5 tiêu chí trên.\n\n`
-			+ `QUAN TRỌNG VỀ HÌNH THỨC TRẢ LỜI: viết bằng TIẾNG VIỆT CÓ DẤU đầy đủ (ví dụ viết `
-			+ `"đề xuất chọn nhà cung cấp", tuyệt đối không viết "de xuat chon nha cung cap"). `
-			+ `Chỉ viết văn xuôi thuần túy, KHÔNG dùng markdown (không dùng #, ##, **, gạch đầu dòng, `
-			+ `đánh số thứ tự) vì kết quả sẽ hiển thị nguyên văn trong một ô text thường không render được markdown.`;
+			+ `QUAN TRỌNG VỀ ĐỊNH DẠNG TRẢ LỜI — bám sát đúng cấu trúc sau, không thêm ký tự trang `
+			+ `trí nào khác (không #, ##, **, đánh số thứ tự):\n`
+			+ `Dòng 1: viết đúng "NCC ĐỀ XUẤT: " theo sau là đúng 1 mã vendorCode (ví dụ `
+			+ `"NCC ĐỀ XUẤT: V2") — mã nhà cung cấp nên chọn, không thêm chữ nào khác trên dòng này.\n`
+			+ `Dòng 2: để trống.\n`
+			+ `Từ dòng 3: viết 3-5 dòng, MỖI dòng bắt đầu bằng "- " rồi tới 1 câu ngắn gọn bám vào `
+			+ `đúng 5 tiêu chí trên (có thể gộp tiêu chí nào không có gì nổi bật, ưu tiên nêu tiêu chí `
+			+ `quyết định vì sao chọn NCC này thay vì các NCC còn lại).\n\n`
+			+ `Toàn bộ nội dung viết bằng TIẾNG VIỆT CÓ DẤU đầy đủ (ví dụ viết "đề xuất chọn nhà cung `
+			+ `cấp", tuyệt đối không viết "de xuat chon nha cung cap"). Kết quả sẽ được hiển thị trong `
+			+ `khung chat trên giao diện, đã tự động tô đậm dòng "NCC ĐỀ XUẤT" và các gạch đầu dòng — `
+			+ `không viết markdown nào khác ngoài đúng 2 quy ước trên.`;
 
 		const aiText = await callClaude(prompt, 1200);
 
@@ -4294,24 +4454,17 @@ app.post("/api/ai/ask", async (req, res) => {
 			if (!Array.isArray(vendors) || vendors.length === 0) {
 				return res.status(400).json({ success: false, message: "Thieu danh sach nha cung cap (vendors)." });
 			}
-			const anonymized = vendors.map(function (v, idx) {
-				const code = "V" + (idx + 1);
-				const vendorNo = String(v.VendorNo || v.Lifnr || "");
-				const vendorName = String(v.VendorName || v.Name1 || "").trim();
-				anonMap[code] = vendorName ? `${vendorName} (${vendorNo})` : vendorNo;
-				return {
-					vendorCode: code,
-					country: v.Country || v.Land1 || "",
-					city: v.City || v.Ort01 || "",
-					paymentTerms: describePaymentTerms(v.PaymentTerms || v.Zterm),
-					currency: v.Currency || v.Waers || ""
-				};
-			});
+			// Dung chung anonymizeVendorsForAI + computeVendorPerformanceStats voi
+			// /api/ai/recommend-vendor — truoc day 2 route nay copy nguyen doan an danh hoa,
+			// sua 1 cho quen cho kia (xem PHU_LUC_KY_THUAT_VendorSet.md muc 4.1).
+			const performanceStats = await computeVendorPerformanceStats();
+			const anonymized = anonymizeVendorsForAI(vendors, anonMap, performanceStats);
 			dataDescription = `Nhu cầu mua sắm:\n`
 				+ `- Vật tư: ${materialName || "Không rõ"} (nhóm: ${materialGroup || "Không rõ"})\n`
 				+ `- Số lượng: ${quantity || "Không rõ"}\n`
 				+ `- Ngân sách dự kiến: ${budget || "Không rõ"} VND\n`
-				+ `- Danh sách nhà cung cấp đã ẩn danh hóa: ${JSON.stringify(anonymized, null, 2)}`;
+				+ `- Danh sách nhà cung cấp đã ẩn danh hóa: ${JSON.stringify(anonymized, null, 2)}\n`
+				+ VENDOR_FIELD_EXPLANATION;
 		} else {
 			return res.status(400).json({ success: false, message: "context khong hop le (recommend-vendor | compare-quotations)." });
 		}
@@ -4322,9 +4475,11 @@ app.post("/api/ai/ask", async (req, res) => {
 			+ `Câu hỏi của người dùng: "${sQuestion}"\n\n`
 			+ `Trả lời đúng trọng tâm câu hỏi, dựa trên dữ liệu ở trên. Nếu dữ liệu không đủ để trả lời, `
 			+ `nói rõ thiếu gì thay vì suy đoán. Khi nhắc tới nhà cung cấp thì dùng mã vendorCode (V1, V2...).\n\n`
-			+ `QUAN TRỌNG VỀ HÌNH THỨC TRẢ LỜI: viết bằng TIẾNG VIỆT CÓ DẤU đầy đủ. Chỉ viết văn xuôi `
-			+ `thuần túy, KHÔNG dùng markdown (không dùng #, ##, **, gạch đầu dòng, đánh số thứ tự). `
-			+ `Tối đa 5-6 câu. Kết quả hiển thị nguyên văn trong một ô text thường không render được markdown.`;
+			+ `QUAN TRỌNG VỀ HÌNH THỨC TRẢ LỜI: viết bằng TIẾNG VIỆT CÓ DẤU đầy đủ. Trả lời thẳng vào `
+			+ `câu hỏi trước bằng 1-2 câu văn xuôi bình thường; nếu câu hỏi cần liệt kê/so sánh nhiều `
+			+ `nhà cung cấp hoặc nhiều tiêu chí thì được dùng thêm các dòng gạch đầu dòng bắt đầu bằng `
+			+ `"- " (mỗi ý 1 dòng riêng, khung chat sẽ tự tô lại thành danh sách dễ đọc). KHÔNG dùng `
+			+ `markdown nào khác (không #, ##, **, đánh số thứ tự). Tối đa 5-6 câu/gạch đầu dòng.`;
 
 		const aiText = await callClaude(prompt, 1500);
 

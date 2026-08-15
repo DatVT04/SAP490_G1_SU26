@@ -1721,3 +1721,134 @@ DASHBOARD PO
 	border-bottom: 1px dashed #e2e8f0;
 	margin-bottom: 0.5rem;
 }
+
+/* ==========================================================================
+   RFQ01 — khung chat AI hoi-dap NCC. Truoc day toan bo hoi-dap noi chuoi vao
+   1 MessageStrip duy nhat, khong co khung cuon rieng, cang hoi nhieu the card
+   cang phinh dai ra (feedback 15/08: "hoi xong khong nhin het duoc doan chat").
+   Nay tach thanh khung co chieu cao co dinh + tu cuon, bong bong phan biet rõ
+   cau hoi cua Purchasing va cau tra loi cua AI.
+   ========================================================================== */
+.qdAiChatPanel {
+	background: var(--qd-bg);
+	border: 1px solid var(--qd-border);
+	border-radius: var(--qd-radius-md);
+	padding: 0.75rem;
+}
+
+.qdAiChatRow {
+	display: flex;
+	margin-bottom: 0.6rem;
+}
+
+.qdAiChatRow:last-child {
+	margin-bottom: 0;
+}
+
+.qdAiChatRowUser {
+	justify-content: flex-end;
+}
+
+.qdAiChatRowAi {
+	justify-content: flex-start;
+}
+
+.qdAiChatBubble {
+	max-width: 82%;
+	padding: 0.55rem 0.85rem;
+	border-radius: 14px;
+	font-size: 0.85rem;
+	line-height: 1.5;
+	white-space: normal;
+	word-break: break-word;
+	box-shadow: 0 1px 4px rgba(20, 41, 77, 0.06);
+}
+
+.qdAiChatBubbleUser {
+	background: var(--qd-accent-purple);
+	color: #FFFFFF;
+	border-bottom-right-radius: 4px;
+}
+
+.qdAiChatBubbleAi {
+	background: var(--qd-card-bg);
+	border: 1px solid var(--qd-border);
+	color: var(--qd-primary);
+	border-bottom-left-radius: 4px;
+}
+
+.qdAiChatLabel {
+	display: block;
+	font-size: 0.68rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	margin-bottom: 0.2rem;
+	opacity: 0.7;
+}
+
+/* O nhap cau hoi: to hon Input mac dinh cho de bam/de doc tren mobile
+   (feedback 15/08: "o hoi qua nho"). */
+.qdAiChatInput .sapMInputBaseContentWrapper {
+	min-height: 2.5rem;
+	border-radius: 10px;
+}
+
+.qdAiChatInput input {
+	font-size: 0.9rem;
+}
+
+/* Ket luan "NCC DE XUAT..." duoc parse rieng tu prompt (xem _formatAiMessageHtml trong
+   RFQ01/RFQ02 controller) va to dam thanh khung noi bat, thay vi lan trong doan van xuoi
+   dai (feedback 15/08: "muon no ket luan gop y NCC nao luon", "format de nhin hon"). */
+.qdAiConclusion {
+	display: flex;
+	align-items: baseline;
+	flex-wrap: wrap;
+	gap: 0.4rem;
+	background: rgba(124, 58, 237, 0.10);
+	border: 1px solid rgba(124, 58, 237, 0.35);
+	border-radius: 10px;
+	padding: 0.5rem 0.75rem;
+	margin-bottom: 0.5rem;
+}
+
+.qdAiConclusionLabel {
+	font-size: 0.72rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+	color: var(--qd-accent-purple);
+	white-space: nowrap;
+}
+
+.qdAiConclusionValue {
+	font-size: 0.92rem;
+	font-weight: 700;
+	color: var(--qd-primary);
+}
+
+/* Cac gach dau dong "- " trong cau tra loi AI -> danh sach that, de mat quet nhanh hon
+   la doc 1 doan van xuoi dai. */
+.qdAiCriteriaList {
+	margin: 0 0 0.4rem 0;
+	padding-left: 1.1rem;
+}
+
+.qdAiCriteriaList li {
+	margin-bottom: 0.3rem;
+}
+
+.qdAiCriteriaList li:last-child {
+	margin-bottom: 0;
+}
+
+.qdAiParagraph {
+	margin: 0 0 0.4rem 0;
+}
+
+.qdAiChatBubble .qdAiConclusion:last-child,
+.qdAiChatBubble .qdAiCriteriaList:last-child,
+.qdAiChatBubble .qdAiParagraph:last-child {
+	margin-bottom: 0;
+}

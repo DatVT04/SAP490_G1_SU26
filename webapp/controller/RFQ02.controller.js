@@ -29,7 +29,12 @@ sap.ui.define([
 				pendingVendors: [],
 				vendorChoices: [],
 				paymentTerms: [],
-				aiText: "",
+				// aiMessages: mang {role:"user"|"ai", text} — nguon du lieu that cua khung chat.
+				// aiChatHtml: HTML da render san tu aiMessages (xem _renderAiChat), view chi
+				// bind vao day (giong RFQ-01 — feedback 15/08: "khung chat be ti, hoi xong
+				// khong nhin het duoc doan chat", cung bug o ca 2 trang vi copy code nhau).
+				aiMessages: [],
+				aiChatHtml: "",
 				busyAi: false
 			}));
 
@@ -51,7 +56,8 @@ sap.ui.define([
 		_onRouteMatched: function () {
 			this.getView().byId("rfqWorkArea").setVisible(false);
 			this._currentRfqId = null;
-			this.getView().getModel().setProperty("/aiText", "");
+			this.getView().getModel().setProperty("/aiMessages", []);
+			this.getView().getModel().setProperty("/aiChatHtml", "");
 			this._loadRfqList();
 		},
 
@@ -168,7 +174,8 @@ sap.ui.define([
 			if (!oRfq) { return; }
 
 			this._currentRfqId = oRfq.RfqId;
-			this.getView().getModel().setProperty("/aiText", "");
+			this.getView().getModel().setProperty("/aiMessages", []);
+			this.getView().getModel().setProperty("/aiChatHtml", "");
 			this._loadCompare();
 		},
 
@@ -373,8 +380,98 @@ sap.ui.define([
 		},
 
 		// ── 4. AI SO SANH BAO GIA (chi bat khi >=2 bao gia; server tu an danh hoa) ──
+		// ── Khung chat AI: /aiMessages ({role, text}) la nguon du lieu that, ham nay ve lai
+		// thanh HTML (bong bong user/AI) roi ghi vao /aiChatHtml de view render + tu cuon.
+		// Y het RFQ01.controller.js (_renderAiChat) — 2 trang dung chung 1 co che chat, xem
+		// ghi chu day du ben do (feedback 15/08: "khung chat be ti, hoi xong khong nhin het
+		// duoc doan chat"; MessageStrip khong co khung cuon rieng, FormattedText loc mat
+		// class/mau nen bong bong nen dung sap.ui.core.HTML).
+		_escapeHtml: function (sText) {
+			return String(sText || "")
+				.replace(/&/g, "&amp;")
+				.replace(/</g, "&lt;")
+				.replace(/>/g, "&gt;")
+				.replace(/"/g, "&quot;");
+		},
+
+		// Tin cua AI co the co dong ket luan "NCC ĐỀ XUẤT..." + cac gach dau dong "- " (xem quy
+		// uoc dinh dang trong prompt o server.js: /api/ai/recommend-vendor,
+		// /api/ai/compare-quotations, /api/ai/ask). Ham nay parse quy uoc do thanh HTML de nguoi
+		// dung thay ngay ket luan + tung tieu chi ro rang, thay vi phai doc het 1 doan van xuoi
+		// dai (feedback 15/08: "muon no ket luan gop y NCC nao luon", "format de nhin hon hon").
+		// Y het RFQ01.controller.js — xem ghi chu day du ben do. Tin cua NGUOI DUNG (cau hoi)
+		// khong qua ham nay trong _renderAiChat — chi la text thuong, khong can parse gach dau dong.
+		_formatAiMessageHtml: function (sText) {
+			var that = this;
+			var sConclusionPrefix = "NCC ĐỀ XUẤT";
+			var aLines = String(sText || "").split("\n");
+			var sHtml = "";
+			var aBulletBuffer = [];
+
+			function flushBullets() {
+				if (aBulletBuffer.length === 0) { return; }
+				sHtml += '<ul class="qdAiCriteriaList">' + aBulletBuffer.map(function (s) {
+					return "<li>" + that._escapeHtml(s) + "</li>";
+				}).join("") + "</ul>";
+				aBulletBuffer = [];
+			}
+
+			aLines.forEach(function (sLine) {
+				var sTrim = sLine.trim();
+				if (!sTrim) { return; } // dong trong chi de tach doan, khong render gi
+				if (sTrim.indexOf(sConclusionPrefix) === 0) {
+					flushBullets();
+					var iColon = sTrim.indexOf(":");
+					var sValue = (iColon >= 0 ? sTrim.substring(iColon + 1) : "").trim();
+					sHtml += '<div class="qdAiConclusion"><span class="qdAiConclusionLabel">'
+						+ '🏆 NCC đề xuất</span><span class="qdAiConclusionValue">'
+						+ that._escapeHtml(sValue) + "</span></div>";
+				} else if (sTrim.indexOf("- ") === 0 || sTrim.indexOf("• ") === 0) {
+					aBulletBuffer.push(sTrim.substring(2).trim());
+				} else {
+					flushBullets();
+					sHtml += '<p class="qdAiParagraph">' + that._escapeHtml(sTrim) + "</p>";
+				}
+			});
+			flushBullets();
+
+			return sHtml || ('<p class="qdAiParagraph">' + that._escapeHtml(sText) + "</p>");
+		},
+
+		_renderAiChat: function () {
+			var oView = this.getView();
+			var oModel = oView.getModel();
+			var aMessages = oModel.getProperty("/aiMessages") || [];
+			var that = this;
+
+			var sHtml = aMessages.map(function (m) {
+				var bUser = m.role === "user";
+				var sRowClass = "qdAiChatRow " + (bUser ? "qdAiChatRowUser" : "qdAiChatRowAi");
+				var sBubbleClass = "qdAiChatBubble " + (bUser ? "qdAiChatBubbleUser" : "qdAiChatBubbleAi");
+				var sLabel = bUser ? "Bạn hỏi" : "AI gợi ý";
+				var sBody = bUser
+					? that._escapeHtml(m.text).replace(/\n/g, "<br/>")
+					: that._formatAiMessageHtml(m.text);
+				return '<div class="' + sRowClass + '"><div class="' + sBubbleClass + '">'
+					+ '<span class="qdAiChatLabel">' + sLabel + '</span>' + sBody
+					+ '</div></div>';
+			}).join("");
+
+			oModel.setProperty("/aiChatHtml", sHtml);
+
+			setTimeout(function () {
+				var oScroll = oView.byId("aiChatScroll");
+				if (oScroll && oScroll.getDomRef && oScroll.getDomRef()) {
+					var oDom = oScroll.getDomRef("scroll") || oScroll.getDomRef();
+					if (oDom) { oDom.scrollTop = oDom.scrollHeight; }
+				}
+			}, 0);
+		},
+
+		// ── 4. AI SO SANH BAO GIA (chi bat khi >=2 bao gia; server tu an danh hoa) ──
 		onAiComparePress: function () {
 			var oModel = this.getView().getModel();
+			var that = this;
 			oModel.setProperty("/busyAi", true);
 
 			fetch(BACKEND + "/api/ai/compare-quotations", {
@@ -386,7 +483,10 @@ sap.ui.define([
 				.then(function (res) {
 					oModel.setProperty("/busyAi", false);
 					if (res && res.success) {
-						oModel.setProperty("/aiText", res.recommendation || "");
+						// Bam lai "AI so sanh bao gia" thi bat dau lai mach chat tu dau, giong
+						// hanh vi "AI goi y NCC" o RFQ-01.
+						oModel.setProperty("/aiMessages", [{ role: "ai", text: res.recommendation || "" }]);
+						that._renderAiChat();
 					} else {
 						MessageToast.show((res && res.message) || "AI không phản hồi.");
 					}
@@ -400,6 +500,7 @@ sap.ui.define([
 		// ── 4b. HOI THEM AI — chat tuong tac tren cac bao gia cua RFQ dang chon ──
 		onAiAskPress: function () {
 			var oModel = this.getView().getModel();
+			var that = this;
 			var oInput = this.getView().byId("inAiQuestion");
 			var sQuestion = (oInput.getValue() || "").trim();
 
@@ -414,6 +515,13 @@ sap.ui.define([
 
 			oModel.setProperty("/busyAi", true);
 
+			// Them tin cua nguoi dung vao chat NGAY (khong doi API tra ve) de UX phan hoi tuc thi.
+			var aMessages = (oModel.getProperty("/aiMessages") || []).slice();
+			aMessages.push({ role: "user", text: sQuestion });
+			oModel.setProperty("/aiMessages", aMessages);
+			that._renderAiChat();
+			oInput.setValue("");
+
 			fetch(BACKEND + "/api/ai/ask", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
@@ -427,10 +535,10 @@ sap.ui.define([
 				.then(function (res) {
 					oModel.setProperty("/busyAi", false);
 					if (res && res.success) {
-						var sPrev = oModel.getProperty("/aiText") || "";
-						oModel.setProperty("/aiText",
-							sPrev + "\n\n— Hỏi: " + sQuestion + "\n— AI: " + (res.answer || ""));
-						oInput.setValue("");
+						var aNext = (oModel.getProperty("/aiMessages") || []).slice();
+						aNext.push({ role: "ai", text: res.answer || "" });
+						oModel.setProperty("/aiMessages", aNext);
+						that._renderAiChat();
 					} else {
 						MessageToast.show((res && res.message) || "AI không phản hồi.");
 					}
