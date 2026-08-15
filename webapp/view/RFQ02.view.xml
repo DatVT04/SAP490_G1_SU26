@@ -38,11 +38,25 @@
 								</VBox>
 							</HBox>
 
+							<!-- Danh sách RFQ chỉ tăng theo thời gian (25+ và còn lên nữa) — cuộn
+							     trong khung cao cố định thay vì kéo dài cả trang, giống danh sách
+							     NCC bên RFQ-01. Header dính khi cuộn, cuộn chạm đáy tự nạp tiếp. -->
+							<ScrollContainer
+								height="calc(100vh - 22rem)"
+								width="100%"
+								vertical="true"
+								horizontal="false"
+								focusable="false"
+							>
 							<Table
 								id="rfqTable"
 								items="{/Rfqs}"
 								mode="SingleSelectMaster"
 								selectionChange=".onRfqSelect"
+								sticky="ColumnHeaders"
+								growing="true"
+								growingThreshold="20"
+								growingScrollToLoad="true"
 								noDataText="Chưa có RFQ nào. Hãy tạo ở màn RFQ-01."
 							>
 								<columns>
@@ -63,6 +77,7 @@
 									</ColumnListItem>
 								</items>
 							</Table>
+							</ScrollContainer>
 						</VBox>
 					</VBox>
 
