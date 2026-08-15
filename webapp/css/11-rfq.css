@@ -1,0 +1,74 @@
+/* ==========================================================================
+   11-rfq.css
+   RFQ01 tinh chinh giao dien + the boi canh PR goc cua RFQ02.
+
+   Tach ra tu webapp/css/style.css (ban goc 1854 dong), phan dong 1587-1649.
+   THU TU NAP QUAN TRONG: cac file css duoc liet ke theo dung thu tu nay trong
+   manifest.json (sap.ui5 > resources > css). Doi thu tu se lam doi do uu tien
+   cua cac rule co cung do dac hieu -> giao dien co the vo. Them file moi thi
+   them so thu tu lon hon o cuoi.
+   ========================================================================== */
+
+/* ==========================================================================
+   RFQ01 — polish giao diện (chỉ CSS, không đổi logic/id)
+   ========================================================================== */
+
+/* Dòng PR đang chọn ở bảng trái + dòng NCC đã tick: nổi bật rõ, đồng bộ tông tím Hero */
+#pendingPRTable .sapMLIBSelected,
+#vendorTable .sapMLIBSelected {
+	background: rgba(124, 58, 237, 0.06) !important;
+	border-left: 3px solid var(--qd-accent-purple) !important;
+}
+
+/* Card 3 (Hạn nộp & Gửi): nền nhạt để tách khỏi 2 card thao tác phía trên */
+.qdRfqSendCard {
+	background: linear-gradient(180deg, rgba(124, 58, 237, 0.04) 0%, #FFFFFF 60%);
+}
+
+/* Hàng DatePicker + nút gửi: canh đều, không dính sát nhau khi xuống dòng */
+.qdRfqSendRow {
+	gap: 0.75rem;
+	row-gap: 0.75rem;
+}
+
+/* Badge đếm số NCC đã chọn — to hơn mặc định cho dễ liếc thấy */
+.qdRfqVendorCount .sapMObjStatusText {
+	font-weight: 600;
+}
+
+/* Nút gửi khi bị khoá (chưa chọn NCC): làm mờ hẳn để thấy rõ là chưa bấm được,
+   tránh lặp lại cảm giác "bấm không ăn" như bug busy toàn view trước đây */
+.qdPrimarySubmitBtn.sapMBtnDisabled .sapMBtnInner {
+	background: var(--qd-border) !important;
+	opacity: 0.7;
+}
+
+/* VUNG BAM = VIEN NHIN THAY. Inner bi ep cao 2.75rem nhung the goc .sapMBtn giu
+   chieu cao mac dinh ~2.3rem — phan gradient tran ra ngoai the goc KHONG nhan
+   click (su kien press gan tren the goc). Ep the goc cao bang inner de het lech. */
+.qdPrimarySubmitBtn.sapMBtn {
+	height: 2.75rem;
+	margin-top: 0;
+}
+
+/* Khoi "Han nop & Gui" nam SAU bang NCC co sticky ColumnHeaders (sticky tao
+   stacking context, header bang co the de len card dung sau khi cuon). Nang
+   card nay len mot lop de DatePicker + nut gui khong bao gio bi phu. */
+.qdRfqSendCard {
+	position: relative;
+	z-index: 3;
+}
+
+/* ==========================================================================
+   RFQ02 — thẻ bối cảnh "Nội dung yêu cầu" (PR gốc) đứng trên bảng so sánh
+   ========================================================================== */
+.qdPrContextCard {
+	background: linear-gradient(180deg, rgba(124, 58, 237, 0.05) 0%, #FFFFFF 55%);
+	border-left: 3px solid var(--qd-accent-purple);
+}
+
+.qdPrContextIcon {
+	color: var(--qd-accent-purple) !important;
+	font-size: 1.25rem !important;
+}
+

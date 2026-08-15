@@ -1,0 +1,115 @@
+/* ==========================================================================
+   10-material-create.css
+   Man Purchasing tao material ZAST / ZSRV.
+
+   Tach ra tu webapp/css/style.css (ban goc 1854 dong), phan dong 1483-1586.
+   THU TU NAP QUAN TRONG: cac file css duoc liet ke theo dung thu tu nay trong
+   manifest.json (sap.ui5 > resources > css). Doi thu tu se lam doi do uu tien
+   cua cac rule co cung do dac hieu -> giao dien co the vo. Them file moi thi
+   them so thu tu lon hon o cuoi.
+   ========================================================================== */
+
+/* ========================================================================== 
+   MATERIAL CREATE — Purchasing tạo ZAST / ZSRV
+   Append block này vào cuối webapp/css/style.css
+   ========================================================================== */
+
+.qdMaterialCreatePage .sapMPageContent {
+    background: var(--qd-bg);
+}
+
+.qdMaterialTypeCard,
+.qdSystemInfoCard,
+.qdMaterialFormCard,
+.qdMaterialSummaryCard {
+    border: 1px solid var(--qd-border);
+}
+
+.qdMaterialTypeCard {
+    border-top: 3px solid var(--qd-accent-blue);
+}
+
+.qdMaterialTypeSegment {
+    width: 100%;
+    max-width: 48rem;
+}
+
+.qdMaterialTypeSegment .sapMSegBBtn {
+    min-height: 3rem;
+}
+
+.qdMaterialTypeSegment .sapMSegBBtnInner {
+    font-weight: 600;
+}
+
+.qdSystemInfoCard {
+    background:
+        linear-gradient(135deg, rgba(37, 99, 235, 0.055), rgba(20, 41, 77, 0.02)),
+        var(--qd-card-bg);
+}
+
+.qdMaterialSystemRow .qdInfoCell {
+    min-width: 10rem;
+}
+
+.qdMaterialFormCard {
+    border-top: 3px solid var(--qd-primary);
+}
+
+.qdMaterialSimpleForm .sapMLabel {
+    color: var(--qd-primary) !important;
+    font-weight: 600 !important;
+}
+
+.qdMaterialSimpleForm .sapMInputBaseContentWrapper,
+.qdMaterialSimpleForm .sapMSlt,
+.qdMaterialSimpleForm .sapMComboBoxBase {
+    border-radius: 9px !important;
+}
+
+.qdMaterialSimpleForm .sapMTextArea .sapMInputBaseContentWrapper {
+    min-height: 9rem;
+}
+
+.qdMaterialSummaryCard {
+    margin-bottom: 5rem;
+}
+
+.qdMaterialFooter {
+    padding-inline: 1rem !important;
+}
+
+.qdMaterialSubmitBtn .sapMBtnInner {
+    border-radius: 9px !important;
+    min-width: 9rem;
+}
+
+@media (min-width: 1200px) {
+    .qdMaterialCreatePage .qdContentCard {
+        max-width: 78rem;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .qdMaterialCreatePage .qdPageHero {
+        max-width: 78rem;
+        margin-left: auto;
+        margin-right: auto;
+    }
+}
+
+@media (max-width: 599px) {
+    .qdMaterialTypeSegment .sapMSegBBtn {
+        min-width: 50%;
+    }
+
+    .qdMaterialSystemRow .qdInfoCell {
+        min-width: 100%;
+    }
+
+    .qdMaterialFooter .qdFooterHint {
+        display: none;
+    }
+}
+
+

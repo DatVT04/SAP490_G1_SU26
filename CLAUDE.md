@@ -30,9 +30,20 @@ SAPUI5 freestyle (webapp/)  →  Node.js/Express (server.js, port 3001)  →  SA
 
 ## File quan trọng
 
-- `server.js` — toàn bộ backend, 1 file duy nhất (~1560 dòng), không tách router/controller.
-- `webapp/controller/*.js` + `webapp/view/*.xml` — 8-10 màn hình SAPUI5, 1 route/màn qua
-  `sap.m.routing.Router` (khai báo trong `manifest.json`).
+- `server.js` — chỉ còn ~65 dòng: tạo app, middleware, gắn 11 router. **Không đặt logic ở đây.**
+- `src/routes/*.routes.js` — mỗi file là 1 `express.Router()` và **giữ nguyên đường dẫn đầy đủ**
+  (ví dụ trong `rfq.routes.js` vẫn viết `router.post("/api/rfq/:id/send", ...)`). Nhờ vậy thứ tự
+  gắn router không làm đổi URL. Muốn tìm 1 endpoint: tra tên trong `src/routes/`.
+- `src/services/*.service.js` — nghiệp vụ, gọi SAP, dựng/gửi mail. Route chỉ nên nhận request,
+  gọi service, trả response.
+- `src/lib/*.js` — hạ tầng dùng chung: `sap-client` (auth/CSRF/đọc/ghi OData), `sap-format`
+  (đổi kiểu DATS/TIMESTAMP/"X"), `store` (state trên đĩa), `mailer`, `html`, `claude`.
+- `src/config/*.js` — hằng số: org, điều khoản thanh toán, master data, ngưỡng cảnh báo.
+- `webapp/controller/<nhóm>/*.js` + `webapp/view/<nhóm>/*.xml` — nhóm = `common`, `pr`, `po`,
+  `rfq`, `admin`. 13 màn hình SAPUI5, 1 route/màn qua `sap.m.routing.Router` (`manifest.json`).
+  Route pattern trên URL giữ nguyên như trước khi gom thư mục.
+- `webapp/css/01..13-*.css` — style.css cũ chẻ nhỏ. **Số thứ tự chính là thứ tự nạp** khai báo
+  trong `manifest.json > sap.ui5 > resources > css`; đảo thứ tự sẽ đổi độ ưu tiên cascade.
 - `webapp/model/Config.js` — resolve `BACKEND` URL theo hostname. **Mọi controller phải dùng
   cái này**, không hardcode `localhost:3001` (xem lỗi đã biết bên dưới).
 - `.env` (không commit) — `SAP_HOST`, `SAP_USER`, `SAP_PASS`, `GROQ_API_KEY`, `EMAIL_USER/PASS`,
@@ -52,9 +63,15 @@ SAPUI5 freestyle (webapp/)  →  Node.js/Express (server.js, port 3001)  →  SA
    payment terms, map ngược bằng word-boundary ở server, có log mỗi lần gọi. Đồng thời đổi từ Groq
    sang Claude (`callClaude`) cho khớp `/api/ai/compare-quotations`. **Groq đã bị loại hoàn toàn
    khỏi codebase** — không còn `GROQ_API_KEY` ở đâu nữa.
-4. ~~`POReport.controller.js` hardcode `http://localhost:3001` + dùng jQuery `$.ajax`~~ —
-   **đã hết** (kiểm tra 11/08): file này giờ `import Config` và dùng `fetch(BACKEND + ...)` đúng
-   như các controller khác. Mục này lỗi thời.
+4. **Màn PO Report đã bị XOÁ HẲN 15/08/2026.** Lý do: view và controller là 2 phiên bản lệch
+   nhau nên màn chưa bao giờ chạy đúng — 6 ô KPI là số cứng viết thẳng trong XML
+   (125/18/36/14/89/5), 3 biểu đồ và bảng bind vào model mặc định trong khi controller ghi vào
+   model tên `reportModel`, và 8 handler view gọi (`onRefresh`, `onSearch`, `onApplyFilter`,
+   `onViewDetail`, `onEditPO`, `onMoreAction`, `formatDaysState`, `formatStatusState`) không
+   tồn tại trong controller. Route `po-report` cũng đã gỡ khỏi `manifest.json` — trước đó chỉ
+   tile bị ẩn còn route vẫn sống, gõ thẳng URL là vào được và thấy số liệu bịa.
+   Endpoint `GET /api/po/report` cũng đã xoá nốt (không ai gọi). Phần merge mốc thời gian
+   duyệt PR vào PO trong route cũ nếu cần tái dùng: `git show ce9d5ae~1:src/routes/po.routes.js`.
 5. ✅ **`ThresholdConfig` đã nối backend thật** (11/08). Route `PUT /api/thresholds` (kèm
    `saveThresholds()`) thực ra ĐÃ có sẵn từ trước — vấn đề chỉ là frontend chưa bao giờ gọi fetch.
    Nhưng màn hình cũ dựng quanh 1 ngưỡng phẳng 300tr trong khi backend đã chuyển sang **ngưỡng
@@ -171,8 +188,11 @@ Biến môi trường mới — xem `.env.example`: `RFQ_PORTAL_SECRET`, `APP_BA
 
 ## Quy ước code hiện có (giữ nguyên style khi sửa)
 
-- Node: CommonJS, không dùng router riêng, mọi route khai báo thẳng trong `server.js`.
+- Node: CommonJS. Route nằm trong `src/routes/*.routes.js`, mỗi file 1 `express.Router()`
+  **viết đường dẫn đầy đủ** (không dùng prefix khi `app.use`) — thêm route mới thì theo đúng kiểu này.
+- Cẩn thận với `__dirname`: code trong `src/**` nằm sâu 2 cấp so với gốc project. Cần đường dẫn
+  tính từ gốc thì dùng `APP_ROOT` như trong `src/lib/store.js`, đừng dùng thẳng `__dirname`.
 - SAPUI5: `Controller.extend(...)`, JSONModel cục bộ theo view, gọi backend bằng `fetch()`
-  (PR01/PR02/PO01) — **không** dùng jQuery `$.ajax` (đó là lỗi của POReport, đừng lặp lại).
+  (PR01/PR02/PO01) — **không** dùng jQuery `$.ajax`.
 - Comment tiếng Việt không dấu trong `server.js` (`// Trang thai duyet`, không phải convention
   đẹp nhưng đang nhất quán trong toàn file — giữ nguyên khi sửa cùng vùng code).

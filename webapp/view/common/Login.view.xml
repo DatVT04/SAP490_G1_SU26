@@ -1,0 +1,81 @@
+<mvc:View
+	controllerName="com.qdavy.procurement.controller.common.Login"
+	xmlns="sap.m"
+	xmlns:mvc="sap.ui.core.mvc"
+	xmlns:core="sap.ui.core"
+	displayBlock="true"
+>
+	<Page title="{i18n>loginTitle}" showHeader="false" class="qdLoginPage" backgroundDesign="Transparent">
+		<content>
+			<HBox class="qdLoginSplit" alignItems="Stretch" fitContainer="true">
+
+				<!-- LEFT: branding + heading + tinh nang + footer -->
+				<VBox class="qdLoginLeft" justifyContent="Center">
+					<VBox class="qdLoginLeftInner">
+						<HBox alignItems="Center" class="qdLoginBrandRow">
+							<core:Icon src="sap-icon://shipping-status" size="2.5rem" class="qdBrandIcon"/>
+							<VBox class="sapUiSmallMarginBegin">
+								<Text text="QDAVY" class="qdLoginBrandMark"/>
+								<Text text="Procurement" class="qdLoginBrandSub"/>
+							</VBox>
+						</HBox>
+
+						<Title text="QDAVY Procurement" level="H1" class="qdLoginHeading sapUiLargeMarginTop"/>
+						<Text text="Nền tảng số hóa quy trình mua sắm - kết nối trực tiếp với SAP S/4HANA" class="qdLoginHeadingSub sapUiTinyMarginTop"/>
+
+						<VBox class="qdLoginFeatureList sapUiLargeMarginTop">
+							<HBox alignItems="Center" class="qdLoginFeatureItem">
+								<core:Icon src="sap-icon://create-form" class="qdLoginFeatureIcon"/>
+								<Text text="Lập đề nghị mua sắm nhanh chóng" class="qdLoginFeatureText sapUiSmallMarginBegin"/>
+							</HBox>
+							<HBox alignItems="Center" class="qdLoginFeatureItem">
+								<core:Icon src="sap-icon://complete" class="qdLoginFeatureIcon"/>
+								<Text text="Phê duyệt theo đúng quy trình, rõ ràng" class="qdLoginFeatureText sapUiSmallMarginBegin"/>
+							</HBox>
+							<HBox alignItems="Center" class="qdLoginFeatureItem">
+								<core:Icon src="sap-icon://customer" class="qdLoginFeatureIcon"/>
+								<Text text="Chọn nhà cung cấp với gợi ý từ AI" class="qdLoginFeatureText sapUiSmallMarginBegin"/>
+							</HBox>
+						</VBox>
+					</VBox>
+				</VBox>
+
+				<!-- RIGHT: form -->
+				<VBox class="qdLoginRight" justifyContent="Center" alignItems="Center">
+					<VBox class="qdLoginCard">
+						<Text text="Đăng nhập" class="qdLoginCardEyebrow"/>
+						<Title text="{i18n>loginWelcome}" level="H2" class="qdLoginCardTitle sapUiTinyMarginBottom"/>
+						<Text text="{i18n>loginSubtext}" class="qdLoginCardSub sapUiMediumMarginBottom"/>
+
+						<!-- Nut Dang nhap Google duoc Google Identity Services tu ve vao day
+							 (xem Login.controller.js). Day gio la duong dang nhap DUY NHAT —
+							 khong con fallback go email thu cong nua. -->
+						<VBox id="googleBtnHost" class="qdGoogleBtnHost" visible="{= !!${/googleAvailable} }">
+							<core:HTML id="googleBtnMount" content="&lt;div id=&quot;qdGoogleBtnMount&quot;&gt;&lt;/div&gt;"/>
+						</VBox>
+
+						<!-- Chi hien khi da goi xong /api/config ma van khong co Google —
+							 tranh tinh trang trang trang khong co cach nao dang nhap ma
+							 khong bao loi gi ca. -->
+						<MessageStrip
+							type="Warning"
+							showIcon="true"
+							class="qdLoginConfigWarning sapUiTinyMarginTop"
+							visible="{= ${/googleConfigChecked} &amp;&amp; !${/googleAvailable} }"
+							text="Đăng nhập Google chưa được cấu hình cho môi trường này (thiếu GOOGLE_CLIENT_ID). Vui lòng liên hệ quản trị hệ thống."
+						/>
+
+						<HBox justifyContent="Center" class="sapUiMediumMarginTop">
+							<Text
+								text="Chỉ tài khoản Google đã được cấp quyền trong SAP mới đăng nhập được"
+								class="qdLoginHint"
+								textAlign="Center"
+							/>
+						</HBox>
+					</VBox>
+				</VBox>
+
+			</HBox>
+		</content>
+	</Page>
+</mvc:View>

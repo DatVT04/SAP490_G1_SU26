@@ -1,0 +1,259 @@
+<mvc:View
+	controllerName="com.qdavy.procurement.controller.pr.PR02"
+	xmlns="sap.m"
+	xmlns:mvc="sap.ui.core.mvc"
+	xmlns:core="sap.ui.core"
+	displayBlock="true"
+>
+	<Page showHeader="false" class="qdInnerPage">
+		<content>
+
+			<VBox class="qdPageHero qdPageHeroAmber">
+				<HBox alignItems="Center" justifyContent="SpaceBetween" wrap="Wrap">
+					<HBox alignItems="Center">
+						<Button icon="sap-icon://nav-back" press=".onNavBack" class="qdHeroBackBtn"/>
+						<VBox>
+							<Text text="Bước 2 · Phê duyệt" class="qdPageEyebrow"/>
+							<Title text="Phê duyệt đề nghị mua sắm" level="H1" class="qdPageTitle"/>
+							<Text text="Duyệt cuối mới ghi PR lên SAP. Từ chối / leo thang đều thông báo người tạo (và CEO nếu leo thang)." class="qdPageSub"/>
+						</VBox>
+					</HBox>
+					<Button
+						icon="sap-icon://refresh"
+						text="Tải lại"
+						press=".onRefreshPress"
+						class="qdHeroBtn"
+					/>
+				</HBox>
+
+				<HBox class="qdFlowSteps">
+					<Text text="PR-01 Tạo đề nghị" class="qdFlowStep"/>
+					<core:Icon src="sap-icon://navigation-right-arrow" class="qdFlowArrow"/>
+					<Text text="PR-02 Phê duyệt" class="qdFlowStep qdFlowStepActive"/>
+					<core:Icon src="sap-icon://navigation-right-arrow" class="qdFlowArrow"/>
+					<Text text="PO-01 Tạo đơn hàng" class="qdFlowStep"/>
+				</HBox>
+			</VBox>
+
+			<!-- Đã xóa qdStatRow (3 ô Đang chờ / Leo thang CEO / Cần xem xét kỹ) -->
+
+			<VBox class="qdContentCard qdCardTight">
+				<HBox alignItems="Center" class="sapUiSmallMargin">
+					<core:Icon src="sap-icon://pending" class="qdCardIcon sapUiTinyMarginEnd"/>
+					<Title text="Đề nghị đang chờ quyết định ({= ${/pending}.length })" level="H3" class="qdCardTitle"/>
+				</HBox>
+
+				<!-- Tim nhanh 1 don giua danh sach dai (feedback QDAVY 13/08: "kho nhin
+				     phan biet cac don PR, nhieu don qua thi keo luot xuong duoi a?") -->
+				<OverflowToolbar class="sapUiSmallMarginBeginEnd sapUiTinyMarginBottom">
+					<SearchField
+						id="sfPendingSearch"
+						placeholder="Tìm theo mã PR, người đề nghị, tên vật tư..."
+						liveChange=".onPendingSearch"
+						search=".onPendingSearch"
+						width="100%"
+					/>
+				</OverflowToolbar>
+
+				<VBox
+					class="qdEmptyState"
+					alignItems="Center"
+					visible="{= ${/pending}.length === 0 }"
+				>
+					<core:Icon src="sap-icon://complete" class="qdEmptyIcon"/>
+					<Title text="Không có đề nghị nào đang chờ" level="H3" class="qdEmptyTitle"/>
+					<Text text="Tất cả đề nghị đã được xử lý. Bấm Tải lại để cập nhật." class="qdEmptyText" textAlign="Center"/>
+				</VBox>
+
+				<!-- The duyet cao ~ nua man hinh moi cai — khung cuon rieng de trang khong
+				     dai vo han khi don nhieu PR; cuon cham day tu nap the tiep theo. -->
+				<ScrollContainer
+					height="calc(100vh - 18rem)"
+					width="100%"
+					vertical="true"
+					horizontal="false"
+					focusable="false"
+					visible="{= ${/pending}.length > 0 }"
+				>
+				<List
+					id="pendingList"
+					items="{/pending}"
+					mode="None"
+					showSeparators="None"
+					growing="true"
+					growingThreshold="5"
+					growingScrollToLoad="true"
+					class="qdApprovalList"
+				>
+					<CustomListItem>
+						<VBox class="qdApprovalCard">
+
+							<HBox justifyContent="SpaceBetween" alignItems="Center" wrap="Wrap" class="qdApprovalCardHeader">
+								<HBox alignItems="Center">
+									<core:Icon src="sap-icon://request" class="qdPRIcon sapUiTinyMarginEnd"/>
+									<VBox>
+										<ObjectIdentifier title="{PRId}" text="Người đề nghị: {RequesterEmail}"/>
+										<Text text="Gửi lúc: {path: 'CreatedAt', formatter: '.formatDateTime'}" class="qdCellHint sapUiTinyMarginTop"/>
+										<Text
+											text="{= ${SapPRId} ? ('SAP: ' + ${SapPRId}) : 'Chưa ghi SAP (sau khi duyệt cuối)' }"
+											class="qdCellHint"
+										/>
+									</VBox>
+								</HBox>
+
+								<HBox wrap="Wrap" alignItems="Center">
+									<ObjectStatus
+										text="Cần CEO phê duyệt"
+										state="Error"
+										visible="{needsProcurementHeadReview}"
+										icon="sap-icon://alert"
+										class="qdBadgeDanger sapUiTinyMarginEnd"
+									/>
+									<ObjectStatus
+										text="Giá trị lớn — xem kỹ"
+										state="Warning"
+										visible="{= ${needsLegalReview} &amp;&amp; !${needsProcurementHeadReview} }"
+										icon="sap-icon://warning"
+										class="qdBadgeWarning sapUiTinyMarginEnd"
+									/>
+									<ObjectStatus
+										text="Trong ngưỡng thường"
+										state="Success"
+										visible="{= !${needsLegalReview} &amp;&amp; !${needsProcurementHeadReview} }"
+										icon="sap-icon://accept"
+										class="qdBadgeOk"
+									/>
+								</HBox>
+							</HBox>
+
+							<HBox class="qdApprovalValueRow sapUiTinyMarginTopBottom" alignItems="Baseline" wrap="Wrap">
+								<Text text="Tổng giá trị: " class="qdInfoLabel"/>
+								<Title
+									text="{parts: ['TotalValue','Currency'], formatter: '.formatValue'}"
+									level="H3"
+									class="qdRowAmount sapUiTinyMarginBegin"
+								/>
+								<Text
+									text="{parts: ['EstimatedTotalValue','Currency'], formatter: '.formatEstimateNote'}"
+									visible="{= !!${RfqAwardedVendor} }"
+									class="qdCellHint sapUiSmallMarginBegin"
+								/>
+							</HBox>
+
+							<!-- KET QUA RFQ: NCC da chot + ly do. ZPR_DRAFT khong luu ten NCC va
+							     ly do chon nen backend (enrichWithRfqAward) doc them tu RfqSet
+							     va VendorSet roi ghep vao. Truoc day CFO chi thay con so tong
+							     tien, khong biet Purchasing chot ai va vi sao. -->
+							<VBox class="qdAwardBox sapUiTinyMarginTopBottom" visible="{= !!${RfqAwardedVendor} }">
+								<HBox alignItems="Center" class="sapUiTinyMarginBottom">
+									<core:Icon src="sap-icon://supplier" class="qdAwardIcon sapUiTinyMarginEnd"/>
+									<Text text="Nhà cung cấp đã chốt qua {RfqId}" class="qdInfoLabel"/>
+								</HBox>
+								<Text
+									text="{= (${RfqAwardedVendorName} || 'Nhà cung cấp') + ' (' + ${RfqAwardedVendor} + ')' }"
+									class="qdAwardVendor"
+								/>
+								<Text
+									text="{parts: ['RfqFinalValue','Currency'], formatter: '.formatValue'}"
+									class="qdAwardValue"
+								/>
+								<Text
+									text="Lý do chọn: {= ${RfqAwardReason} || '(Purchasing chưa ghi lý do)' }"
+									class="qdCellHint sapUiTinyMarginTop"
+								/>
+								<Text
+									text="Người chốt: {= ${RfqAwardedBy} || '—' }"
+									class="qdCellHint"
+								/>
+								<!-- CFO xem duoc toan bo bang so sanh: de xuat cua nhan vien (gia uoc tinh)
+								     dat canh tung bao gia NCC tra ve — khong chi con so tong (feedback QDAVY
+								     13/08: "muon ghi ro chi tiet so sanh nhan vien de xuat the nao, NCC tra
+								     loi the nao de CFO duyet"). -->
+								<Button
+									text="Xem so sánh báo giá chi tiết"
+									icon="sap-icon://compare-2"
+									type="Transparent"
+									press=".onViewComparePress"
+									class="sapUiTinyMarginTop qdCompareBtn"
+								/>
+							</VBox>
+
+							<VBox class="qdNestedItems">
+								<Text text="Danh sách vật tư:" class="qdInfoLabel sapUiTinyMarginBottom"/>
+								<List
+									items="{items}"
+									showNoData="false"
+									showSeparators="Inner"
+									class="qdNestedItemList"
+								>
+									<items>
+										<CustomListItem>
+											<HBox alignItems="Center" class="qdNestedItemRow" wrap="Wrap">
+												<Text text="{LineNo}." class="qdLineNo"/>
+												<VBox class="qdNestedItemMain">
+													<Text text="{Description}" class="qdNestedItemDesc" wrapping="false"/>
+													<HBox>
+														<Text text="{MaterialNo}" class="qdCellHint"/>
+														<Text
+															text="{= ${MaterialType} === 'ZAST' ? ' · Tài sản (Cat.A)' : ' · Vật tư/DV (Cat.K)' }"
+															class="qdCellHint"
+														/>
+													</HBox>
+												</VBox>
+												<VBox class="qdNestedItemSide" alignItems="End">
+													<Text text="{Quantity} {UoM}" class="qdNestedQty"/>
+													<Text
+														text="{= ${MaterialType} === 'ZAST' ? ('Asset: ' + (${AssetNo} || 'chưa điền')) : ('CC: ' + (${CostCenter} || ${InternalOrder} || 'chưa điền')) }"
+														class="qdCellHint"
+													/>
+													<Text
+														text="{parts: ['EstimatedValue','Currency'], formatter: '.formatValue'}"
+														class="qdNestedValue"
+													/>
+												</VBox>
+											</HBox>
+										</CustomListItem>
+									</items>
+								</List>
+							</VBox>
+
+							<VBox
+								class="qdPrevComment sapUiTinyMarginTop"
+								visible="{= !!${Comment} || !!${Comments} }"
+							>
+								<Text text="Ghi chú trước đó:" class="qdInfoLabel"/>
+								<Text text="{= ${Comment} || ${Comments} }" class="qdCommentText"/>
+							</VBox>
+
+							<HBox justifyContent="End" alignItems="Center" class="qdRowActions sapUiSmallMarginTop">
+								<Button
+									text="Chi tiết"
+									type="Transparent"
+									icon="sap-icon://detail-view"
+									press=".onDetailPress"
+									class="sapUiSmallMarginEnd"
+								/>
+								<Button
+									text="Từ chối"
+									type="Reject"
+									icon="sap-icon://decline"
+									press=".onRejectPress"
+									class="sapUiSmallMarginEnd"
+								/>
+								<Button
+									text="Phê duyệt"
+									type="Accept"
+									icon="sap-icon://accept"
+									press=".onApprovePress"
+								/>
+							</HBox>
+
+						</VBox>
+					</CustomListItem>
+				</List>
+				</ScrollContainer>
+			</VBox>
+
+		</content>
+	</Page>
+</mvc:View>

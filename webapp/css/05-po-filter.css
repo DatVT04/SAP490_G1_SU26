@@ -1,0 +1,100 @@
+/* ==========================================================================
+   05-po-filter.css
+   PO-01 splitter/panel AI + thanh loc cua POReport.
+
+   Tach ra tu webapp/css/style.css (ban goc 1854 dong), phan dong 593-681.
+   THU TU NAP QUAN TRONG: cac file css duoc liet ke theo dung thu tu nay trong
+   manifest.json (sap.ui5 > resources > css). Doi thu tu se lam doi do uu tien
+   cua cac rule co cung do dac hieu -> giao dien co the vo. Them file moi thi
+   them so thu tu lon hon o cuoi.
+   ========================================================================== */
+
+/* ==========================================================================
+   PO-01 — splitter, AI panel
+   ========================================================================== */
+.qdSplitter {
+	min-height: 34rem;
+}
+
+.qdAiBtn .sapMBtnInner {
+	background: linear-gradient(135deg, var(--qd-accent-purple) 0%, var(--qd-accent-blue) 100%) !important;
+	border: none !important;
+	border-radius: 8px !important;
+}
+
+.qdAiBtn .sapMBtnContent,
+.qdAiBtn .sapUiIcon {
+	color: #FFFFFF !important;
+	font-weight: 600 !important;
+}
+
+.qdAiReason {
+	font-size: 0.8rem !important;
+	line-height: 1.5 !important;
+	color: var(--qd-text-muted) !important;
+}
+
+/* Bang trong card: bo double-border cua UI5 */
+.qdContentCard .sapMList,
+.qdContentCard .sapMTable {
+	border: none !important;
+}
+
+/* ==========================================================================
+   FILTER BAR — thay the OverflowToolbar design="Info" mac dinh (POReport)
+   ========================================================================== */
+.qdFilterBar.sapMTB {
+	background: var(--qd-bg) !important;
+	border-radius: var(--qd-radius-md);
+	padding: 0.75rem 1rem !important;
+	margin: 0.5rem 0 0.75rem 0;
+	gap: 1.25rem;
+	height: auto !important;
+	flex-wrap: wrap;
+}
+
+.qdFilterField {
+	gap: 0.3rem;
+}
+
+.qdFilterFieldGrow {
+	flex: 1 1 16rem;
+	min-width: 14rem;
+}
+
+.qdFilterLabel.sapMLabel {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.72rem !important;
+	font-weight: 600 !important;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.qdFilterField .sapMSlt,
+.qdFilterField .sapMSF {
+	background: var(--qd-card-bg);
+}
+
+/* Hover row de nhan biet dong dang tro toi */
+.qdContentCard .sapMLIBActionable:hover {
+	background: rgba(37, 99, 235, 0.04) !important;
+}
+
+@media (max-width: 599px) {
+	.qdPageHero {
+		padding: 1.15rem 1rem;
+		margin: 0.75rem;
+	}
+	.qdPageTitle.sapMTitle { font-size: 1.15rem !important; }
+	.qdContentCard { margin: 0.75rem; padding: 1rem; }
+	.qdInfoCell {
+		border-right: none;
+		border-bottom: 1px solid var(--qd-border);
+		padding-bottom: 0.6rem;
+		margin-bottom: 0.6rem;
+		min-width: 100%;
+	}
+	.qdInfoCell:last-child { border-bottom: none; }
+	.qdSplitter { min-height: auto; }
+}
+

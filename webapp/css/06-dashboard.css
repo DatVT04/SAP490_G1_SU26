@@ -1,0 +1,366 @@
+/* ==========================================================================
+   06-dashboard.css
+   Dashboard: hero, tieu de section, the KPI, the hanh dong.
+
+   Tach ra tu webapp/css/style.css (ban goc 1854 dong), phan dong 682-1036.
+   THU TU NAP QUAN TRONG: cac file css duoc liet ke theo dung thu tu nay trong
+   manifest.json (sap.ui5 > resources > css). Doi thu tu se lam doi do uu tien
+   cua cac rule co cung do dac hieu -> giao dien co the vo. Them file moi thi
+   them so thu tu lon hon o cuoi.
+   ========================================================================== */
+
+/* ==========================================================================
+   Dashboard — hero
+   ========================================================================== */
+.qdDashboardPage .sapMPage {
+	background: var(--qd-bg);
+}
+
+.qdDashHero {
+	background: linear-gradient(135deg, var(--qd-primary) 0%, var(--qd-primary-light) 100%);
+	border-radius: var(--qd-radius-lg);
+	padding: 2rem 2.25rem;
+	margin: 1.25rem 1.25rem 0 1.25rem;
+	box-shadow: var(--qd-shadow);
+	position: relative;
+	overflow: hidden;
+	animation: qdFadeUp 280ms ease both;
+}
+
+/* Vong tron trang trí — giữ nhất quán ngôn ngữ thị giác với màn Login */
+.qdDashHero::after {
+	content: "";
+	position: absolute;
+	width: 20rem;
+	height: 20rem;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.05);
+	top: -8rem;
+	right: -6rem;
+	pointer-events: none;
+}
+
+.qdDashHero .sapMTitle,
+.qdDashHero .sapMText {
+	color: #FFFFFF !important;
+}
+
+.qdHeroEyebrow {
+	font-size: 0.8rem !important;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	opacity: 0.75;
+	margin-bottom: 0.35rem;
+}
+
+.qdHeroName.sapMTitle {
+	font-size: 1.75rem !important;
+	font-weight: 700 !important;
+	line-height: 1.2 !important;
+}
+
+.qdHeroMetaRow {
+	margin-top: 0.6rem;
+	gap: 0.75rem;
+	align-items: center;
+}
+
+.qdHeroPosition {
+	opacity: 0.85;
+	font-size: 0.9rem !important;
+}
+
+.qdRoleBadge {
+	display: inline-block;
+	background: rgba(255, 255, 255, 0.15);
+	border: 1px solid rgba(255, 255, 255, 0.35);
+	border-radius: 999px;
+	padding: 0.2rem 0.85rem;
+	font-size: 0.75rem !important;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	color: #FFFFFF !important;
+}
+
+.qdHeroActions {
+	margin-top: 0.25rem;
+}
+
+.qdHeroBtn.sapMBtn .sapMBtnInner {
+	background: rgba(255, 255, 255, 0.12) !important;
+	border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.qdHeroBtn.sapMBtn .sapMBtnInner:hover {
+	background: rgba(255, 255, 255, 0.22) !important;
+}
+
+.qdHeroBtn .sapMBtnContent,
+.qdHeroBtn .sapUiIcon {
+	color: #FFFFFF !important;
+}
+
+/* Avatar tai khoan trong hero (thay cho nut Dang xuat cu) */
+.qdHeroAvatarBtn {
+	cursor: pointer;
+	border: 2px solid rgba(255, 255, 255, 0.4);
+	transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.qdHeroAvatarBtn:hover {
+	border-color: rgba(255, 255, 255, 0.85);
+	transform: translateY(-1px);
+}
+
+/* Popover tai khoan mo tu avatar */
+.qdUserMenuHeader {
+	padding: 1.25rem 1rem 1rem;
+	border-bottom: 1px solid var(--qd-border);
+}
+
+.qdUserMenuAvatar {
+	border: 2px solid var(--qd-border);
+}
+
+.qdUserMenuName.sapMTitle {
+	color: #0f172a !important;
+	font-size: 1rem !important;
+	font-weight: 700 !important;
+	text-align: center;
+}
+
+.qdUserMenuEmail {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.78rem !important;
+	text-align: center;
+}
+
+.qdRoleBadgeDark {
+	background: rgba(20, 41, 77, 0.08) !important;
+	border-color: rgba(20, 41, 77, 0.18) !important;
+	color: var(--qd-primary) !important;
+}
+
+.qdUserMenuPosition {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.78rem !important;
+}
+
+.qdUserMenuList .sapMLIB {
+	padding: 0.6rem 1rem !important;
+}
+
+/* ==========================================================================
+   Dashboard — section heading (eyebrow + title + subtitle)
+   ========================================================================== */
+.qdSection {
+	margin: 1.75rem 1.25rem 0 1.25rem;
+}
+
+.qdSectionHeading {
+	margin-bottom: 0.9rem;
+}
+
+.qdEyebrow {
+	color: var(--qd-accent-blue) !important;
+	font-size: 0.72rem !important;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.09em;
+	margin-bottom: 0.25rem;
+}
+
+.qdSectionH2.sapMTitle {
+	color: var(--qd-primary) !important;
+	font-size: 1.3rem !important;
+	font-weight: 700 !important;
+}
+
+.qdSectionSub {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.86rem !important;
+	margin-top: 0.2rem;
+}
+
+/* ==========================================================================
+   Dashboard — KPI cards
+   ========================================================================== */
+.qdKpiRow {
+	gap: 0.9rem;
+}
+
+.qdKpiCard {
+	flex: 1 1 13rem;
+	min-width: 12rem;
+	background: var(--qd-card-bg);
+	border-radius: var(--qd-radius-md);
+	box-shadow: var(--qd-shadow);
+	padding: 1.1rem 1.25rem;
+	position: relative;
+	overflow: hidden;
+	animation: qdFadeUp 280ms ease both;
+}
+
+.qdKpiCard::before {
+	content: "";
+	position: absolute;
+	top: 0; left: 0;
+	width: 4px; height: 100%;
+	background: var(--qd-kpi-accent, var(--qd-primary));
+}
+
+.qdKpiCard:nth-child(2) { animation-delay: 60ms; }
+.qdKpiCard:nth-child(3) { animation-delay: 120ms; }
+
+.qdKpiAmber { --qd-kpi-accent: var(--qd-accent-amber); }
+.qdKpiGreen { --qd-kpi-accent: var(--qd-accent-green); }
+.qdKpiBlue  { --qd-kpi-accent: var(--qd-accent-blue); }
+
+.qdKpiLabel {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.82rem !important;
+	font-weight: 600;
+}
+
+.qdKpiIcon {
+	color: var(--qd-kpi-accent, var(--qd-primary)) !important;
+	font-size: 1.05rem !important;
+	opacity: 0.9;
+}
+
+.qdKpiValue.sapMTitle {
+	color: var(--qd-primary) !important;
+	font-size: 2rem !important;
+	font-weight: 700 !important;
+	line-height: 1.15 !important;
+	margin-top: 0.35rem;
+}
+
+.qdKpiValueSm.sapMTitle {
+	font-size: 1.5rem !important;
+}
+
+.qdKpiUnit {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.75rem !important;
+	margin-top: 0.15rem;
+}
+
+/* ==========================================================================
+   Dashboard — action cards (thay GenericTile)
+   ========================================================================== */
+.qdActionGrid {
+	gap: 0.9rem;
+	padding-bottom: 2rem;
+}
+
+.qdActionCard {
+	flex: 1 1 16rem;
+	max-width: 20rem;
+	min-width: 14rem;
+	background: var(--qd-card-bg);
+	border-radius: var(--qd-radius-md);
+	box-shadow: var(--qd-shadow);
+	padding: 1.25rem;
+	position: relative;
+	overflow: hidden;
+	transition: transform 0.18s ease, box-shadow 0.18s ease;
+	animation: qdFadeUp 280ms ease both;
+}
+
+.qdActionCard::before {
+	content: "";
+	position: absolute;
+	top: 0; left: 0;
+	width: 100%; height: 4px;
+	background: var(--qd-card-accent, var(--qd-primary));
+}
+
+.qdActionCard:hover {
+	transform: translateY(-4px);
+	box-shadow: var(--qd-shadow-hover);
+}
+
+.qdActionCard:nth-child(2) { animation-delay: 60ms; }
+.qdActionCard:nth-child(3) { animation-delay: 120ms; }
+.qdActionCard:nth-child(4) { animation-delay: 180ms; }
+.qdActionCard:nth-child(5) { animation-delay: 240ms; }
+
+.qdAccentBlue   { --qd-card-accent: var(--qd-accent-blue); }
+.qdAccentAmber  { --qd-card-accent: var(--qd-accent-amber); }
+.qdAccentPurple { --qd-card-accent: var(--qd-accent-purple); }
+.qdAccentGreen  { --qd-card-accent: var(--qd-accent-green); }
+.qdAccentSlate  { --qd-card-accent: #475569; }
+
+.qdActionHead {
+	margin-bottom: 0.85rem;
+	width: 100%;
+}
+
+.qdActionIconBox {
+	width: 2.6rem;
+	height: 2.6rem;
+	border-radius: 12px;
+	background: var(--qd-card-accent, var(--qd-primary));
+	align-items: center;
+	justify-content: center;
+	display: flex;
+}
+
+.qdActionIcon {
+	color: #FFFFFF !important;
+	font-size: 1.25rem !important;
+}
+
+.qdActionCode {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.68rem !important;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	background: var(--qd-bg);
+	border-radius: 6px;
+	padding: 0.2rem 0.5rem;
+}
+
+.qdActionTitle.sapMTitle {
+	color: var(--qd-primary) !important;
+	font-size: 1.02rem !important;
+	font-weight: 700 !important;
+	line-height: 1.3 !important;
+}
+
+.qdActionDesc {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.82rem !important;
+	line-height: 1.5 !important;
+	margin-top: 0.3rem;
+	min-height: 2.5rem;
+}
+
+.qdActionBtn.sapMBtn {
+	margin-top: 0.9rem;
+	align-self: flex-start;
+}
+
+.qdActionBtn .sapMBtnInner {
+	background: transparent !important;
+	border-color: var(--qd-border) !important;
+	border-radius: 8px !important;
+}
+
+.qdActionBtn .sapMBtnInner:hover {
+	background: var(--qd-card-accent, var(--qd-primary)) !important;
+	border-color: var(--qd-card-accent, var(--qd-primary)) !important;
+}
+
+.qdActionBtn .sapMBtnContent,
+.qdActionBtn .sapUiIcon {
+	color: var(--qd-card-accent, var(--qd-primary)) !important;
+	font-weight: 600 !important;
+}
+
+.qdActionBtn .sapMBtnInner:hover .sapMBtnContent,
+.qdActionBtn .sapMBtnInner:hover .sapUiIcon {
+	color: #FFFFFF !important;
+}
+

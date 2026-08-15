@@ -1,0 +1,259 @@
+/* ==========================================================================
+   03-shared-layout.css
+   Dung chung moi man trong: nut accent, PAGE HERO, FLOW STEPPER, CONTENT CARD, INFO ROW.
+
+   Tach ra tu webapp/css/style.css (ban goc 1854 dong), phan dong 240-487.
+   THU TU NAP QUAN TRONG: cac file css duoc liet ke theo dung thu tu nay trong
+   manifest.json (sap.ui5 > resources > css). Doi thu tu se lam doi do uu tien
+   cua cac rule co cung do dac hieu -> giao dien co the vo. Them file moi thi
+   them so thu tu lon hon o cuoi.
+   ========================================================================== */
+
+/* ==========================================================================
+   Global button accent
+   ========================================================================== */
+.sapMBtnEmphasized {
+	background-color: var(--qd-primary) !important;
+	border-color: var(--qd-primary) !important;
+}
+
+.sapMBtnEmphasized:hover {
+	background-color: var(--qd-primary-light) !important;
+}
+
+/* ==========================================================================
+   PAGE HERO — header dung chung cho MOI man trong (PR01/PR02/PO01/Report/Config)
+   Moi man co 1 mau accent rieng, nhung cung cau truc:
+   [nut back] eyebrow / title / subtitle          [actions]
+   ========================================================================== */
+.qdInnerPage .sapMPage {
+	background: var(--qd-bg);
+}
+
+.qdPageHero {
+	background: linear-gradient(135deg, var(--qd-primary) 0%, var(--qd-primary-light) 100%);
+	border-radius: var(--qd-radius-lg);
+	padding: 1.5rem 1.75rem;
+	margin: 1.25rem 1.25rem 0 1.25rem;
+	box-shadow: var(--qd-shadow);
+	position: relative;
+	overflow: hidden;
+	animation: qdFadeUp 260ms ease both;
+}
+
+.qdPageHero::after {
+	content: "";
+	position: absolute;
+	width: 16rem;
+	height: 16rem;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.05);
+	top: -7rem;
+	right: -4rem;
+	pointer-events: none;
+}
+
+.qdPageHero .sapMTitle,
+.qdPageHero .sapMText,
+.qdPageHero .sapMLabel {
+	color: #FFFFFF !important;
+}
+
+.qdPageHeroBlue   { background: linear-gradient(135deg, #1E3A8A 0%, var(--qd-accent-blue) 100%); }
+.qdPageHeroAmber  { background: linear-gradient(135deg, #92400E 0%, var(--qd-accent-amber) 100%); }
+.qdPageHeroPurple { background: linear-gradient(135deg, #5B21B6 0%, var(--qd-accent-purple) 100%); }
+.qdPageHeroGreen  { background: linear-gradient(135deg, #14532D 0%, var(--qd-accent-green) 100%); }
+
+.qdHeroBackBtn.sapMBtn {
+	margin-right: 0.75rem;
+}
+
+.qdHeroBackBtn .sapMBtnInner {
+	background: rgba(255, 255, 255, 0.14) !important;
+	border-color: rgba(255, 255, 255, 0.3) !important;
+	border-radius: 10px !important;
+}
+
+.qdHeroBackBtn .sapMBtnInner:hover {
+	background: rgba(255, 255, 255, 0.26) !important;
+}
+
+.qdHeroBackBtn .sapUiIcon {
+	color: #FFFFFF !important;
+}
+
+.qdPageEyebrow {
+	font-size: 0.72rem !important;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.09em;
+	opacity: 0.75;
+}
+
+.qdPageTitle.sapMTitle {
+	font-size: 1.4rem !important;
+	font-weight: 700 !important;
+	line-height: 1.25 !important;
+	margin-top: 0.15rem;
+}
+
+.qdPageSub {
+	font-size: 0.85rem !important;
+	opacity: 0.85;
+	margin-top: 0.3rem;
+}
+
+/* ==========================================================================
+   FLOW STEPPER — hien vi tri man hien tai trong luong PR -> Duyet -> PO
+   Giup nguoi dung luon biet minh dang o buoc nao cua quy trinh.
+   ========================================================================== */
+.qdFlowSteps {
+	margin-top: 1rem;
+	gap: 0.4rem;
+	align-items: center;
+	flex-wrap: wrap;
+}
+
+.qdFlowStep {
+	font-size: 0.72rem !important;
+	font-weight: 600;
+	color: rgba(255, 255, 255, 0.6) !important;
+	background: rgba(255, 255, 255, 0.08);
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	border-radius: 999px;
+	padding: 0.2rem 0.7rem;
+	white-space: nowrap;
+}
+
+.qdFlowStepActive {
+	color: #FFFFFF !important;
+	background: rgba(255, 255, 255, 0.22);
+	border-color: rgba(255, 255, 255, 0.45);
+	font-weight: 700;
+}
+
+.qdFlowArrow {
+	color: rgba(255, 255, 255, 0.4) !important;
+	font-size: 0.7rem !important;
+}
+
+/* ==========================================================================
+   CONTENT CARD — khung noi dung dung chung
+   ========================================================================== */
+.qdContentCard {
+	background: var(--qd-card-bg);
+	border-radius: var(--qd-radius-md);
+	box-shadow: var(--qd-shadow);
+	padding: 1.25rem;
+	margin: 1.25rem;
+	animation: qdFadeUp 280ms ease both;
+}
+
+.qdContentCard.qdCardTight {
+	padding: 0.5rem 0.75rem 0.75rem 0.75rem;
+}
+
+.qdCardTitle.sapMTitle {
+	color: var(--qd-primary) !important;
+	font-size: 1.05rem !important;
+	font-weight: 700 !important;
+}
+
+.qdStepBadge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.5rem;
+	height: 1.5rem;
+	border-radius: 50%;
+	background: var(--qd-accent-blue);
+	color: #FFFFFF !important;
+	font-size: 0.75rem !important;
+	font-weight: 700;
+	margin-right: 0.6rem;
+}
+
+/* Tong tien noi bat (PR01/PO01) */
+.qdTotalBar {
+	background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(124, 58, 237, 0.08) 100%);
+	border: 1px solid rgba(37, 99, 235, 0.18);
+	border-radius: var(--qd-radius-md);
+	padding: 0.85rem 1.25rem;
+	margin-top: 0.75rem;
+}
+
+.qdTotalLabel {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.82rem !important;
+	font-weight: 600;
+}
+
+.qdTotalValue.sapMTitle {
+	color: var(--qd-primary) !important;
+	font-size: 1.4rem !important;
+	font-weight: 700 !important;
+}
+
+/* Bang trong khung card — bo vien thua cua UI5 */
+.qdContentCard .sapMListTbl {
+	border-radius: 8px;
+}
+
+/* Footer bar cua Page */
+.qdPageFooter.sapMTB {
+	background: var(--qd-card-bg) !important;
+	border-top: 1px solid var(--qd-border) !important;
+	box-shadow: 0 -4px 16px rgba(20, 41, 77, 0.06);
+}
+
+.qdFooterHint {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.82rem !important;
+}
+
+.qdCardIcon {
+	color: var(--qd-accent-blue) !important;
+	font-size: 1.1rem !important;
+	margin-right: 0.55rem;
+}
+
+/* ==========================================================================
+   INFO ROW — cac o thong tin read-only (PR01 header, PO01 thong tin PR goc)
+   ========================================================================== */
+.qdInfoRow {
+	gap: 1.5rem;
+}
+
+.qdInfoCell {
+	min-width: 11rem;
+	flex: 0 1 auto;
+	padding-right: 1rem;
+	border-right: 1px solid var(--qd-border);
+}
+
+.qdInfoCell:last-child {
+	border-right: none;
+}
+
+.qdInfoLabel.sapMLabel {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.75rem !important;
+	font-weight: 600 !important;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.qdInfoValue {
+	color: var(--qd-primary) !important;
+	font-size: 0.95rem !important;
+	font-weight: 600 !important;
+	margin-top: 0.2rem;
+}
+
+.qdInfoHint,
+.qdCellHint {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.74rem !important;
+	line-height: 1.4 !important;
+}
+

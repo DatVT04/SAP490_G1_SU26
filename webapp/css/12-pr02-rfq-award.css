@@ -1,0 +1,86 @@
+/* ==========================================================================
+   12-pr02-rfq-award.css
+   PR02: khoi NCC da chot qua RFQ + KPI bam duoc (feedback 13/08).
+
+   Tach ra tu webapp/css/style.css (ban goc 1854 dong), phan dong 1650-1724.
+   THU TU NAP QUAN TRONG: cac file css duoc liet ke theo dung thu tu nay trong
+   manifest.json (sap.ui5 > resources > css). Doi thu tu se lam doi do uu tien
+   cua cac rule co cung do dac hieu -> giao dien co the vo. Them file moi thi
+   them so thu tu lon hon o cuoi.
+   ========================================================================== */
+
+/* ==========================================================================
+   PR02 — khối "Nhà cung cấp đã chốt qua RFQ" trong thẻ phê duyệt
+   ========================================================================== */
+.qdAwardBox {
+	background: rgba(16, 185, 129, 0.06);
+	border-left: 3px solid #10B981;
+	border-radius: 6px;
+	padding: 0.75rem 1rem;
+}
+
+.qdAwardIcon {
+	color: #10B981 !important;
+	font-size: 1rem !important;
+}
+
+.qdAwardVendor {
+	font-weight: 600;
+	font-size: 0.95rem;
+}
+
+.qdAwardValue {
+	font-weight: 700;
+	color: #047857;
+	font-size: 1.05rem;
+}
+
+/* ==========================================================================
+   Feedback QDAVY 13/08 — KPI bam duoc + phan tach card phe duyet PR-02
+   ========================================================================== */
+
+/* The KPI tren Dashboard gio dieu huong duoc — cho nguoi dung thay bam duoc */
+.qdKpiClickable {
+	cursor: pointer;
+	transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.qdKpiClickable:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 8px 22px rgba(15, 23, 42, 0.14);
+}
+
+.qdKpiClickable:active {
+	transform: translateY(0);
+}
+
+/* PR-02: truoc day cac don lien nhau kho phan biet, de bam nham (feedback).
+   Moi don thanh 1 card co vien + nen rieng, cach nhau ro rang. */
+.qdApprovalList .sapMLIB {
+	padding: 0 !important;
+	background: transparent !important;
+	border: none !important;
+	margin-bottom: 1rem;
+}
+
+.qdApprovalCard {
+	background: var(--qd-card-bg, #ffffff);
+	border: 1px solid #dbe3ee;
+	border-left: 4px solid var(--qd-accent-amber, #f59e0b);
+	border-radius: var(--qd-radius-md, 12px);
+	box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+	padding: 1rem 1.25rem;
+	transition: box-shadow 140ms ease, border-color 140ms ease;
+}
+
+.qdApprovalCard:hover {
+	border-color: #b6c4d8;
+	box-shadow: 0 6px 18px rgba(15, 23, 42, 0.10);
+}
+
+.qdApprovalCardHeader {
+	padding-bottom: 0.5rem;
+	border-bottom: 1px dashed #e2e8f0;
+	margin-bottom: 0.5rem;
+}
+

@@ -34,7 +34,7 @@
   },
   "sap.ui5": {
     "rootView": {
-      "viewName": "com.qdavy.procurement.view.App",
+      "viewName": "com.qdavy.procurement.view.common.App",
       "type": "XML",
       "id": "app"
     },
@@ -67,7 +67,43 @@
     "resources": {
       "css": [
         {
-          "uri": "css/style.css"
+          "uri": "css/01-base.css"
+        },
+        {
+          "uri": "css/02-login.css"
+        },
+        {
+          "uri": "css/03-shared-layout.css"
+        },
+        {
+          "uri": "css/04-pr-list-timeline.css"
+        },
+        {
+          "uri": "css/05-po-filter.css"
+        },
+        {
+          "uri": "css/06-dashboard.css"
+        },
+        {
+          "uri": "css/07-shared-cards.css"
+        },
+        {
+          "uri": "css/08-pr-progress.css"
+        },
+        {
+          "uri": "css/09-po-polish.css"
+        },
+        {
+          "uri": "css/10-material-create.css"
+        },
+        {
+          "uri": "css/11-rfq.css"
+        },
+        {
+          "uri": "css/12-pr02-rfq-award.css"
+        },
+        {
+          "uri": "css/13-rfq-chat.css"
         }
       ]
     },
@@ -133,11 +169,6 @@
           "target": ["targetThresholdConfig"]
         },
         {
-          "name": "poReport",
-          "pattern": "po-report",
-          "target": ["targetPOReport"]
-        },
-        {
           "name": "materialCreate",
           "pattern": "material-create",
           "target": "materialCreate"
@@ -145,47 +176,47 @@
       ],
       "targets": {
         "login": {
-          "viewName": "Login",
+          "viewName": "common.Login",
           "viewId": "login",
           "viewLevel": 0
         },
         "dashboard": {
-          "viewName": "Dashboard",
+          "viewName": "common.Dashboard",
           "viewId": "dashboard",
           "viewLevel": 1
         },
         "pr01": {
-          "viewName": "PR01",
+          "viewName": "pr.PR01",
           "viewId": "pr01",
           "viewLevel": 2
         },
         "pr02": {
-          "viewName": "PR02",
+          "viewName": "pr.PR02",
           "viewId": "pr02",
           "viewLevel": 2
         },
         "prdetail": {
-          "viewName": "PRDetail",
+          "viewName": "pr.PRDetail",
           "viewId": "prdetail",
           "viewLevel": 3
         },
         "history": {
-          "viewName": "History",
+          "viewName": "common.History",
           "viewId": "history",
           "viewLevel": 2
         },
         "po01": {
-          "viewName": "PO01",
+          "viewName": "po.PO01",
           "viewId": "po01",
           "viewLevel": 2
         },
         "rfq01": {
-          "viewName": "RFQ01",
+          "viewName": "rfq.RFQ01",
           "viewId": "rfq01",
           "viewLevel": 2
         },
         "rfq02": {
-          "viewName": "RFQ02",
+          "viewName": "rfq.RFQ02",
           "viewId": "rfq02",
           "viewLevel": 2
         },
@@ -193,16 +224,10 @@
           "viewType": "XML",
           "transition": "slide",
           "clearControlAggregation": true,
-          "viewName": "ThresholdConfig"
-        },
-        "targetPOReport": {
-          "viewType": "XML",
-          "transition": "slide",
-          "clearControlAggregation": true,
-          "viewName": "POReport"
+          "viewName": "admin.ThresholdConfig"
         },
         "materialCreate": {
-          "viewName": "MaterialCreate",
+          "viewName": "admin.MaterialCreate",
           "viewId": "materialCreate",
           "viewLevel": 2
         }

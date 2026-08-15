@@ -1,0 +1,370 @@
+<mvc:View
+	controllerName="com.qdavy.procurement.controller.common.Dashboard"
+	xmlns="sap.m"
+	xmlns:mvc="sap.ui.core.mvc"
+	xmlns:core="sap.ui.core"
+	displayBlock="true"
+>
+	<Page showHeader="false" class="qdDashboardPage">
+		<content>
+
+			<!-- ================= HERO ================= -->
+			<VBox class="qdDashHero">
+				<HBox justifyContent="SpaceBetween" alignItems="Start" wrap="Wrap">
+					<VBox class="qdHeroIdentity">
+						<Title text="{dash>/greeting}" level="H1" class="qdHeroName"/>
+						<HBox alignItems="Center" wrap="Wrap" class="qdHeroMetaRow sapUiTinyMarginTop">
+							<Text class="qdRoleBadge" text="{user>/role}"/>
+						</HBox>
+					</VBox>
+					<HBox alignItems="Center" class="qdHeroActions">
+						<Button
+							id="notifBellBtn"
+							icon="sap-icon://bell"
+							tooltip="Thông báo"
+							press=".onNotifPress"
+							class="qdHeroBtn sapUiTinyMarginEnd"
+						/>
+						<ObjectStatus
+							text="{dash>/unreadCount}"
+							state="Error"
+							visible="{= ${dash>/unreadCount} > 0 }"
+							class="sapUiTinyMarginEnd"
+						/>
+						<Button
+							icon="sap-icon://refresh"
+							tooltip="{i18n>dashRefresh}"
+							press=".onRefreshStats"
+							class="qdHeroBtn sapUiTinyMarginEnd"
+						/>
+						<Avatar
+							id="userAvatarBtn"
+							src="{user>/avatarUrl}"
+							initials="{user>/avatarInitials}"
+							displayShape="Circle"
+							displaySize="S"
+							press=".onAvatarPress"
+							tooltip="Tài khoản"
+							class="qdHeroAvatarBtn"
+						/>
+					</HBox>
+				</HBox>
+			</VBox>
+
+			<!-- ================= KPI OVERVIEW ================= -->
+			<VBox class="qdSection">
+				<VBox class="qdSectionHeading">
+					<Text text="{i18n>dashOverviewEyebrow}" class="qdEyebrow"/>
+					<Title text="{i18n>dashOverviewTitle}" level="H2" class="qdSectionH2"/>
+				</VBox>
+
+			<!-- 3 the KPI bam duoc: dan sang man lien quan theo vai tro (feedback QDAVY
+				     13/08: "May con so nay co the cho an vao roi link ra cac trang lien quan
+				     khong?"). VBox khong co su kien press nen controller gan click qua
+				     attachBrowserEvent trong onAfterRendering — xem _wireKpiClicks(). -->
+				<HBox wrap="Wrap" class="qdKpiRow">
+					<VBox id="kpiPendingCard" class="qdKpiCard qdKpiAmber qdKpiClickable" tooltip="Bấm để mở danh sách đề nghị đang chờ">
+						<HBox justifyContent="SpaceBetween" alignItems="Center">
+							<Text text="{dash>/kpiPendingLabel}" class="qdKpiLabel"/>
+							<core:Icon src="sap-icon://pending" class="qdKpiIcon"/>
+						</HBox>
+						<Title text="{dash>/pendingCount}" level="H1" class="qdKpiValue"/>
+						<Text text="{i18n>dashKpiUnit}" class="qdKpiUnit"/>
+					</VBox>
+
+					<VBox id="kpiApprovedCard" class="qdKpiCard qdKpiGreen qdKpiClickable" tooltip="Bấm để xem các đề nghị đã duyệt">
+						<HBox justifyContent="SpaceBetween" alignItems="Center">
+							<Text text="{dash>/kpiApprovedLabel}" class="qdKpiLabel"/>
+							<core:Icon src="sap-icon://accept" class="qdKpiIcon"/>
+						</HBox>
+						<Title text="{dash>/approvedCount}" level="H1" class="qdKpiValue"/>
+						<Text text="{i18n>dashKpiUnit}" class="qdKpiUnit"/>
+					</VBox>
+
+					<VBox id="kpiValueCard" class="qdKpiCard qdKpiBlue qdKpiClickable" tooltip="Bấm để xem chi tiết các đề nghị đang chờ">
+						<HBox justifyContent="SpaceBetween" alignItems="Center">
+							<Text text="{dash>/kpiValueLabel}" class="qdKpiLabel"/>
+							<core:Icon src="sap-icon://money-bills" class="qdKpiIcon"/>
+						</HBox>
+						<Title text="{dash>/pendingValueText}" level="H1" class="qdKpiValue qdKpiValueSm"/>
+						<Text text="{dash>/pendingValueUnit}" class="qdKpiUnit"/>
+					</VBox>
+				</HBox>
+			</VBox>
+
+			<!-- ================= CHUC NANG ================= -->
+			<VBox class="qdSection">
+				<VBox class="qdSectionHeading">
+					<Text text="{i18n>dashSectionEyebrow}" class="qdEyebrow"/>
+					<Title text="{i18n>dashSectionTitle}" level="H2" class="qdSectionH2"/>
+					<Text text="{i18n>dashSectionSubtitle}" class="qdSectionSub"/>
+				</VBox>
+
+				<VBox
+					class="qdEmptyState"
+					alignItems="Center"
+					visible="{= ${dash>/tileCount} === 0 }"
+				>
+					<core:Icon src="sap-icon://locked" class="qdEmptyIcon"/>
+					<Title text="{i18n>dashEmptyTitle}" level="H3" class="qdEmptyTitle"/>
+					<Text text="{i18n>dashEmptyText}" class="qdEmptyText" textAlign="Center"/>
+				</VBox>
+
+				<HBox wrap="Wrap" class="qdActionGrid">
+
+					<!-- PR-01 -->
+					<VBox
+						class="qdActionCard qdAccentBlue"
+						visible="{= ${user>/role} === 'REQUESTER' }"
+					>
+						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
+							<VBox class="qdActionIconBox">
+								<core:Icon src="sap-icon://add-document" class="qdActionIcon"/>
+							</VBox>
+							<Text text="PR-01" class="qdActionCode"/>
+						</HBox>
+						<Title text="{i18n>tilePr01Title}" level="H3" class="qdActionTitle"/>
+						<Text text="{i18n>tilePr01Subtitle}" class="qdActionDesc"/>
+						<Button
+							text="{i18n>dashTileOpen}"
+							icon="sap-icon://arrow-right"
+							iconFirst="false"
+							press=".onNavToPR01"
+							class="qdActionBtn"
+						/>
+					</VBox>
+
+					<!-- PR-02 -->
+					<VBox
+						class="qdActionCard qdAccentAmber"
+						visible="{= ['CEO','CFO','PURCHASING'].indexOf(${user>/role}) !== -1 }"
+					>
+						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
+							<VBox class="qdActionIconBox">
+								<core:Icon src="sap-icon://approvals" class="qdActionIcon"/>
+							</VBox>
+							<Text text="PR-02" class="qdActionCode"/>
+						</HBox>
+						<Title text="{i18n>tilePr02Title}" level="H3" class="qdActionTitle"/>
+						<Text text="{i18n>tilePr02Subtitle}" class="qdActionDesc"/>
+						<Button
+							text="{i18n>dashTileOpen}"
+							icon="sap-icon://arrow-right"
+							iconFirst="false"
+							press=".onNavToPR02"
+							class="qdActionBtn"
+						/>
+					</VBox>
+
+					<!-- RFQ-01 -->
+					<VBox
+						class="qdActionCard qdAccentAmber"
+						visible="{= ${user>/role} === 'PURCHASING' }"
+					>
+						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
+							<VBox class="qdActionIconBox">
+								<core:Icon src="sap-icon://letter" class="qdActionIcon"/>
+							</VBox>
+							<Text text="RFQ-01" class="qdActionCode"/>
+						</HBox>
+						<Title text="Lập &amp; Gửi Yêu cầu báo giá" level="H3" class="qdActionTitle"/>
+						<Text text="Chọn PR, mời nhà cung cấp báo giá qua email (AI gợi ý NCC)" class="qdActionDesc"/>
+						<Button
+							text="{i18n>dashTileOpen}"
+							icon="sap-icon://arrow-right"
+							iconFirst="false"
+							press=".onNavToRFQ01"
+							class="qdActionBtn"
+						/>
+					</VBox>
+
+					<!-- RFQ-02 -->
+					<VBox
+						class="qdActionCard qdAccentAmber"
+						visible="{= ${user>/role} === 'PURCHASING' }"
+					>
+						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
+							<VBox class="qdActionIconBox">
+								<core:Icon src="sap-icon://compare-2" class="qdActionIcon"/>
+							</VBox>
+							<Text text="RFQ-02" class="qdActionCode"/>
+						</HBox>
+						<Title text="Nhập báo giá &amp; Chốt NCC" level="H3" class="qdActionTitle"/>
+						<Text text="So sánh báo giá cạnh nhau, chốt NCC thắng và trình CFO" class="qdActionDesc"/>
+						<Button
+							text="{i18n>dashTileOpen}"
+							icon="sap-icon://arrow-right"
+							iconFirst="false"
+							press=".onNavToRFQ02"
+							class="qdActionBtn"
+						/>
+					</VBox>
+
+					<!-- PO-01 -->
+					<VBox
+						class="qdActionCard qdAccentPurple"
+						visible="{= ${user>/role} === 'PURCHASING' }"
+					>
+						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
+							<VBox class="qdActionIconBox">
+								<core:Icon src="sap-icon://supplier" class="qdActionIcon"/>
+							</VBox>
+							<Text text="PO-01" class="qdActionCode"/>
+						</HBox>
+						<Title text="{i18n>tilePo01Title}" level="H3" class="qdActionTitle"/>
+						<Text text="{i18n>tilePo01Subtitle}" class="qdActionDesc"/>
+						<Button
+							text="{i18n>dashTileOpen}"
+							icon="sap-icon://arrow-right"
+							iconFirst="false"
+							press=".onNavToPO01"
+							class="qdActionBtn"
+						/>
+					</VBox>
+
+					<!-- MM-01: MATERIAL / SERVICE MASTER (khoi phuc tu nhanh An, PR #11) -->
+					<VBox
+						class="qdActionCard qdAccentBlue"
+						visible="{= ${user>/role} === 'PURCHASING' }"
+					>
+						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
+							<VBox class="qdActionIconBox">
+								<core:Icon src="sap-icon://product" class="qdActionIcon"/>
+							</VBox>
+							<Text text="MM-01" class="qdActionCode"/>
+						</HBox>
+						<Title text="Tạo mới vật tư / dịch vụ" level="H3" class="qdActionTitle"/>
+						<Text text="Tạo mã ZAST hoặc ZSRV trên SAP trước khi Requester lập PR." class="qdActionDesc"/>
+						<Button
+							text="{i18n>dashTileOpen}"
+							icon="sap-icon://arrow-right"
+							iconFirst="false"
+							press=".onNavToMaterialCreate"
+							class="qdActionBtn"
+						/>
+					</VBox>
+
+					<!-- HISTORY -->
+					<VBox
+						class="qdActionCard qdAccentSlate"
+						visible="{= ['REQUESTER','PURCHASING','CEO','CFO','ACC'].indexOf(${user>/role}) !== -1 }"
+					>
+						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
+							<VBox class="qdActionIconBox">
+								<core:Icon src="sap-icon://history" class="qdActionIcon"/>
+							</VBox>
+							<Text text="HISTORY" class="qdActionCode"/>
+						</HBox>
+						<Title text="Lịch sử đề nghị" level="H3" class="qdActionTitle"/>
+						<Text text="Xem các yêu cầu đã tạo / đã duyệt / từ chối" class="qdActionDesc"/>
+						<Button
+							text="{i18n>dashTileOpen}"
+							icon="sap-icon://arrow-right"
+							iconFirst="false"
+							press=".onNavToHistory"
+							class="qdActionBtn"
+						/>
+					</VBox>
+
+					<!-- CONFIG -->
+					<VBox
+						class="qdActionCard qdAccentSlate"
+						visible="{= ${user>/role} === 'CEO' }"
+					>
+						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
+							<VBox class="qdActionIconBox">
+								<core:Icon src="sap-icon://action-settings" class="qdActionIcon"/>
+							</VBox>
+							<Text text="CONFIG" class="qdActionCode"/>
+						</HBox>
+						<Title text="{i18n>tileSysConfigTitle}" level="H3" class="qdActionTitle"/>
+						<Text text="{i18n>tileSysConfigSubtitle}" class="qdActionDesc"/>
+						<Button
+							text="{i18n>dashTileOpen}"
+							icon="sap-icon://arrow-right"
+							iconFirst="false"
+							press=".onNavToThresholdConfig"
+							class="qdActionBtn"
+						/>
+					</VBox>
+
+				</HBox>
+			</VBox>
+
+		</content>
+
+		<dependents>
+			<!-- contentHeight: khong dat thi Popover cao theo noi dung — chuc thong bao
+			     la keo dai gan het man hinh (keo ca footer "Danh dau da doc" xuong day).
+			     Chot 24rem, List cuon ben trong; growing de moi lan chi hien 8 cai dau,
+			     cuon cham day tu nap tiep. -->
+			<Popover
+				id="notifPopover"
+				title="Thông báo"
+				placement="Bottom"
+				contentWidth="22rem"
+				contentHeight="24rem"
+			>
+				<footer>
+					<OverflowToolbar>
+						<ToolbarSpacer/>
+						<Button
+							text="Đánh dấu tất cả đã đọc"
+							type="Transparent"
+							press=".onMarkAllRead"
+						/>
+					</OverflowToolbar>
+				</footer>
+				<List
+					items="{dash>/notifications}"
+					noDataText="Chưa có thông báo"
+					mode="None"
+					growing="true"
+					growingThreshold="8"
+					growingScrollToLoad="true"
+				>
+					<StandardListItem
+						title="{dash>prId}"
+						description="{dash>message}"
+						info="{path: 'dash>createdAt', formatter: '.formatNotifTime'}"
+						type="Active"
+						press=".onNotifItemPress"
+						highlight="{= ${dash>read} ? 'None' : 'Information' }"
+						wrapping="true"
+					/>
+				</List>
+			</Popover>
+
+			<Popover
+				id="userMenuPopover"
+				placement="Bottom"
+				showHeader="false"
+				contentWidth="17rem"
+				class="qdUserMenuPopover"
+			>
+				<VBox alignItems="Center" class="qdUserMenuHeader">
+					<Avatar
+						src="{user>/avatarUrl}"
+						initials="{user>/avatarInitials}"
+						displayShape="Circle"
+						displaySize="M"
+						class="qdUserMenuAvatar"
+					/>
+					<Title text="{user>/email}" level="H4" class="qdUserMenuName sapUiTinyMarginTop"/>
+					<HBox class="sapUiTinyMarginTop" alignItems="Center">
+						<Text text="{user>/role}" class="qdRoleBadge qdRoleBadgeDark"/>
+						<Text text="{user>/position}" class="qdUserMenuPosition sapUiTinyMarginBegin"/>
+					</HBox>
+				</VBox>
+				<List mode="None" class="qdUserMenuList">
+					<StandardListItem
+						title="Đăng xuất"
+						icon="sap-icon://log"
+						type="Active"
+						press=".onLogoutPress"
+					/>
+				</List>
+			</Popover>
+		</dependents>
+	</Page>
+</mvc:View>

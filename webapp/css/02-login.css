@@ -1,0 +1,224 @@
+/* ==========================================================================
+   02-login.css
+   Man dang nhap (full-bleed + hieu ung kinh mo).
+
+   Tach ra tu webapp/css/style.css (ban goc 1854 dong), phan dong 27-239.
+   THU TU NAP QUAN TRONG: cac file css duoc liet ke theo dung thu tu nay trong
+   manifest.json (sap.ui5 > resources > css). Doi thu tu se lam doi do uu tien
+   cua cac rule co cung do dac hieu -> giao dien co the vo. Them file moi thi
+   them so thu tu lon hon o cuoi.
+   ========================================================================== */
+
+/* ========== LOGIN — full bleed + glass ========== */
+
+.qdLoginPage,
+.qdLoginPage > section,
+.qdLoginPage .sapMPageContent,
+.qdLoginPage .sapMPageContent > div {
+	padding: 0 !important;
+	margin: 0 !important;
+	height: 100%;
+	background: transparent !important;
+}
+
+.qdLoginSplit {
+	width: 100%;
+	min-height: 100vh;
+	height: 100%;
+}
+
+/* Trái: ảnh sap.jpg + gradient overlay */
+.qdLoginLeft {
+	flex: 1.15;
+	min-width: 0;
+	padding: 3rem 3.5rem;
+	position: relative;
+	overflow: hidden;
+	background-color: #0a4a8a;
+	background-image:
+		linear-gradient(
+			135deg,
+			rgba(6, 40, 90, 0.88) 0%,
+			rgba(12, 90, 160, 0.55) 45%,
+			rgba(20, 140, 200, 0.35) 100%
+		),
+		url("../images/sap.jpg");
+	background-size: cover;
+	background-position: center;
+	background-repeat: no-repeat;
+	color: #fff;
+	box-sizing: border-box;
+}
+
+.qdLoginLeft::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background:
+		radial-gradient(ellipse at 20% 80%, rgba(80, 200, 255, 0.25), transparent 50%),
+		radial-gradient(ellipse at 90% 10%, rgba(255, 255, 255, 0.12), transparent 40%);
+	pointer-events: none;
+}
+
+.qdLoginLeftInner {
+	position: relative;
+	z-index: 1;
+	max-width: 29rem;
+}
+
+.qdLoginBrandMark {
+	font-size: 1.25rem !important;
+	font-weight: 700 !important;
+	letter-spacing: 0.12em;
+	color: #fff !important;
+}
+
+.qdLoginBrandSub {
+	font-size: 0.75rem !important;
+	opacity: 0.75;
+	letter-spacing: 0.2em;
+	text-transform: uppercase;
+	color: #cfefff !important;
+}
+
+.qdBrandIcon {
+	color: #7dd3fc !important;
+	filter: drop-shadow(0 0 12px rgba(125, 211, 252, 0.5));
+}
+
+.qdLoginHeading.sapMTitle {
+	color: #FFFFFF !important;
+	font-size: 2.1rem !important;
+	font-weight: 700 !important;
+	line-height: 1.2 !important;
+}
+
+.qdLoginHeadingSub {
+	color: rgba(255, 255, 255, 0.82) !important;
+	font-size: 0.98rem !important;
+	line-height: 1.5 !important;
+	max-width: 27rem;
+}
+
+.qdLoginFeatureList {
+	gap: 0.85rem;
+}
+
+.qdLoginFeatureItem {
+	padding: 0.85rem 1rem;
+	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.07);
+	border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.qdLoginFeatureIcon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.25rem;
+	height: 2.25rem;
+	border-radius: 8px;
+	background: rgba(255, 255, 255, 0.15);
+	color: #FFFFFF !important;
+	font-size: 1.05rem !important;
+	flex-shrink: 0;
+}
+
+.qdLoginFeatureText {
+	color: #FFFFFF !important;
+	font-size: 0.92rem !important;
+	font-weight: 500 !important;
+}
+
+.qdLoginFooterHint {
+	color: rgba(255, 255, 255, 0.45) !important;
+	font-size: 0.75rem !important;
+	letter-spacing: 0.04em;
+}
+
+/* Phải: form */
+.qdLoginRight {
+	flex: 0.85;
+	min-width: 320px;
+	padding: 2.5rem 2rem;
+	background:
+		radial-gradient(ellipse at 70% 20%, rgba(14, 165, 233, 0.08), transparent 50%),
+		linear-gradient(180deg, #f0f7fc 0%, #e8f1f8 100%);
+	box-sizing: border-box;
+}
+
+.qdLoginCard {
+	width: 100%;
+	max-width: 24rem;
+	padding: 2.25rem 2rem;
+	border-radius: 20px;
+	background: rgba(255, 255, 255, 0.82);
+	border: 1px solid rgba(255, 255, 255, 0.9);
+	box-shadow:
+		0 4px 6px rgba(15, 50, 80, 0.04),
+		0 24px 48px rgba(15, 50, 80, 0.12);
+	backdrop-filter: blur(16px);
+	-webkit-backdrop-filter: blur(16px);
+	box-sizing: border-box;
+}
+
+.qdLoginCardEyebrow {
+	font-size: 0.7rem !important;
+	font-weight: 600 !important;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: #0284c7 !important;
+	margin-bottom: 0.35rem !important;
+}
+
+.qdLoginCardTitle {
+	color: #0f172a !important;
+	font-weight: 700 !important;
+}
+
+.qdLoginCardSub {
+	color: #64748b !important;
+	font-size: 0.9rem !important;
+	line-height: 1.45 !important;
+}
+
+/* Nut "Dang nhap voi Google" (Google Identity Services tu ve vao trong) —
+   day gio la duong dang nhap duy nhat, khong con form email fallback. */
+.qdGoogleBtnHost {
+	width: 100%;
+	display: flex;
+	justify-content: center;
+	overflow: hidden;
+}
+
+.qdLoginConfigWarning {
+	border-radius: 8px;
+}
+
+.qdLoginHint {
+	color: #94a3b8 !important;
+	font-size: 0.8rem !important;
+}
+
+/* Mobile: xếp dọc, ảnh phía trên */
+@media (max-width: 768px) {
+	.qdLoginSplit {
+		flex-direction: column !important;
+	}
+	.qdLoginLeft {
+		flex: none;
+		min-height: 42vh;
+		padding: 2rem 1.5rem;
+	}
+	.qdLoginRight {
+		flex: none;
+		padding: 1.5rem 1rem 2.5rem;
+	}
+	.qdLoginCard {
+		max-width: 100%;
+	}
+	.qdLoginFeatureList {
+		display: none;
+	}
+}
+

@@ -1,0 +1,123 @@
+/* ==========================================================================
+   09-po-polish.css
+   PO01: tinh chinh giao dien + header/cot trai dung yen khi cuon.
+
+   Tach ra tu webapp/css/style.css (ban goc 1854 dong), phan dong 1371-1482.
+   THU TU NAP QUAN TRONG: cac file css duoc liet ke theo dung thu tu nay trong
+   manifest.json (sap.ui5 > resources > css). Doi thu tu se lam doi do uu tien
+   cua cac rule co cung do dac hieu -> giao dien co the vo. Them file moi thi
+   them so thu tu lon hon o cuoi.
+   ========================================================================== */
+
+/* ==========================================================================
+   PO01 — polish bổ sung (chỉ tinh chỉnh giao diện, không đổi logic/id)
+   ========================================================================== */
+
+/* Badge số bước 1→6 theo tông tím của Hero PO01 */
+.qdStepBadgePurple {
+	background: var(--qd-accent-purple);
+	box-shadow: 0 2px 8px rgba(124, 58, 237, 0.35);
+}
+
+/* Viền nhấn phía trên mỗi content card, đồng bộ màu Hero của trang */
+.qdContentCard.qdCardAccentPurple {
+	border-top: 3px solid var(--qd-accent-purple);
+}
+
+/* Bo góc input trong SimpleForm của PO01 cho đồng bộ với các card khác */
+.qdSimpleForm .sapMInputBaseContentWrapper,
+.qdSimpleForm .sapMSelect,
+.qdSimpleForm .sapMComboBox {
+	border-radius: 8px;
+}
+
+/* Giãn cách rõ ràng hơn giữa các nhóm field trong SimpleForm nhiều cột */
+.qdSimpleForm .sapUiFormTitle {
+	margin-top: 0.5rem;
+}
+
+/* Nút "Tạo PO Chuẩn SAP & Gửi Mail Vendor" — nhấn mạnh bằng gradient tím-xanh */
+.qdPrimarySubmitBtn .sapMBtnInner {
+	background: linear-gradient(135deg, var(--qd-accent-purple) 0%, var(--qd-accent-blue) 100%) !important;
+	border: none !important;
+	border-radius: 10px !important;
+	padding: 0 1.4rem !important;
+	height: 2.75rem !important;
+	box-shadow: 0 6px 16px rgba(124, 58, 237, 0.28);
+	transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.qdPrimarySubmitBtn .sapMBtnInner:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 10px 22px rgba(124, 58, 237, 0.36);
+}
+
+.qdPrimarySubmitBtn .sapMBtnContent,
+.qdPrimarySubmitBtn .sapUiIcon {
+	color: #FFFFFF !important;
+	font-weight: 600 !important;
+}
+
+/* Thanh kéo giữa 2 khung của Splitter (PR list / khu tạo PO) — dễ nhận biết & có phản hồi hover */
+.qdSplitter > .sapUiLoSplitterBar {
+	background: var(--qd-border) !important;
+	transition: background 0.15s ease;
+}
+
+.qdSplitter > .sapUiLoSplitterBar:hover {
+	background: var(--qd-accent-purple) !important;
+}
+
+/* Dòng PR đang được chọn trong bảng bên trái — nổi bật rõ ràng hơn */
+#approvedPRTable .sapMLIBSelected {
+	background: rgba(124, 58, 237, 0.06) !important;
+	border-left: 3px solid var(--qd-accent-purple) !important;
+}
+/* Gộp về 1 thanh cuộn duy nhất cho trang PO01: bỏ scroll riêng của từng khung
+   trong Splitter (trái: PR list / phải: khu tạo PO), chỉ để trang ngoài cuộn */
+.qdSplitter {
+	height: auto !important;
+}
+
+.qdSplitter > .sapUiLoSplitterContent {
+	height: auto !important;
+	overflow: visible !important;
+}
+/* ==========================================================================
+   PO01 — Header & cột trái (danh sách PR) đứng yên khi cuộn, chỉ cột phải cuộn
+   ========================================================================== */
+
+/* Cho phép 2 cột trong Splitter cao khác nhau (không kéo giãn bằng nhau),
+   để sticky ở cột trái hoạt động đúng */
+.qdSplitter {
+	align-items: flex-start !important;
+}
+
+/* Header luôn dính ở đầu trang khi cuộn xuống */
+.qdInnerPage .qdPageHero {
+	position: sticky;
+	top: 0;
+	z-index: 20;
+}
+
+/* Cột trái (danh sách PR đã duyệt) dính ngay dưới header,
+   tự cuộn riêng bên trong nếu danh sách PR dài hơn màn hình */
+.qdStickyLeftPane {
+	position: sticky;
+	top: 8.5rem; /* xấp xỉ chiều cao Header — chỉnh lại nếu bị lệch */
+	align-self: flex-start;
+	max-height: calc(100vh - 9.5rem);
+	overflow-y: auto;
+}
+
+@media (max-width: 599px) {
+	.qdInnerPage .qdPageHero {
+		position: static;
+	}
+	.qdStickyLeftPane {
+		position: static;
+		max-height: none;
+		overflow-y: visible;
+	}
+}
+
