@@ -251,6 +251,36 @@ function buildApprovalFlags(totalValue, items) {
 	};
 }
 
+/**
+ * Bao boc buildApprovalFlags cho thiet ke "chi con Cat K va A".
+ *
+ * Item khong con mang InternalOrder (Cat 'K' chi gui CostCenter len SAP), trong khi
+ * buildApprovalFlags lai tra nguong theo IO. Nen o day suy nguoc IO ngan sach tu
+ * CostCenter roi moi tinh. Mang expanded chi ton tai trong ham nay, KHONG ghi vao
+ * PR nao ca.
+ *
+ * Phai dung o CA HAI cho: luc submit PR (gia uoc tinh) va luc recalc sau khi award
+ * RFQ (gia thuc te tu bao gia — day moi la con so quyet dinh co leo CEO hay khong).
+ * Quen cho thu hai thi PR dat hon nguong van truot thang qua CFO.
+ */
+async function buildApprovalFlagsByCostCenter(totalValue, items) {
+	const master = await fetchInternalOrderMaster();
+	const ccToIOs = master.costCenterToIOs || {};
+	const expanded = [];
+
+	(items || []).forEach(function (it) {
+		const cc = String(it.CostCenter || it.costCenter || "").trim();
+		const aIO = ccToIOs[cc] || [];
+		if (!aIO.length) { expanded.push(it); return; }
+		// Phong co nhieu IO thi xet het — buildApprovalFlags tu lay nguong thap nhat.
+		aIO.forEach(function (io) {
+			expanded.push(Object.assign({}, it, { InternalOrder: io }));
+		});
+	});
+
+	return buildApprovalFlags(totalValue, expanded);
+}
+
 const _loadedNotifs = loadNotifications();
 const notificationStore = _loadedNotifs.items;
 let nextNotificationId = _loadedNotifs.nextId;
@@ -1591,22 +1621,7 @@ app.post("/api/approval/submit", async (req, res) => {
 		};
 	});
 
-	// Cat 'K' khong mang InternalOrder len SAP (dung — SAP chi nhan 1 cost object).
-	// Nhung nguong ngan sach de leo CEO van tinh theo IO cua phong ban, nen o day suy
-	// nguoc IO tu CostCenter chi de TINH FLAG. Mang nay khong duoc ghi vao PR nao ca.
-	const ioMaster = await fetchInternalOrderMaster();
-	const ccToIOs = ioMaster.costCenterToIOs || {};
-	const itemsForFlags = [];
-	mappedItems.forEach(function (it) {
-		var aIO = ccToIOs[String(it.CostCenter || "").trim()] || [];
-		if (!aIO.length) { itemsForFlags.push(it); return; }
-		// Phong co nhieu IO thi xet tat ca — buildApprovalFlags tu lay nguong thap nhat.
-		aIO.forEach(function (io) {
-			itemsForFlags.push(Object.assign({}, it, { InternalOrder: io }));
-		});
-	});
-
-	const flags = buildApprovalFlags(totalPRValue || 0, itemsForFlags);
+	const flags = await buildApprovalFlagsByCostCenter(totalPRValue || 0, mappedItems);
 
 	// Deep-entity POST: header + toan bo dong item long trong PrDraftToItems.
 	// InternalId (PRId) do ABAP CREATE_DEEP_ENTITY sinh qua SNRO ZPRDRAFT,
@@ -2645,11 +2660,24 @@ app.post("/api/po/create", async (req, res) => {
 			console.error(error);
 		}
 
+		// TRUOC DAY: chi lay error.message.value — voi ABAP raise exception thi truong
+		// do luon la cau chung chung "An exception was raised", con LY DO THAT nam trong
+		// innererror.errordetails va chi duoc console.log ra log server (tren Vercel thi
+		// coi nhu khong ai doc duoc). Ket qua: nguoi dung nhin man hinh khong tài nào
+		// biet PO hong vi cai gi. extractSapErrorMessage() da boc san phan do — duong
+		// tao PR dung no tu lau, rieng duong tao PO bi bo quen.
+		const sapMessage = extractSapErrorMessage(error);
+		const sapDetails = (error.response?.data?.error?.innererror?.errordetails || [])
+			.filter((d) => d && d.message)
+			.map((d) => ({ severity: d.severity, code: d.code, message: d.message }));
+
 		return res.status(502).json({
 			success: false,
-			message:
-				error.response?.data?.error?.message?.value ||
-				error.message
+			message: sapMessage,
+			// Tra ca danh sach chi tiet ve FE: co message phu (warning, thong tin dong nao
+			// hong) ma cau gop o tren khong the hien het — mo tab Network la doc duoc ngay.
+			sapErrorDetails: sapDetails,
+			sapHttpStatus: error.response?.status || null
 		});
 	}
 });
@@ -3993,7 +4021,10 @@ app.post("/api/rfq/:id/award", async (req, res) => {
 			// Tinh lai co/khong vuot nguong CEO tren GIA THAT tu bao gia thang, khong dung
 			// gia uoc tinh luc tao PR nua — gia uoc tinh va gia thuong luong co the lech nhau
 			// đủ để đổi kết quả escalation. Giữ lại giá ước tính ban đầu để audit trail.
-			const recalculatedFlags = buildApprovalFlags(finalValue, prRecord.items);
+			// PHAI dung ban theo CostCenter: item khong con InternalOrder nen ban goc
+			// luon tra needsProcurementHeadReview=false -> PR vuot ngan sach van truot
+			// thang qua CFO, khong bao gio leo CEO.
+			const recalculatedFlags = await buildApprovalFlagsByCostCenter(finalValue, prRecord.items);
 
 			if (prRecord.EstimatedTotalValue == null) {
 				prRecord.EstimatedTotalValue = prRecord.TotalValue;
