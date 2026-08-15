@@ -57,7 +57,14 @@ function describePaymentTerms(code) {
 	const found = PAYMENT_TERMS.find((t) => t.code.toUpperCase() === mapped.toUpperCase());
 	return found ? found.label : mapped;
 }
+const PAYMENT_METHOD_LABELS = { TRANSFER: "Chuyển khoản", CASH: "Tiền mặt" }
+function describePaymentMethod(code) {
+	const raw = String(code || "").trim().toUpperCase();
+	return PAYMENT_METHOD_LABELS[raw] || (raw || "Không nêu");
+}
+
 module.exports = {
 	PAYMENT_TERMS,
+	describePaymentMethod,
 	describePaymentTerms,
 };

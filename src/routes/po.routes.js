@@ -18,6 +18,7 @@ const router = express.Router();
 
 
 // ── API TẠO PURCHASE ORDER TRÊN SAP GATEWAY ODATA ──
+// ── API TẠO PURCHASE ORDER TRÊN SAP GATEWAY ODATA ──
 router.post("/api/po/create", async (req, res) => {
 	const {
 		vendorNo,
@@ -29,7 +30,17 @@ router.post("/api/po/create", async (req, res) => {
 		docType,
 		docDate,
 		currency,
-		items
+		items,
+		// Cac field nay CHI dung de dien vao mail thong bao NCC (sendPOEmailToVendor),
+		// khong gui len SAP — deep entity PurchaseOrderHeaderSet khong co field tuong ung.
+		buyerName,
+		buyerPhone,
+		deliveryAddress,
+		receiverName,
+		receiverPhone,
+		deliveryDate,
+		paymentMethod,
+		paymentTerms
 	} = req.body || {};
 
 	if (!vendorNo || !Array.isArray(items) || items.length === 0) {
@@ -161,12 +172,20 @@ router.post("/api/po/create", async (req, res) => {
 				items,
 				currency,
 				docDate,
-				companyCode
+				companyCode,
+				buyerName,
+				buyerPhone,
+				deliveryAddress,
+				receiverName,
+				receiverPhone,
+				deliveryDate,
+				paymentMethod,
+				paymentTerms
 			}
 		);
 		console.log("=== EMAIL SENT ===");
 
-	
+
 		return res.status(201).json({
 			success: true,
 			sapIntegration: "created",

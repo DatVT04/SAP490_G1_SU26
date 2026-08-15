@@ -6,9 +6,11 @@
  */
 
 
+const { describePaymentMethod, describePaymentTerms } = require("../config/payment-terms");
 const { getMailTransporter } = require("../lib/mailer");
 
 
+// gửi mail Vendor
 // gửi mail Vendor
 async function sendPOEmailToVendor(vendorEmail, poNumber, data) {
 
@@ -33,18 +35,13 @@ async function sendPOEmailToVendor(vendorEmail, poNumber, data) {
         <p>Dear Vendor,</p>
 
         <p>
-            A new Purchase Order has been created.
+            A new Purchase Order has been created by QDAVY.
         </p>
 
         <table border="1" cellpadding="6" cellspacing="0">
             <tr>
                 <td><b>PO Number</b></td>
                 <td>${poNumber}</td>
-            </tr>
-
-            <tr>
-                <td><b>Company Code</b></td>
-                <td>${data.companyCode}</td>
             </tr>
 
             <tr>
@@ -55,6 +52,11 @@ async function sendPOEmailToVendor(vendorEmail, poNumber, data) {
             <tr>
                 <td><b>Currency</b></td>
                 <td>${data.currency}</td>
+            </tr>
+
+            <tr>
+                <td><b>Buyer Contact</b></td>
+                <td>${data.buyerName || ""}${data.buyerPhone ? " — " + data.buyerPhone : ""}</td>
             </tr>
         </table>
 
@@ -75,8 +77,44 @@ async function sendPOEmailToVendor(vendorEmail, poNumber, data) {
 
         <br>
 
+        <h3>Delivery / Ship-To</h3>
+        <table border="1" cellpadding="6" cellspacing="0">
+            <tr>
+                <td><b>Delivery Address</b></td>
+                <td>${data.deliveryAddress || ""}</td>
+            </tr>
+
+            <tr>
+                <td><b>Goods Recipient</b></td>
+                <td>${data.receiverName || ""}${data.receiverPhone ? " — " + data.receiverPhone : ""}</td>
+            </tr>
+
+            <tr>
+                <td><b>Requested Delivery Date</b></td>
+                <td>${data.deliveryDate || ""}</td>
+            </tr>
+        </table>
+
+        <br>
+
+        <h3>Payment</h3>
+        <table border="1" cellpadding="6" cellspacing="0">
+            <tr>
+                <td><b>Payment Method</b></td>
+                <td>${describePaymentMethod(data.paymentMethod)}</td>
+            </tr>
+
+            <tr>
+                <td><b>Payment Terms</b></td>
+                <td>${describePaymentTerms(data.paymentTerms)}</td>
+            </tr>
+        </table>
+
+        <br>
+
         <p>
-            Please review the Purchase Order and prepare the requested goods.
+            Please review the Purchase Order and proceed with the requested goods/services according to the details above.
+			If you have any questions, please contact the buyer.
         </p>
 
         <br>
@@ -84,6 +122,7 @@ async function sendPOEmailToVendor(vendorEmail, poNumber, data) {
         <p>Regards,</p>
 
         <p>Purchasing Department</p>
+		 <p>QDAVY</p>
     `;
 
 	const transporter = getMailTransporter();

@@ -174,9 +174,9 @@
 									<Label text="Loại chứng từ (Doc Type)"/>
 									<Input
 										id="inDocType"
-										value="NB"
+										value="ZPO"
 										editable="false"
-										placeholder="NB - Standard PO"
+										placeholder="ZPO - Standard PO"
 									/>
 
 									<Label text="Ngày lập chứng từ (Doc Date)" required="true"/>
@@ -412,14 +412,7 @@
 									</ColumnListItem>
 								</items>
 							</Table>
-
-							<MessageStrip
-								text="Sau khi bấm xác nhận, hệ thống sẽ gọi SAP Gateway OData Service ZG1_PROC_SRV để ghi đè PO vào bảng EKKO/EKPO."
-								type="Information"
-								showIcon="true"
-								class="sapUiSmallMarginTop qdAiMessageStrip"
-							/>
-
+							
 							<HBox justifyContent="End" alignItems="Center" class="sapUiMediumMarginTop">
 								<Button
 									text="Tạo PO "
