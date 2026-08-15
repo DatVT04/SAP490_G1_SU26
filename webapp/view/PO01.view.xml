@@ -257,7 +257,7 @@
 										id="inVendorEmail"
 										placeholder="Email nhà cung cấp sẽ tự động hiển thị tại đây"
 										editable="true"
-									/>
+									/>						
 
 									<core:Title text="Giá mua (Pricing)" class="qdFormSectionTitle qdFormSectionTitlePurple"/>
 

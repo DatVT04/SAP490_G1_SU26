@@ -349,7 +349,9 @@ sap.ui.define([
 					return fetch(BACKEND + "/api/rfq/" + encodeURIComponent(sRfqId) + "/send", {
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({ deadline: sDeadline })
+						// sentBy: de email gui NCC co Reply-To la dung nguoi mua dang
+						// phu trach, khong phai hom thu ky thuat chung.
+						body: JSON.stringify({ deadline: sDeadline, sentBy: oUser.email || "" })
 					})
 						.then(function (r) {
 							return r.json().then(function (body) { return { rfqId: sRfqId, body: body }; });
@@ -361,6 +363,16 @@ sap.ui.define([
 					var sMsg = "Đã tạo RFQ " + oSendResult.rfqId + " cho PR " + oPR.PRId + ".";
 					if (oBody.success) {
 						sMsg += " Đã gửi email mời báo giá tới " + oBody.emailsSent + "/" + oBody.totalVendors + " NCC.";
+						// NCC thieu email truoc day bi bo qua am tham (`continue` trong
+						// vong lap gui mail) — khong ai biet ho khong he nhan duoc thu.
+						var aNoEmail = oBody.vendorsWithoutEmail || [];
+						if (aNoEmail.length) {
+							sMsg += "\n\nCHƯA GỬI ĐƯỢC cho " + aNoEmail.length + " NCC vì chưa có email trong master: "
+								+ aNoEmail.join(", ") + ". Vào RFQ-02 để lấy link báo giá riêng gửi cho họ bằng cách khác.";
+						}
+						if (oBody.emailsFailed) {
+							sMsg += "\n\n" + oBody.emailsFailed + " thư bị lỗi khi gửi — có thể gửi nhắc lại ở màn RFQ-02.";
+						}
 					} else {
 						sMsg += " LƯU Ý: gửi email thất bại (" + (oBody.message || "không rõ lý do") + ") — có thể gửi lại sau.";
 					}

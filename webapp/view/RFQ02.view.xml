@@ -38,11 +38,25 @@
 								</VBox>
 							</HBox>
 
+							<!-- Danh sách RFQ chỉ tăng theo thời gian (25+ và còn lên nữa) — cuộn
+							     trong khung cao cố định thay vì kéo dài cả trang, giống danh sách
+							     NCC bên RFQ-01. Header dính khi cuộn, cuộn chạm đáy tự nạp tiếp. -->
+							<ScrollContainer
+								height="calc(100vh - 22rem)"
+								width="100%"
+								vertical="true"
+								horizontal="false"
+								focusable="false"
+							>
 							<Table
 								id="rfqTable"
 								items="{/Rfqs}"
 								mode="SingleSelectMaster"
 								selectionChange=".onRfqSelect"
+								sticky="ColumnHeaders"
+								growing="true"
+								growingThreshold="20"
+								growingScrollToLoad="true"
 								noDataText="Chưa có RFQ nào. Hãy tạo ở màn RFQ-01."
 							>
 								<columns>
@@ -63,6 +77,7 @@
 									</ColumnListItem>
 								</items>
 							</Table>
+							</ScrollContainer>
 						</VBox>
 					</VBox>
 
@@ -216,6 +231,69 @@
 							</Table>
 						</VBox>
 
+						<!-- CARD 2b: NCC CHUA PHAN HOI — theo doi + nhac + link portal
+						     Truoc day man hinh chi hien mot con so "con N NCC chua nop",
+						     khong biet la ai, khong lam duoc gi ngoai ngoi cho mail. -->
+						<VBox
+							class="qdContentCard"
+							visible="{= ${/rfq/Status} !== 'AWARDED' &amp;&amp; ${/pendingVendors}.length > 0 }"
+						>
+							<HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
+								<HBox alignItems="Center">
+									<core:Icon src="sap-icon://pending" class="sapUiSmallMarginEnd"/>
+									<VBox>
+										<Title text="Nhà cung cấp chưa gửi báo giá ({= ${/pendingVendors}.length })" level="H3" class="qdCardTitle"/>
+										<Text text="Gửi nhắc qua email, hoặc sao chép link báo giá riêng của từng NCC để gửi qua Zalo/điện thoại" class="qdCellHint"/>
+									</VBox>
+								</HBox>
+								<Button
+									text="Gửi nhắc tất cả"
+									icon="sap-icon://email"
+									press=".onRemindPending"
+									enabled="{= ${/rfq/Status} === 'SENT' || ${/rfq/Status} === 'QUOTATIONS_RECEIVED' }"
+									class="qdActionBtn"
+								/>
+							</HBox>
+
+							<Table items="{/pendingVendors}" noDataText="Tất cả NCC đã gửi báo giá.">
+								<columns>
+									<Column><Text text="Nhà cung cấp"/></Column>
+									<Column><Text text="Email nhận thư mời"/></Column>
+									<Column hAlign="End" width="12rem"><Text text="Link báo giá riêng"/></Column>
+								</columns>
+								<items>
+									<ColumnListItem>
+										<cells>
+											<VBox>
+												<Text text="{VendorName}"/>
+												<Text text="{VendorNo}" class="qdCellHint"/>
+											</VBox>
+											<VBox>
+												<ObjectStatus
+													text="{= ${VendorEmail} || 'Chưa có email trong master NCC' }"
+													state="{= ${VendorEmail} ? (${EmailFromMaster} ? 'Warning' : 'None') : 'Error' }"
+												/>
+												<!-- Phan biet 2 ca rat khac nhau: NCC DA nhan thu moi, va NCC
+												     chua tung nhan gi (luc tao RFQ master chua co email) — cai
+												     sau bam "Gui nhac tat ca" moi la lan dau ho biet co RFQ. -->
+												<Text
+													text="Chưa từng nhận thư mời — bấm “Gửi nhắc tất cả” để gửi lần đầu"
+													visible="{= !!${EmailFromMaster} }"
+													class="qdCellHint"
+												/>
+											</VBox>
+											<Button
+												text="Sao chép link"
+												icon="sap-icon://copy"
+												type="Transparent"
+												press=".onCopyQuoteLink"
+											/>
+										</cells>
+									</ColumnListItem>
+								</items>
+							</Table>
+						</VBox>
+
 						<!-- CARD 3: NHAP BAO GIA TAY (AUDIT TRAIL BAT BUOC) -->
 						<VBox class="qdContentCard" visible="{= ${/rfq/Status} !== 'AWARDED' }">
 							<HBox alignItems="Center" class="sapUiSmallMarginBottom">
@@ -225,6 +303,13 @@
 									<Text text="Bắt buộc ghi rõ căn cứ (email nào, ngày nào) — audit trail, không nhập vo" class="qdCellHint"/>
 								</VBox>
 							</HBox>
+
+							<MessageStrip
+								text="Chỉ dùng khi NCC trả lời bằng email/điện thoại. NCC gửi báo giá qua link trong thư mời sẽ tự động xuất hiện ở bảng so sánh, không cần nhập tay."
+								type="Information"
+								showIcon="true"
+								class="sapUiSmallMarginBottom"
+							/>
 
 							<HBox wrap="Wrap" alignItems="End" class="qdInfoRow">
 								<VBox class="sapUiSmallMarginEnd sapUiTinyMarginBottom">

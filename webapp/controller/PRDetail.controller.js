@@ -2,8 +2,9 @@ sap.ui.define([
 	"sap/ui/core/mvc/Controller",
 	"sap/ui/model/json/JSONModel",
 	"sap/m/MessageBox",
+	"sap/ui/core/routing/History",
 	"com/qdavy/procurement/model/Config"
-], function (Controller, JSONModel, MessageBox, Config) {
+], function (Controller, JSONModel, MessageBox, RoutingHistory, Config) {
 	"use strict";
 
 	var BACKEND = Config.BACKEND;
@@ -392,20 +393,32 @@ sap.ui.define([
 			this.getOwnerComponent().getRouter().navTo("pr01");
 		},
 
+		// Quay ve DUNG man vua roi khoi, khong doan theo role nua.
+		//
+		// Ban cu suy dich den tu role: Purchasing/CFO/CEO -> luon ve pr02 (Phe duyet).
+		// Nhung 3 vai tro do cung mo chi tiet PR tu man Lich su de nghi (History.js:146),
+		// nen bam Back tu Lich su lai nhay sang Phe duyet — sai man, va man Phe duyet
+		// thuong rong nen nhin nhu mat du lieu.
+		//
+		// Man chi tiet co dung 2 loi vao: History va PR02. Thay vi doan, doc lich su
+		// dieu huong cua router — dung ca khi sau nay them loi vao thu ba.
 		onNavBack: function () {
-			var sRole = String(this.getOwnerComponent().getModel("user").getProperty("/role") || "").toUpperCase();
-			if (sRole === "CFO" || sRole === "CEO" || sRole === "PURCHASING") {
-				this.getOwnerComponent().getRouter().navTo("pr02");
-			} else if (sRole === "REQUESTER") {
-				// Requester thường vào từ History
-				try {
-					this.getOwnerComponent().getRouter().navTo("history");
-				} catch (e) {
-					this.getOwnerComponent().getRouter().navTo("dashboard");
-				}
-			} else {
-				this.getOwnerComponent().getRouter().navTo("dashboard");
+			if (RoutingHistory.getInstance().getPreviousHash() !== undefined) {
+				window.history.go(-1);
+				return;
 			}
+
+			// Khong co lich su trong app (vd dan thang URL /#/pr-detail/... vao trinh
+			// duyet): moi chon man theo role. navTo(..., true) de thay hash hien tai,
+			// tranh de lai mot buoc lui vo nghia.
+			var sRole = String(this.getOwnerComponent().getModel("user").getProperty("/role") || "").toUpperCase();
+			var sTarget = "dashboard";
+			if (sRole === "CFO" || sRole === "CEO" || sRole === "PURCHASING") {
+				sTarget = "pr02";
+			} else if (sRole === "REQUESTER") {
+				sTarget = "history";
+			}
+			this.getOwnerComponent().getRouter().navTo(sTarget, {}, true);
 		},
 
 		_fetchWithTimeout: function (sUrl, oOptions) {

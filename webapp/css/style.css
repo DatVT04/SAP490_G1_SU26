@@ -1367,7 +1367,7 @@ DASHBOARD PO
 /* Table Styling */
 .sapMListTbl {
     border-radius: 8px;
-}}
+}
 /* ==========================================================================
    PO01 — polish bổ sung (chỉ tinh chỉnh giao diện, không đổi logic/id)
    ========================================================================== */
@@ -1616,6 +1616,22 @@ DASHBOARD PO
 .qdPrimarySubmitBtn.sapMBtnDisabled .sapMBtnInner {
 	background: var(--qd-border) !important;
 	opacity: 0.7;
+}
+
+/* VUNG BAM = VIEN NHIN THAY. Inner bi ep cao 2.75rem nhung the goc .sapMBtn giu
+   chieu cao mac dinh ~2.3rem — phan gradient tran ra ngoai the goc KHONG nhan
+   click (su kien press gan tren the goc). Ep the goc cao bang inner de het lech. */
+.qdPrimarySubmitBtn.sapMBtn {
+	height: 2.75rem;
+	margin-top: 0;
+}
+
+/* Khoi "Han nop & Gui" nam SAU bang NCC co sticky ColumnHeaders (sticky tao
+   stacking context, header bang co the de len card dung sau khi cuon). Nang
+   card nay len mot lop de DatePicker + nut gui khong bao gio bi phu. */
+.qdRfqSendCard {
+	position: relative;
+	z-index: 3;
 }
 
 /* ==========================================================================

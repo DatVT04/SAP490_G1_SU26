@@ -166,6 +166,79 @@ sap.ui.define([
 				});
 		},
 
+		// ── 2b. NHAC NCC CHUA GUI BAO GIA ──
+		// Backend chi gui cho NCC dang o QuoteStatus = PENDING, khong lam phien
+		// NCC da nop roi.
+		onRemindPending: function () {
+			var that = this;
+			var oView = this.getView();
+			var oUser = this.getOwnerComponent().getModel("user").getData() || {};
+			var aPending = oView.getModel().getProperty("/pendingVendors") || [];
+			var iNoEmail = aPending.filter(function (v) { return !v.VendorEmail; }).length;
+
+			MessageBox.confirm(
+				"Gửi email nhắc tới " + (aPending.length - iNoEmail) + " NCC chưa gửi báo giá?"
+					+ (iNoEmail > 0 ? "\n\n" + iNoEmail + " NCC không có email trong master sẽ bị bỏ qua — cần liên hệ bằng cách khác." : ""),
+				{
+					title: "Nhắc nhà cung cấp",
+					onClose: function (sAction) {
+						if (sAction !== MessageBox.Action.OK) { return; }
+						oView.setBusy(true);
+
+						fetch(BACKEND + "/api/rfq/" + encodeURIComponent(that._currentRfqId) + "/remind", {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({ sentBy: oUser.email || "" })
+						})
+							.then(function (r) { return r.json(); })
+							.then(function (res) {
+								oView.setBusy(false);
+								if (!res || !res.success) {
+									MessageBox.error((res && res.message) || "Gửi nhắc thất bại.");
+									return;
+								}
+								MessageToast.show("Đã gửi nhắc tới " + res.emailsSent + "/" + res.totalVendors + " NCC."
+									+ (res.emailsFailed ? " (" + res.emailsFailed + " thư gửi lỗi)" : ""));
+							})
+							.catch(function () {
+								oView.setBusy(false);
+								MessageBox.error("Không thể kết nối máy chủ để gửi nhắc.");
+							});
+					}
+				}
+			);
+		},
+
+		// Sao chep link bao gia rieng cua 1 NCC — dung khi NCC bao "khong thay mail"
+		// (roi vao Spam) va can gui lai qua Zalo/tin nhan.
+		onCopyQuoteLink: function (oEvent) {
+			var oCtx = oEvent.getSource().getBindingContext();
+			var oVendor = oCtx ? oCtx.getObject() : null;
+			if (!oVendor || !oVendor.QuoteLink) {
+				MessageToast.show("Không có link cho NCC này.");
+				return;
+			}
+
+			// navigator.clipboard chi chay tren HTTPS hoac localhost — moi truong
+			// khac phai co duong lui, neu khong nguoi dung bam xong khong thay gi.
+			var fnFallback = function () {
+				MessageBox.information(oVendor.QuoteLink, {
+					title: "Link báo giá của " + (oVendor.VendorName || oVendor.VendorNo),
+					details: "Sao chép thủ công đoạn link ở trên rồi gửi cho NCC."
+				});
+			};
+
+			if (navigator.clipboard && navigator.clipboard.writeText) {
+				navigator.clipboard.writeText(oVendor.QuoteLink)
+					.then(function () {
+						MessageToast.show("Đã sao chép link báo giá của " + (oVendor.VendorName || oVendor.VendorNo) + ".");
+					})
+					.catch(fnFallback);
+			} else {
+				fnFallback();
+			}
+		},
+
 		// ── 3. LUU 1 BAO GIA (audit trail: enteredBy tu user model, sourceNote bat buoc) ──
 		onSaveQuotation: function () {
 			var that = this;

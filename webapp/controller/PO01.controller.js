@@ -571,7 +571,21 @@ sap.ui.define([
 							}.bind(this)
 						});
 					} else {
-						MessageBox.error((res && res.message) || "Không thể khởi tạo PO trên SAP.");
+						// Hien ca danh sach errordetails tu SAP chu khong chi 1 dong message.
+						// Truoc day chi hien "An exception was raised" — cau chung chung ma
+						// Gateway tra ve khi ABAP raise exception, khong noi len duoc gi ca.
+						var sMsg = (res && res.message) || "Không thể khởi tạo PO trên SAP.";
+						var aDetails = (res && res.sapErrorDetails) || [];
+						if (aDetails.length) {
+							sMsg += "\n\nChi tiết từ SAP:\n" + aDetails.map(function (d) {
+								return "• [" + (d.severity || "?") + "] " + d.message
+									+ (d.code ? "  (" + d.code + ")" : "");
+							}).join("\n");
+						}
+						if (res && res.sapHttpStatus) {
+							sMsg += "\n\nHTTP " + res.sapHttpStatus;
+						}
+						MessageBox.error(sMsg, { title: "Tạo PO thất bại" });
 					}
 				}.bind(this))
 				.catch(function () {
