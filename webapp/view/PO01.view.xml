@@ -259,13 +259,6 @@
 										editable="true"
 									/>
 
-									<Label text="Email gửi thông báo"/>
-									<Input
-										id="inVendorEmail"
-										placeholder="Email nhà cung cấp sẽ tự động hiển thị tại đây"
-										editable="true"
-									/>
-
 									<core:Title text="Giá mua (Pricing)" class="qdFormSectionTitle qdFormSectionTitlePurple"/>
 
 									<Label text="Đơn giá mua thương lượng (Net Price)" required="true"/>
