@@ -38,12 +38,26 @@
 								</VBox>
 							</HBox>
 
+							<SearchField
+								id="sfPendingPRSearch"
+								placeholder="Tìm mã PR, mô tả hoặc người yêu cầu..."
+								liveChange=".onPendingPRSearch"
+								search=".onPendingPRSearch"
+								width="100%"
+								class="sapUiSmallMarginBegin sapUiSmallMarginEnd sapUiTinyMarginBottom"
+							/>
+
+							<!-- Cot trai cung cuon trong khung rieng — PR don nhieu khong keo dai trang. -->
+							<ScrollContainer height="calc(100vh - 24rem)" width="100%" vertical="true" horizontal="false" focusable="false">
 							<Table
 								id="pendingPRTable"
 								items="{/PendingPRs}"
 								mode="SingleSelectMaster"
 								selectionChange=".onPRSelect"
 								sticky="ColumnHeaders"
+								growing="true"
+								growingThreshold="15"
+								growingScrollToLoad="true"
 								noDataText="Không có PR nào đang chờ Purchasing xử lý."
 							>
 								<columns>
@@ -67,17 +81,37 @@
 									</ColumnListItem>
 								</items>
 							</Table>
+							</ScrollContainer>
 						</VBox>
 					</VBox>
 
-					<!-- KHU VUC LAP RFQ -->
-					<VBox id="rfqCreationArea" width="100%" visible="false">
+					<!-- KHU VUC LAP RFQ — LUON render, khong dung visible="false".
+					     Truoc day vung nay bat dau an; sap.ui.layout.Splitter chi chia be rong
+					     cho cac contentArea o lan render dau, nen khi setVisible(true) sau do
+					     Splitter khong tinh lai -> cot phai ra mang trang, phai bam qua lai
+					     giua 2 PR moi hien. Nay chi doi noi dung theo PR dang chon. -->
+					<VBox id="rfqCreationArea" width="100%">
 						<layoutData>
 							<l:SplitterLayoutData size="65%" minSize="450"/>
 						</layoutData>
 
+						<!-- Chua chon PR nao (danh sach rong): huong dan thay vi cot phai trong tron -->
+						<MessageStrip
+							text="Chọn một PR ở cột bên trái để bắt đầu lập Yêu cầu báo giá."
+							type="Information"
+							showIcon="true"
+							visible="{= !${/hasSelectedPR} }"
+							class="sapUiSmallMargin"
+						/>
+
 						<!-- CARD 2: CHON NHA CUNG CAP MOI BAO GIA -->
-						<VBox class="qdContentCard qdCardAccentPurple">
+						<VBox class="qdContentCard qdCardAccentPurple" visible="{/hasSelectedPR}">
+							<MessageStrip
+								text="Đang lập RFQ cho: {/selectedPRLabel}"
+								type="Success"
+								showIcon="true"
+								class="sapUiSmallMarginBottom"
+							/>
 							<HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
 								<HBox alignItems="Center">
 									<Text text="2" class="qdStepBadge qdStepBadgePurple"/>
@@ -95,20 +129,29 @@
 								/>
 							</HBox>
 
-							<MessageStrip
-								text="{/aiText}"
-								type="Information"
-								showIcon="true"
-								visible="{= !!${/aiText} }"
-								class="sapUiSmallMarginBottom"
-							/>
+							<!-- Khung chat AI: bong bong cuon rieng (khung co chieu cao co dinh + tu
+							     cuon xuong tin moi nhat) thay vi 1 MessageStrip dai dan dong het cau
+							     tra loi (feedback 15/08: "hoi xong khong nhin het duoc doan chat", o
+							     hoi qua nho). aiChatHtml duoc controller ve san tu aiMessages — xem
+							     _renderAiChat trong RFQ01.controller.js. -->
+							<ScrollContainer
+								id="aiChatScroll"
+								height="300px"
+								width="100%"
+								vertical="true"
+								horizontal="false"
+								visible="{= ${/aiMessages}.length > 0 }"
+								class="qdAiChatPanel sapUiSmallMarginBottom"
+							>
+								<core:HTML content="{/aiChatHtml}"/>
+							</ScrollContainer>
 
 							<!-- Hoi dap AI tuong tac: sau khi co goi y ban dau, nguoi dung hoi them
 							     ("NCC nao giao nhanh nhat?", "vi sao khong chon V2?"...) thay vi chi
 							     doc 1 chieu (feedback QDAVY 13/08: "AI van chua chat/tuong tac duoc"). -->
 							<HBox
 								alignItems="Center"
-								visible="{= !!${/aiText} }"
+								visible="{= ${/aiMessages}.length > 0 }"
 								class="sapUiSmallMarginBottom"
 							>
 								<Input
@@ -117,7 +160,7 @@
 									width="100%"
 									maxLength="500"
 									submit=".onAiAskPress"
-									class="sapUiTinyMarginEnd"
+									class="sapUiTinyMarginEnd qdAiChatInput"
 								/>
 								<Button
 									text="Hỏi AI"
@@ -191,7 +234,7 @@
 						</VBox>
 
 						<!-- CARD 3: HAN NOP & GUI -->
-						<VBox class="qdContentCard qdCardAccentPurple qdRfqSendCard">
+						<VBox class="qdContentCard qdCardAccentPurple qdRfqSendCard" visible="{/hasSelectedPR}">
 							<HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
 								<HBox alignItems="Center">
 									<Text text="3" class="qdStepBadge qdStepBadgePurple"/>

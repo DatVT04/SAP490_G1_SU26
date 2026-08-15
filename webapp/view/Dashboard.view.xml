@@ -320,11 +320,16 @@
 		</content>
 
 		<dependents>
+			<!-- contentHeight: khong dat thi Popover cao theo noi dung — chuc thong bao
+			     la keo dai gan het man hinh (keo ca footer "Danh dau da doc" xuong day).
+			     Chot 24rem, List cuon ben trong; growing de moi lan chi hien 8 cai dau,
+			     cuon cham day tu nap tiep. -->
 			<Popover
 				id="notifPopover"
 				title="Thông báo"
 				placement="Bottom"
 				contentWidth="22rem"
+				contentHeight="24rem"
 			>
 				<footer>
 					<OverflowToolbar>
@@ -340,6 +345,9 @@
 					items="{dash>/notifications}"
 					noDataText="Chưa có thông báo"
 					mode="None"
+					growing="true"
+					growingThreshold="8"
+					growingScrollToLoad="true"
 				>
 					<StandardListItem
 						title="{dash>prId}"
@@ -348,6 +356,7 @@
 						type="Active"
 						press=".onNotifItemPress"
 						highlight="{= ${dash>read} ? 'None' : 'Information' }"
+						wrapping="true"
 					/>
 				</List>
 			</Popover>

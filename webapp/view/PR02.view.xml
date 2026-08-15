@@ -65,6 +65,16 @@
 					<Text text="Tất cả đề nghị đã được xử lý. Bấm Tải lại để cập nhật." class="qdEmptyText" textAlign="Center"/>
 				</VBox>
 
+				<!-- The duyet cao ~ nua man hinh moi cai — khung cuon rieng de trang khong
+				     dai vo han khi don nhieu PR; cuon cham day tu nap the tiep theo. -->
+				<ScrollContainer
+					height="calc(100vh - 18rem)"
+					width="100%"
+					vertical="true"
+					horizontal="false"
+					focusable="false"
+					visible="{= ${/pending}.length > 0 }"
+				>
 				<List
 					id="pendingList"
 					items="{/pending}"
@@ -72,8 +82,7 @@
 					showSeparators="None"
 					growing="true"
 					growingThreshold="5"
-					growingScrollToLoad="false"
-					visible="{= ${/pending}.length > 0 }"
+					growingScrollToLoad="true"
 					class="qdApprovalList"
 				>
 					<CustomListItem>
@@ -242,6 +251,7 @@
 						</VBox>
 					</CustomListItem>
 				</List>
+				</ScrollContainer>
 			</VBox>
 
 		</content>

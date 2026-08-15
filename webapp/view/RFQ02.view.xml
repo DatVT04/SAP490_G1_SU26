@@ -38,6 +38,30 @@
 								</VBox>
 							</HBox>
 
+							<!-- Tìm nhanh + lọc trạng thái: danh sách trộn lẫn RFQ đã xong (chỉ để
+							     tra cứu) với RFQ đang cần xử lý. Mặc định mở ở "Đang chờ" cho đúng
+							     việc Purchasing thực sự phải làm; muốn tra lại cái cũ thì bấm sang tab
+							     khác. Bộ lọc chạy tại client trên đúng danh sách đã tải. -->
+							<SearchField
+								placeholder="Tìm mã RFQ hoặc mã PR..."
+								liveChange=".onRfqSearch"
+								search=".onRfqSearch"
+								width="100%"
+								class="sapUiTinyMarginBottom"
+							/>
+							<SegmentedButton
+								selectedKey="OPEN"
+								selectionChange=".onRfqStatusFilter"
+								width="100%"
+								class="sapUiSmallMarginBottom"
+							>
+								<items>
+									<SegmentedButtonItem key="OPEN" text="Đang chờ"/>
+									<SegmentedButtonItem key="AWARDED" text="Đã chốt"/>
+									<SegmentedButtonItem key="ALL" text="Tất cả"/>
+								</items>
+							</SegmentedButton>
+
 							<!-- Danh sách RFQ chỉ tăng theo thời gian (25+ và còn lên nữa) — cuộn
 							     trong khung cao cố định thay vì kéo dài cả trang, giống danh sách
 							     NCC bên RFQ-01. Header dính khi cuộn, cuộn chạm đáy tự nạp tiếp. -->
@@ -155,20 +179,28 @@
 								/>
 							</HBox>
 
-							<MessageStrip
-								text="{/aiText}"
-								type="Information"
-								showIcon="true"
-								visible="{= !!${/aiText} }"
-								class="sapUiSmallMarginBottom"
-							/>
+							<!-- Khung chat AI: bong bong cuon rieng, y het RFQ-01 (feedback 15/08: "hoi
+							     xong khong nhin het duoc doan chat", o hoi qua nho). aiChatHtml duoc
+							     controller ve san tu aiMessages — xem _renderAiChat trong
+							     RFQ02.controller.js. -->
+							<ScrollContainer
+								id="aiChatScroll"
+								height="300px"
+								width="100%"
+								vertical="true"
+								horizontal="false"
+								visible="{= ${/aiMessages}.length > 0 }"
+								class="qdAiChatPanel sapUiSmallMarginBottom"
+							>
+								<core:HTML content="{/aiChatHtml}"/>
+							</ScrollContainer>
 
 							<!-- Hoi dap AI tuong tac tren cac bao gia dang so sanh (feedback QDAVY 13/08:
 							     "AI van chua the chat hay tuong tac duoc"). Server tu doc bao gia theo RfqId
 							     va van an danh hoa ten NCC truoc khi goi AI. -->
 							<HBox
 								alignItems="Center"
-								visible="{= !!${/aiText} }"
+								visible="{= ${/aiMessages}.length > 0 }"
 								class="sapUiSmallMarginBottom"
 							>
 								<Input
@@ -177,7 +209,7 @@
 									width="100%"
 									maxLength="500"
 									submit=".onAiAskPress"
-									class="sapUiTinyMarginEnd"
+									class="sapUiTinyMarginEnd qdAiChatInput"
 								/>
 								<Button
 									text="Hỏi AI"

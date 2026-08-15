@@ -3,8 +3,10 @@ sap.ui.define([
 	"sap/ui/model/json/JSONModel",
 	"sap/m/MessageBox",
 	"sap/m/MessageToast",
+	"sap/ui/model/Filter",
+	"sap/ui/model/FilterOperator",
 	"com/qdavy/procurement/model/Config"
-], function (Controller, JSONModel, MessageBox, MessageToast, Config) {
+], function (Controller, JSONModel, MessageBox, MessageToast, Filter, FilterOperator, Config) {
 	"use strict";
 
 	var BACKEND = Config.BACKEND;
@@ -177,6 +179,29 @@ sap.ui.define([
 		// da ban ra TRUOC khi ham nay kip attachEventOnce() -> listener gan sau khong
 		// bao gio duoc goi (day la ly do ban dau khong hoat dung). Kiem tra getItems()
 		// ngay lap tuc truoc, chi cho vao "updateFinished" khi thuc su chua co du lieu.
+		// Tim PR da duyet theo ma PR / mo ta / ma vat tu. Loc client tren binding
+		// /PurchaseRequisitions — khong goi lai SAP.
+		onApprovedPRSearch: function (oEvent) {
+			var sQuery = (oEvent.getParameter("newValue") !== undefined
+				? oEvent.getParameter("newValue")
+				: oEvent.getParameter("query")) || "";
+			var oTable = this.getView().byId("approvedPRTable");
+			var oBinding = oTable && oTable.getBinding("items");
+			if (!oBinding) { return; }
+			if (!sQuery.trim()) {
+				oBinding.filter([]);
+				return;
+			}
+			oBinding.filter(new Filter({
+				filters: [
+					new Filter("PrNumber", FilterOperator.Contains, sQuery),
+					new Filter("Description", FilterOperator.Contains, sQuery),
+					new Filter("MaterialNo", FilterOperator.Contains, sQuery)
+				],
+				and: false
+			}));
+		},
+
 		_autoSelectFirstPR: function () {
 			var oTable = this.getView().byId("approvedPRTable");
 			var fnSelectFirst = function () {
