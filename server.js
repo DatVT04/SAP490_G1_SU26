@@ -170,6 +170,24 @@ function saveNotifications() {
 function loadThresholds() {
 	ensureDataDir();
 	if (!fs.existsSync(THRESHOLD_FILE)) {
+		// Tren Vercel, DATA_DIR nam trong /tmp va bi xoa sach moi lan cold start ->
+		// thresholdStore rong -> getThresholdForIO() luon tra null -> KHONG PR NAO
+		// leo CEO theo ngan sach IO. Da kiem chung: /api/thresholds tren production
+		// tra {"byIO":{}} trong khi data/thresholds.json trong repo co du lieu.
+		// Doc file trong repo lam gia tri khoi tao; sua qua man Cau hinh nguong van
+		// ghi vao /tmp va van mat khi restart (muon ben that su phai luu len SAP
+		// hoac 1 store ngoai — chua lam).
+		const seedFile = path.join(__dirname, "data", "thresholds.json");
+		if (seedFile !== THRESHOLD_FILE && fs.existsSync(seedFile)) {
+			try {
+				const seed = JSON.parse(fs.readFileSync(seedFile, "utf8"));
+				const byIO = seed.byIO && typeof seed.byIO === "object" ? seed.byIO : {};
+				console.log("[DATA] Nap nguong IO tu repo (seed):", Object.keys(byIO).length);
+				return { byIO: byIO };
+			} catch (e) {
+				console.error("⚠️ Doc seed thresholds THAT BAI:", e.message);
+			}
+		}
 		return { byIO: {} };
 	}
 	try {
@@ -1054,7 +1072,8 @@ function mapSapItemToClient(sapItem) {
  */
 function mapClientItemToSapDeep(item) {
 	const sMaterialType = item.MaterialType || "ZSRV";
-	const sCat = sMaterialType === "ZAST" ? "A" : (item.AcctAssignCat === "F" ? "F" : "K");
+	// Chi con 'A' (Tai san) va 'K' (Cost Center) — xem ghi chu o cho tao mappedItems.
+	const sCat = sMaterialType === "ZAST" ? "A" : "K";
 	return {
 		MaterialNo: item.isFreeText ? "" : (item.MaterialNo || ""),
 		MaterialType: sMaterialType,
@@ -1064,7 +1083,8 @@ function mapClientItemToSapDeep(item) {
 		EstimatedValue: String(item.EstimatedValue || 0),
 		AcctAssignCat: sCat,
 		CostCenter: sCat === "K" ? (item.CostCenter || "") : "",
-		InternalOrder: sCat === "F" ? (item.InternalOrder || "") : "",
+		// Luon rong: khong con Cat 'F'. Nguong ngan sach suy tu CostCenter luc tinh flag.
+		InternalOrder: "",
 		AssetNo: sCat === "A" ? (item.AssetNo || "") : "",
 		GLAccount: sCat === "A" ? "" : defaultGLAccount(sMaterialType),
 		IsFreeText: boolToSapX(item.isFreeText)
@@ -1530,20 +1550,15 @@ app.post("/api/approval/submit", async (req, res) => {
 		if (!it.quantity || Number(it.quantity) <= 0) {
 			return res.status(400).json({ success: false, message: "Dong " + (i + 1) + ": So luong khong hop le." });
 		}
-		// Account assignment: ZAST -> bat buoc AssetNo; con lai theo acctAssignCat (K=CostCenter, F=InternalOrder).
-		// Khong con bat buoc dong thoi ca CostCenter lan InternalOrder nhu truoc (chi 1 trong 2 duoc dung that tren SAP).
+		// Account assignment chi con 2 loai: ZAST -> bat buoc AssetNo (Cat 'A');
+		// con lai bat buoc Cost Center (Cat 'K'). Internal Order khong phai input
+		// cua nguoi dung nua nen khong validate.
 		if (it.materialType === "ZAST") {
 			if (!String(it.assetNo || "").trim()) {
 				return res.status(400).json({ success: false, message: "Dong " + (i + 1) + ": Vat tu Tai san (ZAST) bat buoc nhap Asset No." });
 			}
-		} else if (it.acctAssignCat === "F") {
-			if (!String(it.internalOrder || "").trim()) {
-				return res.status(400).json({ success: false, message: "Dong " + (i + 1) + ": Bat buoc chon Internal Order." });
-			}
-		} else {
-			if (!String(it.costCenter || "").trim()) {
-				return res.status(400).json({ success: false, message: "Dong " + (i + 1) + ": Bat buoc chon Cost Center." });
-			}
+		} else if (!String(it.costCenter || "").trim()) {
+			return res.status(400).json({ success: false, message: "Dong " + (i + 1) + ": Bat buoc chon bo phan (Cost Center)." });
 		}
 	}
 
@@ -1551,9 +1566,13 @@ app.post("/api/approval/submit", async (req, res) => {
 		return res.status(503).json({ success: false, message: "He thong SAP chua duoc cau hinh (thieu SAP_HOST)." });
 	}
 
+	// Chi con 2 loai account assignment: 'A' (vat tu Tai san) va 'K' (Cost Center).
+	// Cau hinh cua nhom: moi phong ban = 1 Cost Center, va moi Cost Center gan dung
+	// 1 Internal Order ngan sach -> IO khong phai mot "loai" rieng, no la ngan sach
+	// cua chinh phong do. Nen KHONG con Cat 'F': PR len SAP luon mang CostCenter.
 	const mappedItems = items.map(function (item, idx) {
 		var sMaterialType = item.materialType || "ZSRV";
-		var sCat = sMaterialType === "ZAST" ? "A" : (item.acctAssignCat === "F" ? "F" : "K");
+		var sCat = sMaterialType === "ZAST" ? "A" : "K";
 		return {
 			LineNo: String(idx + 1).padStart(5, "0"),
 			MaterialNo: item.materialNo || "",
@@ -1564,13 +1583,30 @@ app.post("/api/approval/submit", async (req, res) => {
 			EstimatedValue: Number(item.estimatedValue) || 0,
 			AcctAssignCat: sCat,
 			CostCenter: sCat === "K" ? (item.costCenter || "") : "",
-			InternalOrder: sCat === "F" ? (normalizeOrderNo(item.internalOrder) || String(item.internalOrder || "").trim()) : "",
+			// Luon rong: khong con Cat 'F'. Xem itemsForFlags ben duoi de biet nguong
+			// ngan sach van duoc tinh — suy tu CostCenter chu khong tu field nay.
+			InternalOrder: "",
 			AssetNo: sCat === "A" ? (item.assetNo || "") : "",
 			isFreeText: item.isFreeText || false
 		};
 	});
 
-	const flags = buildApprovalFlags(totalPRValue || 0, mappedItems);
+	// Cat 'K' khong mang InternalOrder len SAP (dung — SAP chi nhan 1 cost object).
+	// Nhung nguong ngan sach de leo CEO van tinh theo IO cua phong ban, nen o day suy
+	// nguoc IO tu CostCenter chi de TINH FLAG. Mang nay khong duoc ghi vao PR nao ca.
+	const ioMaster = await fetchInternalOrderMaster();
+	const ccToIOs = ioMaster.costCenterToIOs || {};
+	const itemsForFlags = [];
+	mappedItems.forEach(function (it) {
+		var aIO = ccToIOs[String(it.CostCenter || "").trim()] || [];
+		if (!aIO.length) { itemsForFlags.push(it); return; }
+		// Phong co nhieu IO thi xet tat ca — buildApprovalFlags tu lay nguong thap nhat.
+		aIO.forEach(function (io) {
+			itemsForFlags.push(Object.assign({}, it, { InternalOrder: io }));
+		});
+	});
+
+	const flags = buildApprovalFlags(totalPRValue || 0, itemsForFlags);
 
 	// Deep-entity POST: header + toan bo dong item long trong PrDraftToItems.
 	// InternalId (PRId) do ABAP CREATE_DEEP_ENTITY sinh qua SNRO ZPRDRAFT,
