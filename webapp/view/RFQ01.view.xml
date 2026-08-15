@@ -151,6 +151,16 @@
 								/>
 							</OverflowToolbar>
 
+							<!-- Danh sách NCC nằm trong vùng cuộn CAO CỐ ĐỊNH: 35 NCC không còn kéo
+							     card dài ra vô hạn, đẩy khối Hạn nộp & Gửi xuống đáy trang nữa.
+							     growingScrollToLoad: cuộn chạm đáy tự nạp tiếp — bỏ hẳn nút "Thêm". -->
+							<ScrollContainer
+								height="24rem"
+								width="100%"
+								vertical="true"
+								horizontal="false"
+								focusable="false"
+							>
 							<Table
 								id="vendorTable"
 								items="{/Vendors}"
@@ -158,7 +168,8 @@
 								selectionChange=".onVendorSelectionChange"
 								sticky="ColumnHeaders"
 								growing="true"
-								growingThreshold="10"
+								growingThreshold="15"
+								growingScrollToLoad="true"
 								noDataText="Không tải được danh sách Nhà cung cấp từ SAP."
 							>
 								<columns>
@@ -176,6 +187,7 @@
 									</ColumnListItem>
 								</items>
 							</Table>
+							</ScrollContainer>
 						</VBox>
 
 						<!-- CARD 3: HAN NOP & GUI -->
@@ -206,13 +218,18 @@
 										width="14rem"
 									/>
 								</VBox>
+								<!-- BO class qdActionBtn: class do sinh ra cho the action tren Dashboard,
+								     keo theo align-self:flex-start + margin-top 0.9rem lam nut bi day
+								     lech khoi vien gradient (vien ve theo .sapMBtnInner cao 2.75rem
+								     nhung vung bam la the goc .sapMBtn cao mac dinh ~2.3rem) -> chi
+								     phan giao nhau o goc la bam duoc. -->
 								<Button
 									text="Tạo &amp; Gửi RFQ"
 									type="Emphasized"
 									icon="sap-icon://email"
 									press=".onCreateAndSendRFQ"
 									enabled="{= ${/selectedVendorCount} > 0 }"
-									class="qdActionBtn qdPrimarySubmitBtn"
+									class="qdPrimarySubmitBtn"
 								/>
 							</HBox>
 
