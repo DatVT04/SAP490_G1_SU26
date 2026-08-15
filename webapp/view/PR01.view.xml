@@ -18,6 +18,7 @@
 						<Text text="Khai báo vật tư cần mua, hệ thống sẽ tạo Purchase Requisition trong SAP" class="qdPageSub"/>
 					</VBox>
 				</HBox>
+
 				<HBox class="qdFlowSteps">
 					<Text text="PR-01 Tạo đề nghị" class="qdFlowStep qdFlowStepActive"/>
 					<core:Icon src="sap-icon://navigation-right-arrow" class="qdFlowArrow"/>
@@ -27,100 +28,95 @@
 				</HBox>
 			</VBox>
 
-			<!-- ============ THÔNG TIN CHUNG ============ -->
+			<!-- ============ THONG TIN CHUNG ============ -->
 			<VBox class="qdContentCard">
 				<HBox alignItems="Center" class="sapUiSmallMarginBottom">
 					<Text text="1" class="qdStepBadge"/>
 					<Title text="Thông tin chung" level="H3" class="qdCardTitle"/>
 				</HBox>
+
 				<HBox wrap="Wrap" class="qdInfoRow">
 					<VBox class="qdInfoCell">
 						<Label text="{i18n>prRequesterLabel}" class="qdInfoLabel"/>
 						<Text text="{user>/fullName}" class="qdInfoValue"/>
+						<Text text="{user>/email}" class="qdInfoHint"/>
 					</VBox>
 					<VBox class="qdInfoCell">
-						<Label text="Email" class="qdInfoLabel"/>
-						<Text text="{user>/email}" class="qdInfoValue"/>
+						<Label text="Bộ phận / Vị trí" class="qdInfoLabel"/>
+						<Text text="{user>/position}" class="qdInfoValue"/>
+						<Text text="{= ${user>/costCenter} ? 'Cost Center: ' + ${user>/costCenter} : 'Chưa gán Cost Center' }" class="qdInfoHint"/>
 					</VBox>
 					<VBox class="qdInfoCell">
-						<Label text="Vai trò" class="qdInfoLabel"/>
-						<Text text="{user>/role}" class="qdInfoValue"/>
-					</VBox>
-					<VBox class="qdInfoCell">
-						<Label text="Tiền tệ" class="qdInfoLabel"/>
-						<Text text="{/header/currency}" class="qdInfoValue"/>
+						<Label text="{i18n>prCurrencyLabel}" class="qdInfoLabel"/>
+						<Select selectedKey="{/header/currency}" width="9rem" class="sapUiTinyMarginTop">
+							<core:Item key="VND" text="VND"/>
+							<core:Item key="USD" text="USD"/>
+						</Select>
 					</VBox>
 				</HBox>
 			</VBox>
 
-			<!-- ============ DANH SÁCH VẬT TƯ ============ -->
+			<!-- ============ DANH SACH VAT TU ============ -->
 			<VBox class="qdContentCard">
-				<HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom" wrap="Wrap">
+				<HBox alignItems="Center" justifyContent="SpaceBetween" wrap="Wrap" class="sapUiSmallMarginBottom">
 					<HBox alignItems="Center">
 						<Text text="2" class="qdStepBadge"/>
-						<Title text="Danh sách vật tư" level="H3" class="qdCardTitle"/>
+						<Title text="Danh sách vật tư ({= ${/items}.length })" level="H3" class="qdCardTitle"/>
 					</HBox>
-					<Button text="Thêm dòng" icon="sap-icon://add" type="Emphasized" press=".onAddItem"/>
+					<Button
+						text="Thêm dòng"
+						icon="sap-icon://add"
+						type="Emphasized"
+						press=".onAddItem"
+						enabled="{= !${/materialsLoading} }"
+					/>
 				</HBox>
 
-				<!-- Header cố định + cuộn khi nhiều dòng -->
+				<!-- ScrollContainer: header cột dính trong vùng cuộn này -->
 				<ScrollContainer
 					height="22rem"
 					width="100%"
-					horizontal="true"
 					vertical="true"
-					focusable="true"
+					horizontal="true"
+					focusable="false"
+					class="qdItemsScroll"
 				>
 					<Table
-						id="prItemsTable"
+						id="itemsTable"
 						items="{/items}"
 						mode="None"
+						growing="false"
+						fixedLayout="true"
 						sticky="ColumnHeaders"
 						class="qdItemsTable"
 						noDataText="Chưa có dòng vật tư"
 					>
 						<columns>
-							<Column minWidth="140" width="14%">
-								<Text text="Vật tư"/>
-							</Column>
-							<Column minWidth="120" width="14%">
-								<Text text="Mô tả"/>
-							</Column>
-							<Column width="4rem" hAlign="Center">
-								<Text text="ĐVT"/>
-							</Column>
-							<Column width="5.5rem" hAlign="End">
-								<Text text="Số lượng"/>
-							</Column>
-							<Column width="7rem" hAlign="End">
-								<Text text="Đơn giá"/>
-							</Column>
-							<Column minWidth="130" width="14%">
-								<Text text="Phòng ban"/>
-							</Column>
-							<Column minWidth="140" width="16%">
-								<Text text="Internal Order"/>
-							</Column>
-							<Column minWidth="90" width="10%">
-								<Text text="Asset No"/>
-							</Column>
-							<Column width="2.75rem" hAlign="Center">
-								<Text text=""/>
-							</Column>
+							<Column width="13rem"><Text text="Vật tư"/></Column>
+							<Column width="11rem"><Text text="Mô tả *"/></Column>
+							<Column width="4.5rem"><Text text="ĐVT"/></Column>
+							<Column width="5.5rem" hAlign="End"><Text text="Số lượng"/></Column>
+							<!-- Đây là ĐƠN GIÁ, không phải thành tiền: lineTotal = quantity × estimatedValue.
+							     Ghi "Giá trị ước tính" khiến người nhập tưởng phải gõ thành tiền → PR sai gấp n lần. -->
+							<Column width="7.5rem" hAlign="End"><Text text="Đơn giá *"/></Column>
+							<Column width="9rem"><Text text="Đối tượng chi phí *"/></Column>
+							<Column width="9rem"><Text text="Cost Center"/></Column>
+							<Column width="9rem"><Text text="Internal Order"/></Column>
+							<Column width="7rem"><Text text="Asset"/></Column>
+							<Column width="3rem" hAlign="Center"><Text text=""/></Column>
 						</columns>
-
 						<items>
 							<ColumnListItem>
 								<cells>
-									<!-- Vật tư -->
+									<!-- Mã và mô tả tách 2 cột (additionalText) thay vì dồn 1 chuỗi
+									     "MAT001 - Mô tả": gõ tìm theo mô tả vẫn ra đúng dòng. -->
 									<ComboBox
 										selectedKey="{materialNo}"
+										items="{path: '/materials', templateShareable: false}"
 										selectionChange=".onMaterialChange"
-										items="{/materials}"
+										placeholder="— Chọn —"
 										showSecondaryValues="true"
 										width="100%"
-										placeholder="Chọn vật tư"
-										enabled="{= !${/materialsLoading} }"
 									>
 										<core:ListItem
 											key="{MaterialNo}"
@@ -129,76 +125,88 @@
 										/>
 									</ComboBox>
 
-									<!-- Mô tả -->
-									<Input value="{description}" liveChange=".onItemValueChange" width="100%"/>
+									<Input value="{description}" width="100%"/>
 
-									<!-- ĐVT -->
-									<Text text="{uom}" textAlign="Center"/>
+									<!-- ĐVT lấy từ material master (BaseUoM), không cho sửa tay:
+									     gõ sai đơn vị là SAP từ chối cả PR. -->
+									<Text text="{uom}"/>
 
-									<!-- Số lượng -->
-<Input
-	value="{quantity}"
-	type="Number"
-	valueLiveUpdate="true"
-	liveChange=".onItemValueChange"
-	change=".onItemValueChange"
-	textAlign="End"
-	width="100%"
-/>
-
-<!-- Đơn giá -->
-<Input
-	value="{estimatedValue}"
-	type="Number"
-	valueLiveUpdate="true"
-	liveChange=".onItemValueChange"
-	change=".onItemValueChange"
-	textAlign="End"
-	width="100%"
-/>
-
-									<!-- Phòng ban: hiện tên (VN từ controller), key = mã CC -->
-									<Select
-										selectedKey="{costCenter}"
-										change=".onCostCenterSelect"
-										items="{/costCenters}"
-										forceSelection="false"
+									<!-- valueLiveUpdate: tổng tiền chạy ngay khi gõ, không phải click ra ngoài.
+									     _recalcTotal() đọc từ model nên bắt buộc phải có thuộc tính này. -->
+									<Input
+										value="{quantity}"
+										type="Number"
+										textAlign="End"
+										valueLiveUpdate="true"
+										liveChange=".onItemValueChange"
+										change=".onItemValueChange"
 										width="100%"
-										visible="{= ${materialType} !== 'ZAST' }"
-										enabled="{= ${materialType} !== 'ZAST' }"
+									/>
+
+									<Input
+										value="{estimatedValue}"
+										type="Number"
+										textAlign="End"
+										valueLiveUpdate="true"
+										liveChange=".onItemValueChange"
+										change=".onItemValueChange"
+										width="100%"
+									/>
+
+									<VBox>
+										<!-- ZAST → account assignment luôn là Asset (Cat A), khóa lựa chọn -->
+										<Select
+											selectedKey="{acctAssignCat}"
+											change=".onAcctAssignCatChange"
+											width="100%"
+											visible="{= ${materialType} !== 'ZAST' }"
+										>
+											<core:Item key="K" text="Cost Center"/>
+											<core:Item key="F" text="Internal Order"/>
+										</Select>
+										<Text
+											text="Tài sản (Asset)"
+											class="qdInfoValue"
+											visible="{= ${materialType} === 'ZAST' }"
+										/>
+									</VBox>
+
+									<ComboBox
+										selectedKey="{costCenter}"
+										items="{path: '/costCenters', templateShareable: false}"
+										placeholder="CC *"
+										selectionChange=".onCostCenterSelect"
+										width="100%"
+										visible="{= ${materialType} !== 'ZAST' &amp;&amp; ${acctAssignCat} !== 'F' }"
 									>
 										<core:Item
 											key="{CostCenter}"
-											text="{= ${Description} ? ${Description} : ${CostCenter} }"
+											text="{= ${Description} &amp;&amp; ${Description} !== ${CostCenter} ? ${CostCenter} + ' - ' + ${Description} : ${CostCenter} }"
 										/>
-									</Select>
+									</ComboBox>
 
-									<!-- Internal Order: theo CC -->
-									<Select
+									<ComboBox
 										selectedKey="{internalOrder}"
-										change=".onInternalOrderSelect"
-										items="{filteredInternalOrders}"
-										forceSelection="false"
+										items="{path: '/internalOrders', templateShareable: false}"
+										placeholder="IO *"
+										selectionChange=".onInternalOrderSelect"
 										width="100%"
-										visible="{= ${materialType} !== 'ZAST' }"
-										enabled="{= ${materialType} !== 'ZAST' }"
+										visible="{= ${materialType} !== 'ZAST' &amp;&amp; ${acctAssignCat} === 'F' }"
 									>
 										<core:Item
 											key="{InternalOrder}"
-											text="{= ${Description} ? (${Description} + ' (' + ${InternalOrder} + ')') : ${InternalOrder} }"
+											text="{= ${Description} &amp;&amp; ${Description} !== ${InternalOrder} ? ${InternalOrder} + ' - ' + ${Description} : ${InternalOrder} }"
 										/>
-									</Select>
+									</ComboBox>
 
-									<!-- Asset — chỉ ZAST -->
 									<Input
 										value="{assetNo}"
-										width="100%"
-										visible="{= ${materialType} === 'ZAST' }"
+										tooltip="Mã tài sản cố định do Kế toán tạo trước trên SAP (AS01). Chưa có mã thì liên hệ Kế toán."
 										enabled="{= ${materialType} === 'ZAST' }"
-										placeholder="Asset No"
+										placeholder="{= ${materialType} === 'ZAST' ? 'Mã tài sản *' : '—' }"
+										width="100%"
 									/>
 
-									<!-- Xóa -->
 									<Button
 										icon="sap-icon://delete"
 										type="Transparent"
@@ -210,6 +218,11 @@
 						</items>
 					</Table>
 				</ScrollContainer>
+
+				<Text
+					text="Bạn không cần biết cấu hình SAP: Vật tư, Cost Center, Internal Order đều CHỌN TỪ DANH SÁCH có sẵn (hệ thống tự kéo từ SAP về, kèm mô tả tiếng Việt). Đối tượng chi phí là nơi ghi nhận khoản chi: Cost Center = mua dùng chung cho bộ phận (hệ thống tự điền bộ phận của bạn nếu đã được gán); Internal Order = mua theo ngân sách được cấp riêng — vượt ngân sách sẽ cần CEO duyệt; Asset = mua tài sản cố định, nhập mã tài sản do Kế toán tạo trước trên SAP (chưa có mã thì liên hệ Kế toán). GL Account hệ thống tự xác định, không phải điền."
+					class="qdInfoHint sapUiTinyMarginTop"
+				/>
 
 				<HBox
 					class="qdTotalBar"
@@ -231,7 +244,7 @@
 					text="{/escalationText}"
 					type="Warning"
 					showIcon="true"
-					class="sapUiSmallMarginTop"
+					class="sapUiSmallMarginTop qdAiMessageStrip"
 					visible="{= !!${/escalationText} }"
 				/>
 			</VBox>
