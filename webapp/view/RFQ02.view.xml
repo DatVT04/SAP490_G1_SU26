@@ -253,10 +253,20 @@
 												<Text text="{VendorName}"/>
 												<Text text="{VendorNo}" class="qdCellHint"/>
 											</VBox>
-											<ObjectStatus
-												text="{= ${VendorEmail} || 'Chưa có email trong master NCC' }"
-												state="{= ${VendorEmail} ? 'None' : 'Error' }"
-											/>
+											<VBox>
+												<ObjectStatus
+													text="{= ${VendorEmail} || 'Chưa có email trong master NCC' }"
+													state="{= ${VendorEmail} ? (${EmailFromMaster} ? 'Warning' : 'None') : 'Error' }"
+												/>
+												<!-- Phan biet 2 ca rat khac nhau: NCC DA nhan thu moi, va NCC
+												     chua tung nhan gi (luc tao RFQ master chua co email) — cai
+												     sau bam "Gui nhac tat ca" moi la lan dau ho biet co RFQ. -->
+												<Text
+													text="Chưa từng nhận thư mời — bấm “Gửi nhắc tất cả” để gửi lần đầu"
+													visible="{= !!${EmailFromMaster} }"
+													class="qdCellHint"
+												/>
+											</VBox>
 											<Button
 												text="Sao chép link"
 												icon="sap-icon://copy"
