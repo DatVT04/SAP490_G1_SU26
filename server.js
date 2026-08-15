@@ -546,15 +546,19 @@ app.get("/api/internal-orders", async (req, res) => {
 // phai loi cua An). Khoi phuc thu cong tu origin/An, giu nguyen logic goc.
 // ============================================================================
 const MATERIAL_MASTER_CONFIG = Object.freeze({
+	// industrySector PHAI la 'M', khong duoc de 'S'. Kiem chung 15/08: vat tu tao
+	// voi sector 'S' khong co view Accounting -> khong co valuation class -> tao PO
+	// bao ME 047. MON-003 (sector 'M') tao PO binh thuong. Sector khong sua duoc sau
+	// khi tao, nen de sai o day la moi vat tu man nay tao ra deu hong.
 	ZAST: {
 		materialType: "ZAST",
-		industrySector: "S",
+		industrySector: "M",
 		plant: "QDPL",
 		storageLocation: "QDSL"
 	},
 	ZSRV: {
 		materialType: "ZSRV",
-		industrySector: "S",
+		industrySector: "M",
 		plant: "QDPL",
 		storageLocation: ""
 	}
@@ -1445,6 +1449,30 @@ app.post("/api/login/google", async (req, res) => {
 	}
 });
 
+// ============================================================================
+// LOC VAT TU KHONG TAO DUOC PO
+//
+// Vat tu thieu doan valuation (bang MBEW) se bi SAP chan o buoc tao PO bang loi
+// ME 047 "Material not maintained by accounting department" — nguoi demo di het
+// ca luong PR -> duyet -> RFQ -> PO roi moi chet o buoc cuoi.
+//
+// 15/08: da bo sung valuation cho toan bo 30 ma bang BAPI_MATERIAL_SAVEDATA
+// (nho bat HEADDATA-ACCOUNT_VIEW = 'X', thieu co nay thi BAPI van tra 'S' nhung
+// khong ghi gi ca). Kiem chung: SE16N -> MBEW -> BWKEY = QDPL -> du 30 dong.
+// Nen danh sach nay hien de RONG.
+//
+// Neu sau nay them vat tu moi ma tao PO bao ME 047, cho ma do vao day cho toi
+// khi bo sung xong valuation. Kiem bang SE16N -> MBEW -> BWKEY = QDPL.
+// ============================================================================
+const HIDDEN_MATERIALS = new Set([]);
+
+function isMaterialSelectable(row) {
+	const code = String((row && row.MaterialNo) || "").trim();
+	if (!code) { return false; }
+	// So ca ban nguyen goc lan ban da bo so 0 dem dau — SAP tra ve khong nhat quan.
+	return !HIDDEN_MATERIALS.has(code) && !HIDDEN_MATERIALS.has(code.replace(/^0+/, ""));
+}
+
 app.get("/api/materials", async (req, res) => {
 	if (!process.env.SAP_HOST) {
 		return res.status(503).json({ success: false, message: "He thong SAP chua duoc cau hinh (thieu SAP_HOST)." });
@@ -1454,7 +1482,12 @@ app.get("/api/materials", async (req, res) => {
 			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/MaterialSet`,
 			{ params: { "$format": "json" }, auth: sapAuth() }
 		);
-		return res.json({ success: true, data: (response.data && response.data.d && response.data.d.results) || [] });
+		const all = (response.data && response.data.d && response.data.d.results) || [];
+		const data = all.filter(isMaterialSelectable);
+		if (all.length !== data.length) {
+			console.log("[MaterialSet] An", all.length - data.length, "vat tu khong tao duoc PO;", data.length, "ma con lai");
+		}
+		return res.json({ success: true, data: data });
 	} catch (error) {
 		console.error("❌ MaterialSet:", error.message);
 		return res.status(502).json({ success: false, message: "Khong the lay du lieu vat tu tu SAP.", sapError: true });
