@@ -11,3 +11,6 @@ dist/
 # vì mỗi lần chạy/test local sẽ đổi nội dung và gây conflict giữa các thành viên)
 data/approvals.json
 data/notifications.json
+
+# Cong cu tach code (chi dung 1 lan, khong can commit)
+.refactor-tools/
