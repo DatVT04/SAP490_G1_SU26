@@ -2481,6 +2481,34 @@ async function sendPOEmailToVendor(vendorEmail, poNumber, data) {
 		return false;
 	}
 }
+// ============================================================================
+// TIEN TE KHONG CO SO THAP PHAN — CHI AP DUNG CHO DUONG TAO PO
+//
+// Kiem chung 15/08 bang chung tu that:
+//   PR  gui "500000"     -> ME53N hien 500.000      (dung)
+//   PO  gui "600000.00"  -> PO 4500006282 hien 60.000.000  (sai, x100)
+//
+// VND khai 0 chu so thap phan trong TCURX. Field NetPrice cua entity PO ben SEGW
+// nhieu kha nang khai kieu tien te CO tham chieu currency nen Gateway dich thap
+// phan, con EstimatedValue cua PR thi khong -> chi PO bi. Do do CHIA 100 truoc
+// khi gui, va CHI o duong PO.
+//
+// TUYET DOI KHONG ap dung ham nay cho createPRInSAP/mapClientItemToSapDeep:
+// PR dang ghi dung gia, sua vao la hong ca du lieu dang chay (14-15/08 da co
+// nguoi them BAPI_CURRENCY_CONV_TO_INTERNAL vao ca 2 duong va lam chet PR).
+//
+// Sua tan goc thi phai vao SEGW bo tham chieu currency o NetPrice — chua lam.
+// ============================================================================
+const ZERO_DECIMAL_CURRENCIES = new Set(["VND", "JPY"]);
+
+function sapPoAmount(value, currency) {
+	const n = Number(value) || 0;
+	if (!ZERO_DECIMAL_CURRENCIES.has(String(currency || "").trim().toUpperCase())) {
+		return n.toFixed(2);
+	}
+	return (n / 100).toFixed(2);
+}
+
 // ── API TẠO PURCHASE ORDER TRÊN SAP GATEWAY ODATA ──
 app.post("/api/po/create", async (req, res) => {
 	const {
@@ -2548,7 +2576,7 @@ app.post("/api/po/create", async (req, res) => {
 			PurchGroup: purchGroup || ORG_DEFAULTS.purchGroup,
 			Currency: currency || ORG_DEFAULTS.currency,
 			DocDate: docDate || new Date().toISOString().split('T')[0],
-			TotalValue: totalValue.toFixed(2),
+			TotalValue: sapPoAmount(totalValue, currency || ORG_DEFAULTS.currency),
 			POToItems: {
 				results: items.map((item, idx) => {
 					var rawMat = String(item.materialNo || "").trim();
@@ -2573,7 +2601,7 @@ app.post("/api/po/create", async (req, res) => {
 						Description: String(item.description || "").substring(0, 40),
 						Quantity: Number(item.quantity || 1).toFixed(3),
 						UoM: String(item.uom || "PC").substring(0, 3),
-						NetPrice: Number(item.netPrice || 0).toFixed(2),
+						NetPrice: sapPoAmount(item.netPrice, currency || ORG_DEFAULTS.currency),
 						CostCenter: String(item.costCenter || "").substring(0, 10),
 						Plant: item.plant || ORG_DEFAULTS.plant
 					};
