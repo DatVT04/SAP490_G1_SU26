@@ -38,6 +38,30 @@
 								</VBox>
 							</HBox>
 
+							<!-- Tìm nhanh + lọc trạng thái: danh sách trộn lẫn RFQ đã xong (chỉ để
+							     tra cứu) với RFQ đang cần xử lý. Mặc định mở ở "Đang chờ" cho đúng
+							     việc Purchasing thực sự phải làm; muốn tra lại cái cũ thì bấm sang tab
+							     khác. Bộ lọc chạy tại client trên đúng danh sách đã tải. -->
+							<SearchField
+								placeholder="Tìm mã RFQ hoặc mã PR..."
+								liveChange=".onRfqSearch"
+								search=".onRfqSearch"
+								width="100%"
+								class="sapUiTinyMarginBottom"
+							/>
+							<SegmentedButton
+								selectedKey="OPEN"
+								selectionChange=".onRfqStatusFilter"
+								width="100%"
+								class="sapUiSmallMarginBottom"
+							>
+								<items>
+									<SegmentedButtonItem key="OPEN" text="Đang chờ"/>
+									<SegmentedButtonItem key="AWARDED" text="Đã chốt"/>
+									<SegmentedButtonItem key="ALL" text="Tất cả"/>
+								</items>
+							</SegmentedButton>
+
 							<!-- Danh sách RFQ chỉ tăng theo thời gian (25+ và còn lên nữa) — cuộn
 							     trong khung cao cố định thay vì kéo dài cả trang, giống danh sách
 							     NCC bên RFQ-01. Header dính khi cuộn, cuộn chạm đáy tự nạp tiếp. -->

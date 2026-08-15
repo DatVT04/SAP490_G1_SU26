@@ -129,6 +129,29 @@ sap.ui.define([
 			this.getView().getModel().setProperty("/selectedVendorCount", iCount);
 		},
 
+		// Tim PR dang cho xu ly theo ma PR / mo ta / email nguoi yeu cau.
+		// Loc client tren binding /PendingPRs — khong goi lai SAP.
+		onPendingPRSearch: function (oEvent) {
+			var sQuery = (oEvent.getParameter("newValue") !== undefined
+				? oEvent.getParameter("newValue")
+				: oEvent.getParameter("query")) || "";
+			var oTable = this.getView().byId("pendingPRTable");
+			var oBinding = oTable && oTable.getBinding("items");
+			if (!oBinding) { return; }
+			if (!sQuery.trim()) {
+				oBinding.filter([]);
+				return;
+			}
+			oBinding.filter(new Filter({
+				filters: [
+					new Filter("PRId", FilterOperator.Contains, sQuery),
+					new Filter("Description", FilterOperator.Contains, sQuery),
+					new Filter("RequesterEmail", FilterOperator.Contains, sQuery)
+				],
+				and: false
+			}));
+		},
+
 		// Loc danh sach NCC theo ma / ten / email — loc phia client tren binding,
 		// khong goi lai SAP (feedback QDAVY 13/08: kho tim NCC khi danh sach dai).
 		onVendorSearch: function (oEvent) {

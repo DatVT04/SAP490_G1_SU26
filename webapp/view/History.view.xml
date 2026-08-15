@@ -31,11 +31,16 @@
 				<!-- ===== PENDING (Purchasing / CFO / CEO) ===== -->
 				<VBox visible="{hist>/showPending}" class="sapUiSmallMarginBottom">
 					<Title text="{hist>/pendingTitle}" level="H3" class="sapUiTinyMarginBottom"/>
+					<!-- Cuộn trong khung cố định — danh sách chờ hiếm khi dài nhưng đồng bộ
+					     cơ chế với mọi bảng khác: header dính, cuộn chạm đáy tự nạp tiếp. -->
+					<ScrollContainer height="18rem" width="100%" vertical="true" horizontal="false" focusable="false">
 					<Table
 						id="pendingTable"
 						items="{hist>/pending}"
 						growing="true"
-						growingThreshold="20"
+						growingThreshold="15"
+						growingScrollToLoad="true"
+						sticky="ColumnHeaders"
 						mode="None"
 						noDataText="Không có đề nghị đang chờ"
 					>
@@ -71,16 +76,22 @@
 							</ColumnListItem>
 						</items>
 					</Table>
+					</ScrollContainer>
 				</VBox>
 
 				<!-- ===== HISTORY ===== -->
 				<VBox>
 					<Title text="{hist>/historyTitle}" level="H3" class="sapUiTinyMarginBottom"/>
+					<!-- Lịch sử chỉ tăng theo thời gian (25+ sau 1 ngày test) — khung cuộn
+					     ăn hết chiều cao còn lại của màn hình thay vì kéo dài cả trang. -->
+					<ScrollContainer height="calc(100vh - 26rem)" width="100%" vertical="true" horizontal="false" focusable="false">
 					<Table
 						id="historyTable"
 						items="{hist>/history}"
 						growing="true"
 						growingThreshold="20"
+						growingScrollToLoad="true"
+						sticky="ColumnHeaders"
 						mode="None"
 						noDataText="Chưa có lịch sử"
 					>
@@ -118,6 +129,7 @@
 							</ColumnListItem>
 						</items>
 					</Table>
+					</ScrollContainer>
 				</VBox>
 
 			</VBox>

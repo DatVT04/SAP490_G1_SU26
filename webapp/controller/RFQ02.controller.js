@@ -3,8 +3,10 @@ sap.ui.define([
 	"sap/ui/model/json/JSONModel",
 	"sap/m/MessageBox",
 	"sap/m/MessageToast",
+	"sap/ui/model/Filter",
+	"sap/ui/model/FilterOperator",
 	"com/qdavy/procurement/model/Config"
-], function (Controller, JSONModel, MessageBox, MessageToast, Config) {
+], function (Controller, JSONModel, MessageBox, MessageToast, Filter, FilterOperator, Config) {
 	"use strict";
 
 	var BACKEND = Config.BACKEND;
@@ -83,6 +85,7 @@ sap.ui.define([
 			// Chi khoa rieng bang danh sach RFQ, khong khoa ca view — neu khoa ca view
 			// thi form nhap bao gia (checkbox/o nhap) ben phai cung bi khoa theo.
 			var oTable = oView.byId("rfqTable");
+			var that = this;
 			oTable.setBusy(true);
 
 			fetch(BACKEND + "/api/rfq")
@@ -91,6 +94,11 @@ sap.ui.define([
 					oTable.setBusy(false);
 					if (res && res.success) {
 						oView.getModel().setProperty("/Rfqs", res.data || []);
+						// Ap lai bo loc ngay sau khi co du lieu: SegmentedButton dat
+						// selectedKey="OPEN" trong XML KHONG ban selectionChange, nen
+						// neu khong goi tay o day thi tab hien "Dang cho" nhung bang
+						// van liet ke ca RFQ da chot.
+						that._applyRfqFilter();
 					} else {
 						MessageToast.show((res && res.message) || "Không tải được danh sách RFQ.");
 					}
@@ -99,6 +107,57 @@ sap.ui.define([
 					oTable.setBusy(false);
 					MessageToast.show("Không thể kết nối máy chủ để lấy danh sách RFQ.");
 				});
+		},
+
+		// ── TIM & LOC DANH SACH RFQ ────────────────────────────────────────────
+		// Loc tai client tren mang /Rfqs da tai, khong goi lai SAP. Hai dieu kien
+		// (tu khoa + trang thai) luon duoc gop lai trong _applyRfqFilter de cai nay
+		// khong xoa cai kia — loi kinh dien khi moi handler tu goi binding.filter().
+
+		_applyRfqFilter: function () {
+			var oTable = this.byId("rfqTable");
+			var oBinding = oTable && oTable.getBinding("items");
+			if (!oBinding) { return; }
+
+			var aFilters = [];
+			var sQuery = String(this._sRfqQuery || "").trim();
+
+			if (sQuery) {
+				aFilters.push(new Filter({
+					filters: [
+						new Filter("RfqId", FilterOperator.Contains, sQuery),
+						new Filter("PrId", FilterOperator.Contains, sQuery),
+						new Filter("SapPrNumber", FilterOperator.Contains, sQuery)
+					],
+					and: false
+				}));
+			}
+
+			// "Dang cho" = tat ca tru AWARDED (gom DRAFT/SENT/QUOTATIONS_RECEIVED),
+			// khong liet ke tung trang thai de sau nay them trang thai moi khong sot.
+			var sStatus = this._sRfqStatusKey || "OPEN";
+			if (sStatus === "AWARDED") {
+				aFilters.push(new Filter("Status", FilterOperator.EQ, "AWARDED"));
+			} else if (sStatus === "OPEN") {
+				aFilters.push(new Filter("Status", FilterOperator.NE, "AWARDED"));
+			}
+
+			oBinding.filter(aFilters);
+		},
+
+		onRfqSearch: function (oEvent) {
+			// liveChange tra "newValue", con nut kinh lup tra "query" — nhan ca hai.
+			var sNew = oEvent.getParameter("newValue");
+			this._sRfqQuery = (sNew !== undefined && sNew !== null)
+				? sNew
+				: (oEvent.getParameter("query") || "");
+			this._applyRfqFilter();
+		},
+
+		onRfqStatusFilter: function (oEvent) {
+			var oItem = oEvent.getParameter("item");
+			this._sRfqStatusKey = oItem ? oItem.getKey() : "OPEN";
+			this._applyRfqFilter();
 		},
 
 		onRfqSelect: function (oEvent) {

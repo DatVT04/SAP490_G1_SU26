@@ -39,12 +39,26 @@
 								</VBox>
 							</HBox>
 
+							<SearchField
+								id="sfApprovedPRSearch"
+								placeholder="Tìm mã PR, mô tả hoặc mã vật tư..."
+								liveChange=".onApprovedPRSearch"
+								search=".onApprovedPRSearch"
+								width="100%"
+								class="sapUiSmallMarginBegin sapUiSmallMarginEnd sapUiTinyMarginBottom"
+							/>
+
 							<!-- Lấy dữ liệu thật trực tiếp từ EntitySet PurchaseRequisitions -->
+							<ScrollContainer height="calc(100vh - 24rem)" width="100%" vertical="true" horizontal="false" focusable="false">
 							<Table
 								id="approvedPRTable"
 								items="{/PurchaseRequisitions}"
 								mode="SingleSelectMaster"
 								selectionChange=".onPRSelect"
+								sticky="ColumnHeaders"
+								growing="true"
+								growingThreshold="15"
+								growingScrollToLoad="true"
 								noDataText="Chưa có Yêu cầu mua hàng (PR) nào được tạo từ SAP Gateway."
 							>
 								<columns>
@@ -68,6 +82,7 @@
 									</ColumnListItem>
 								</items>
 							</Table>
+							</ScrollContainer>
 						</VBox>
 					</VBox>
 

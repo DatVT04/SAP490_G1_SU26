@@ -38,12 +38,26 @@
 								</VBox>
 							</HBox>
 
+							<SearchField
+								id="sfPendingPRSearch"
+								placeholder="Tìm mã PR, mô tả hoặc người yêu cầu..."
+								liveChange=".onPendingPRSearch"
+								search=".onPendingPRSearch"
+								width="100%"
+								class="sapUiSmallMarginBegin sapUiSmallMarginEnd sapUiTinyMarginBottom"
+							/>
+
+							<!-- Cot trai cung cuon trong khung rieng — PR don nhieu khong keo dai trang. -->
+							<ScrollContainer height="calc(100vh - 24rem)" width="100%" vertical="true" horizontal="false" focusable="false">
 							<Table
 								id="pendingPRTable"
 								items="{/PendingPRs}"
 								mode="SingleSelectMaster"
 								selectionChange=".onPRSelect"
 								sticky="ColumnHeaders"
+								growing="true"
+								growingThreshold="15"
+								growingScrollToLoad="true"
 								noDataText="Không có PR nào đang chờ Purchasing xử lý."
 							>
 								<columns>
@@ -67,6 +81,7 @@
 									</ColumnListItem>
 								</items>
 							</Table>
+							</ScrollContainer>
 						</VBox>
 					</VBox>
 

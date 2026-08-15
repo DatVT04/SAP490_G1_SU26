@@ -230,7 +230,9 @@
 
             <!-- SECTION 5: PO Table -->
             <Panel id="panelTable" headerText="Danh sách đơn mua hàng" class="tablePanel">
-                <Table id="poTable" items="{/PurchaseOrders}" growing="true" growingThreshold="10">
+                <!-- 36 PO va con tang — cuon trong khung co dinh, header dinh khi cuon. -->
+                <ScrollContainer height="28rem" width="100%" vertical="true" horizontal="false" focusable="false">
+                <Table id="poTable" items="{/PurchaseOrders}" growing="true" growingThreshold="15" growingScrollToLoad="true" sticky="ColumnHeaders">
                     <columns>
                         <Column id="colCode"><Text text="Mã PO (SAP)" /></Column>
                         <Column id="colVendor"><Text text="Nhà cung cấp" /></Column>
@@ -264,6 +266,7 @@
                         </ColumnListItem>
                     </items>
                 </Table>
+                </ScrollContainer>
             </Panel>
 
         </VBox>
