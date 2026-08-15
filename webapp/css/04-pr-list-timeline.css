@@ -1,0 +1,116 @@
+/* ==========================================================================
+   04-pr-list-timeline.css
+   PR-02 danh sach item long nhau + timeline man PR Detail.
+
+   Tach ra tu webapp/css/style.css (ban goc 1854 dong), phan dong 488-592.
+   THU TU NAP QUAN TRONG: cac file css duoc liet ke theo dung thu tu nay trong
+   manifest.json (sap.ui5 > resources > css). Doi thu tu se lam doi do uu tien
+   cua cac rule co cung do dac hieu -> giao dien co the vo. Them file moi thi
+   them so thu tu lon hon o cuoi.
+   ========================================================================== */
+
+/* ==========================================================================
+   PR-02 — nested item list trong tung dong PR
+   ========================================================================== */
+.qdNestedItemList .sapMLIB {
+	padding: 0.25rem 0 !important;
+	background: transparent !important;
+	border-bottom-color: var(--qd-border) !important;
+}
+
+.qdNestedItemRow {
+	width: 100%;
+	gap: 0.6rem;
+	padding: 0.2rem 0;
+}
+
+.qdLineNo {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.7rem !important;
+	font-weight: 700;
+	background: var(--qd-bg);
+	border-radius: 4px;
+	padding: 0.1rem 0.35rem;
+	min-width: 2.2rem;
+	text-align: center;
+}
+
+.qdNestedItemMain {
+	flex: 1 1 55%;
+	min-width: 0;
+}
+
+.qdNestedItemSide {
+	flex: 0 0 auto;
+	text-align: right;
+	align-items: flex-end;
+}
+
+.qdNestedQty {
+	font-size: 0.82rem !important;
+	font-weight: 600 !important;
+	color: var(--qd-primary) !important;
+}
+
+.qdRowAmount {
+	font-size: 1rem !important;
+	font-weight: 700 !important;
+	color: var(--qd-primary) !important;
+}
+
+.qdRowActions {
+	flex-wrap: wrap;
+	gap: 0.35rem;
+}
+/* ===== PR Detail Timeline ===== */
+.qdTimelineRow {
+	gap: 0.25rem;
+	padding: 1rem 0.25rem 0.5rem;
+	width: 100%;
+}
+.qdTimelineItem {
+	flex: 1 1 0;
+	min-width: 6.5rem;
+	max-width: 11rem;
+	padding: 0 0.25rem;
+}
+.qdTimelineIconDone {
+	color: #107e3e !important;
+	background: #e8f7ef;
+	border-radius: 50%;
+	padding: 0.55rem;
+}
+.qdTimelineIconActive {
+	color: #ffffff !important;
+	background: #107e3e;
+	border-radius: 50%;
+	padding: 0.55rem;
+	box-shadow: 0 0 0 3px rgba(16, 126, 62, 0.28);
+}
+.qdTimelineIconWait {
+	color: #a8a8a8 !important;
+	background: #f2f2f2;
+	border-radius: 50%;
+	padding: 0.55rem;
+}
+.qdTimelineTitle {
+	font-size: 0.8rem;
+	font-weight: 600;
+	margin-top: 0.5rem;
+	color: #32363a;
+	line-height: 1.25;
+}
+.qdTimelineTime {
+	font-size: 0.7rem;
+	color: #6a6d70;
+	margin-top: 0.2rem;
+	line-height: 1.2;
+}
+.qdTimelineSub {
+	font-size: 0.7rem;
+	color: #0a6ed1;
+	margin-top: 0.15rem;
+	line-height: 1.2;
+	word-break: break-word;
+}
+

@@ -1,0 +1,37 @@
+/* ==========================================================================
+   01-base.css
+   Bien mau/font + layout nen dung chung toan app.
+
+   Tach ra tu webapp/css/style.css (ban goc 1854 dong), phan dong 1-26.
+   THU TU NAP QUAN TRONG: cac file css duoc liet ke theo dung thu tu nay trong
+   manifest.json (sap.ui5 > resources > css). Doi thu tu se lam doi do uu tien
+   cua cac rule co cung do dac hieu -> giao dien co the vo. Them file moi thi
+   them so thu tu lon hon o cuoi.
+   ========================================================================== */
+
+/* ==========================================================================
+   QDAVY Procurement — theme variables & layout
+   ========================================================================== */
+:root {
+	--qd-primary: #14294D;
+	--qd-primary-dark: #0C1A30;
+	--qd-primary-light: #24406B;
+	--qd-accent-blue: #2563EB;
+	--qd-accent-green: #16A34A;
+	--qd-accent-amber: #D97706;
+	--qd-accent-purple: #7C3AED;
+	--qd-bg: #F3F5F9;
+	--qd-card-bg: #FFFFFF;
+	--qd-text-muted: #64748B;
+	--qd-border: #E2E8F0;
+	--qd-radius-lg: 16px;
+	--qd-radius-md: 12px;
+	--qd-shadow: 0 4px 16px rgba(20, 41, 77, 0.08);
+	--qd-shadow-hover: 0 10px 28px rgba(20, 41, 77, 0.16);
+	--qd-danger: #DC2626;
+}
+
+html, body {
+	background: var(--qd-bg);
+}
+

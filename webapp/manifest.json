@@ -67,7 +67,43 @@
     "resources": {
       "css": [
         {
-          "uri": "css/style.css"
+          "uri": "css/01-base.css"
+        },
+        {
+          "uri": "css/02-login.css"
+        },
+        {
+          "uri": "css/03-shared-layout.css"
+        },
+        {
+          "uri": "css/04-pr-list-timeline.css"
+        },
+        {
+          "uri": "css/05-po-filter.css"
+        },
+        {
+          "uri": "css/06-dashboard.css"
+        },
+        {
+          "uri": "css/07-shared-cards.css"
+        },
+        {
+          "uri": "css/08-pr-progress.css"
+        },
+        {
+          "uri": "css/09-po-polish.css"
+        },
+        {
+          "uri": "css/10-material-create.css"
+        },
+        {
+          "uri": "css/11-rfq.css"
+        },
+        {
+          "uri": "css/12-pr02-rfq-award.css"
+        },
+        {
+          "uri": "css/13-rfq-chat.css"
         }
       ]
     },
@@ -130,12 +166,16 @@
         {
           "name": "thresholdConfig",
           "pattern": "threshold-config",
-          "target": ["targetThresholdConfig"]
+          "target": [
+            "targetThresholdConfig"
+          ]
         },
         {
           "name": "poReport",
           "pattern": "po-report",
-          "target": ["targetPOReport"]
+          "target": [
+            "targetPOReport"
+          ]
         },
         {
           "name": "materialCreate",

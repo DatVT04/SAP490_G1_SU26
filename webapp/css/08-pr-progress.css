@@ -1,0 +1,115 @@
+/* ==========================================================================
+   08-pr-progress.css
+   Vet tien do ngang tu dong to xanh den buoc hien tai.
+
+   Tach ra tu webapp/css/style.css (ban goc 1854 dong), phan dong 1267-1370.
+   THU TU NAP QUAN TRONG: cac file css duoc liet ke theo dung thu tu nay trong
+   manifest.json (sap.ui5 > resources > css). Doi thu tu se lam doi do uu tien
+   cua cac rule co cung do dac hieu -> giao dien co the vo. Them file moi thi
+   them so thu tu lon hon o cuoi.
+   ========================================================================== */
+
+/* ==========================================================================
+   Tự động tô xanh vệt tiến độ nằm ngang chạy đến ô hiện tại (BẢN CHUẨN)
+   ========================================================================== */
+
+/* 1. Đặt điểm neo chuẩn tuyệt đối tại ô cha .sapMHBoxFlexItem của SAPUI5 */
+.sapMHBoxFlexItem {
+    position: relative !important;
+}
+
+/* 2. Ép node con dùng cơ chế static để lớp giả ::before có thể tính theo ô cha */
+.qdStepNode {
+    position: static !important;
+}
+
+/* 3. Tạo vệt màu xanh chạy ngược về các ô active phía trước */
+.sapMHBoxFlexItem:has(.qdStepNode.active) ~ .sapMHBoxFlexItem:has(.qdStepNode.active)::before {
+    content: "";
+    position: absolute;
+    top: 41px;                      /* Tọa độ Y tính từ đỉnh ô chứa, khớp tâm nút bấm */
+    height: 5px;                    /* Độ dày vạch xanh trùng vạch xám */
+    background-color: var(--qd-accent-blue); /* Màu xanh thương hiệu #2563EB */
+    z-index: 2;                     /* Nằm trên vạch xám (1), nằm dưới nút bấm (10) */
+    left: -50%;                     /* Kéo lùi từ tâm ô này */
+    width: 100%;                    /* Phủ vừa vặn 100% khoảng cách sang ô sát vách */
+}
+
+/* Đảm bảo màu icon bên trong nút bấm tự chuyển sang trắng khi active */
+.qdStepNode.active .qdCircleBtn .sapUiIcon {
+    color: #FFFFFF !important;
+}
+
+/* Làm nổi bật nhãn chữ của những bước đã hoàn thành hoặc đang xử lý */
+.qdStepNode.active .qdStepLabel {
+    color: var(--qd-primary) !important;
+    font-weight: 700 !important;
+}
+
+/*
+DASHBOARD PO
+*/
+/* Custom Dashboard background */
+.dashboardPage {
+    background-color: #f4f6f9 !important;
+}
+
+/* Header customization */
+.customHeader {
+    background: #ffffff !important;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.dashboardTitle {
+    font-weight: 700 !important;
+    color: #1e293b;
+}
+
+.dashboardSubTitle {
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+/* KPI Generic Tile Styles */
+.kpiTile {
+    border-radius: 8px !important;
+    background-color: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    width: 100% !important;
+}
+
+/* Alert Boxes Style (3 ô cảnh báo màu) */
+.alertBox {
+    border-radius: 8px;
+    padding: 12px 16px;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+}
+
+.alertBoxRed { border-left: 4px solid #ef4444; }
+.alertBoxOrange { border-left: 4px solid #f59e0b; }
+.alertBoxGreen { border-left: 4px solid #10b981; }
+
+.alertTitleRed { color: #ef4444; font-weight: 600; }
+.alertNumRed { color: #ef4444; font-weight: 700; }
+.alertTitleOrange { color: #d97706; font-weight: 600; }
+.alertNumOrange { color: #d97706; font-weight: 700; }
+.alertTitleGreen { color: #059669; font-weight: 600; }
+.alertNumGreen { color: #059669; font-weight: 700; }
+
+.alertSub {
+    font-size: 0.75rem;
+    color: #94a3b8;
+}
+
+/* Panel & Chart Container Styles */
+.chartPanel, .tablePanel, .customFilterPanel {
+    background-color: #ffffff;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+/* Table Styling */
+.sapMListTbl {
+    border-radius: 8px;
+}

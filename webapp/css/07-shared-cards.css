@@ -1,0 +1,241 @@
+/* ==========================================================================
+   07-shared-cards.css
+   Dung chung: trang thai rong + mau the/badge cua PR01, PR02, PO01.
+
+   Tach ra tu webapp/css/style.css (ban goc 1854 dong), phan dong 1037-1266.
+   THU TU NAP QUAN TRONG: cac file css duoc liet ke theo dung thu tu nay trong
+   manifest.json (sap.ui5 > resources > css). Doi thu tu se lam doi do uu tien
+   cua cac rule co cung do dac hieu -> giao dien co the vo. Them file moi thi
+   them so thu tu lon hon o cuoi.
+   ========================================================================== */
+
+/* ==========================================================================
+   Empty state (dung chung nhieu man)
+   ========================================================================== */
+.qdEmptyState {
+	border: 1px dashed var(--qd-border);
+	border-radius: var(--qd-radius-md);
+	padding: 2.5rem 1.5rem;
+	background: var(--qd-card-bg);
+	gap: 0.5rem;
+}
+
+.qdEmptyIcon {
+	color: var(--qd-text-muted) !important;
+	font-size: 2rem !important;
+	opacity: 0.5;
+	margin-bottom: 0.4rem;
+}
+
+.qdEmptyTitle.sapMTitle {
+	color: var(--qd-primary) !important;
+	font-size: 1rem !important;
+}
+
+.qdEmptyText {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.85rem !important;
+	max-width: 28rem;
+}
+
+@keyframes qdFadeUp {
+	from { opacity: 0; transform: translateY(12px); }
+	to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive — mobile-first breakpoints */
+@media (max-width: 599px) {
+	.qdDashHero {
+		padding: 1.5rem 1.25rem;
+		margin: 0.75rem;
+	}
+	.qdHeroName.sapMTitle { font-size: 1.4rem !important; }
+	.qdHeroActions { margin-top: 1rem; }
+	.qdSection { margin: 1.25rem 0.75rem 0 0.75rem; }
+	.qdActionCard, .qdKpiCard { max-width: 100%; min-width: 100%; }
+	.qdKpiValue.sapMTitle { font-size: 1.6rem !important; }
+}
+
+/* ==========================================================================
+   PR01 / PR02 / PO01 — shared card & badge patterns
+   ========================================================================== */
+  /* PR-01: vùng cuộn bảng + header cột cố định */
+.qdItemsScroll {
+	border: 1px solid #e5e5e5;
+	border-radius: 0.5rem;
+	background: #fff;
+}
+
+.qdItemsScroll .sapMScrollContScroll {
+	min-width: 100%;
+}
+
+/* Header cột luôn nổi trên dòng dữ liệu khi scroll trong ScrollContainer */
+.qdItemsTable .sapMListTblHeader,
+.qdItemsTable .sapMListTblHeaderCell {
+	position: sticky !important;
+	top: 0 !important;
+	z-index: 5 !important;
+	background: #f5f6f7 !important;
+}
+
+.qdItemsTable .sapMListTblHeader {
+	box-shadow: 0 1px 0 #d9d9d9;
+}
+
+.qdItemsTable .sapMListTblHeaderCell {
+	font-weight: 600;
+	color: #6a6d70;
+}
+.qdFormCard {
+	background: var(--qd-card-bg);
+	border-radius: var(--qd-radius-lg);
+	box-shadow: var(--qd-shadow);
+	border-top: 4px solid var(--qd-primary);
+	padding: 2rem 2.5rem 2.5rem 2.5rem;
+	max-width: 48rem;
+	width: 100%;
+	margin: 1.5rem auto;
+}
+
+.qdFormCardBlue { border-top-color: var(--qd-accent-blue); }
+.qdFormCardAmber { border-top-color: var(--qd-accent-amber); }
+.qdFormCardPurple { border-top-color: var(--qd-accent-purple); }
+
+.qdFormSectionTitle {
+	color: var(--qd-primary) !important;
+}
+
+.qdFormSectionTitleBlue { color: var(--qd-accent-blue) !important; }
+.qdFormSectionTitleAmber { color: var(--qd-accent-amber) !important; }
+.qdFormSectionTitlePurple { color: var(--qd-accent-purple) !important; }
+
+.qdFormCard .sapMInputBaseContentWrapper,
+.qdTableCard .sapMInputBaseContentWrapper {
+	border-radius: 8px;
+}
+
+.qdTableCard {
+	background: var(--qd-card-bg);
+	border-radius: var(--qd-radius-lg);
+	box-shadow: var(--qd-shadow);
+	border-top: 4px solid var(--qd-primary);
+	padding: 0.5rem 1rem 1rem 1rem;
+	margin: 1.5rem;
+}
+
+.qdTableCardBlue { border-top-color: var(--qd-accent-blue); }
+.qdTableCardAmber { border-top-color: var(--qd-accent-amber); }
+.qdTableCardPurple { border-top-color: var(--qd-accent-purple); }
+
+/* Escalation badges (PR-02) */
+.qdBadgeWarning,
+.qdBadgeDanger {
+	display: inline-flex;
+	align-items: center;
+	border-radius: 999px;
+	padding: 0.2rem 0.75rem;
+	margin-bottom: 0.25rem;
+}
+
+.qdBadgeWarning {
+	background: rgba(217, 119, 6, 0.12);
+}
+
+.qdBadgeWarning .sapMObjStatusText,
+.qdBadgeWarning .sapMObjStatusIcon {
+	color: var(--qd-accent-amber) !important;
+}
+
+.qdBadgeDanger {
+	background: rgba(220, 38, 38, 0.12);
+}
+
+.qdBadgeDanger .sapMObjStatusText,
+.qdBadgeDanger .sapMObjStatusIcon {
+	color: var(--qd-danger) !important;
+}
+
+/* PO-01 total amount + AI message strip */
+.qdTotalAmount {
+	font-size: 1.25rem;
+	font-weight: 700;
+	color: var(--qd-accent-purple) !important;
+	background: rgba(124, 58, 237, 0.08);
+	border-radius: var(--qd-radius-md);
+	padding: 0.4rem 1rem;
+}
+
+.qdAiMessageStrip.sapMMsgStrip {
+	border-radius: var(--qd-radius-md);
+	overflow: hidden;
+}
+
+@media (max-width: 40rem) {
+	.qdFormCard {
+		padding: 1.5rem;
+		margin: 1rem;
+	}
+	.qdTableCard {
+		margin: 1rem;
+	}
+}
+.qdTextBold {
+    font-weight: bold !important;
+}
+/* Đường link ray nền nằm ngang nối các node */
+.qdTimelineTrack {
+    position: relative;
+    width: 100%;
+}
+.qdTimelineTrack::before {
+    content: "";
+    position: absolute;
+    top: 20px;
+    left: 8%;
+    right: 8%;
+    height: 5px;
+    background-color: #e0e0e0;
+    z-index: 1; /* Nằm ở lớp dưới cùng */
+}
+
+/* Khối bọc từng node tiến độ */
+.qdStepNode {
+    position: relative;
+    z-index: 5; 
+    width: 15%;
+    text-align: center;
+}
+
+/* SỬA CHÍNH TẠI ĐÂY: Ép nút bấm hình vuông bo góc nổi lên trên */
+.qdCircleBtn {
+    position: relative !important; /* Bắt buộc phải có để z-index hoạt động */
+    z-index: 10 !important;        /* Cao hơn mức z-index: 1 của thanh ngang */
+    border-radius: 12px !important; /* Định hình vuông bo góc chuẩn theo ảnh của bạn */
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    padding: 0 !important;
+}
+
+/* Nhãn chữ giai đoạn chính */
+.qdStepLabel {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #888888;
+}
+
+/* Chữ hiển thị ngày giờ nhỏ mờ phía dưới */
+.qdStepDate {
+    font-size: 11px !important;
+    color: #aaaaaa !important;
+    margin-top: 2px;
+}
+
+/* Khi bước đó đang active hoặc đã qua - Đổi màu viền chữ nếu cần */
+.qdStepNode.active .qdStepLabel {
+    color: #1a365d !important; /* Màu xanh đen đồng bộ với màu nút bấm */
+}
+.qdStepNode.active .qdStepDate {
+    color: #555555 !important;
+}
