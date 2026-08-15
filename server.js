@@ -8,12 +8,11 @@ const os = require("os");
 const crypto = require("crypto");
 const { QDAVY_LOGO_CID, BRAND, qdavyLogoAttachment } = require("./mail-assets");
 // Hang so/state nam trong cac module con nhung khoi dong server van can dung.
-const { ODATA_SERVICE_PATH } = require("./src/config/org");
+const { ODATA_SERVICE_PATH, PORT } = require("./src/config/org");
 const { DATA_DIR } = require("./src/lib/store");
 
 
 const app = express();
-const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 

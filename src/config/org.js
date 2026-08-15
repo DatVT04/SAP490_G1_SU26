@@ -8,6 +8,10 @@
 
 
 
+// Cong chay server. De o day (khong de rieng trong server.js) vi service dung link
+// cho NCC cung can lam gia tri du phong khi request khong co header host.
+const PORT = process.env.PORT || 3001;
+
 const ODATA_SERVICE_PATH = "/sap/opu/odata/sap/ZG1_PROC_SRV_SRV";
 
 // ============================================================================
@@ -47,6 +51,7 @@ const LEGAL_ESCALATION_THRESHOLD = 100000000;
 // ============================================================================
 const SAP_TZ_OFFSET_MIN = Number(process.env.SAP_TZ_OFFSET_MIN || 120);
 module.exports = {
+	PORT,
 	LEGAL_ESCALATION_THRESHOLD,
 	ODATA_SERVICE_PATH,
 	ORG_DEFAULTS,
