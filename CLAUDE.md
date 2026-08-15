@@ -70,8 +70,8 @@ SAPUI5 freestyle (webapp/)  →  Node.js/Express (server.js, port 3001)  →  SA
    `onViewDetail`, `onEditPO`, `onMoreAction`, `formatDaysState`, `formatStatusState`) không
    tồn tại trong controller. Route `po-report` cũng đã gỡ khỏi `manifest.json` — trước đó chỉ
    tile bị ẩn còn route vẫn sống, gõ thẳng URL là vào được và thấy số liệu bịa.
-   **Endpoint `GET /api/po/report` trong `src/routes/po.routes.js` vẫn còn** nhưng giờ không ai
-   gọi — giữ lại vì phần merge mốc thời gian duyệt PR vào PO trong đó có thể tái dùng.
+   Endpoint `GET /api/po/report` cũng đã xoá nốt (không ai gọi). Phần merge mốc thời gian
+   duyệt PR vào PO trong route cũ nếu cần tái dùng: `git show ce9d5ae~1:src/routes/po.routes.js`.
 5. ✅ **`ThresholdConfig` đã nối backend thật** (11/08). Route `PUT /api/thresholds` (kèm
    `saveThresholds()`) thực ra ĐÃ có sẵn từ trước — vấn đề chỉ là frontend chưa bao giờ gọi fetch.
    Nhưng màn hình cũ dựng quanh 1 ngưỡng phẳng 300tr trong khi backend đã chuyển sang **ngưỡng

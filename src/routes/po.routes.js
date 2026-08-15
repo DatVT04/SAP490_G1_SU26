@@ -12,7 +12,7 @@ const { sapPoAmount } = require("../config/master-data");
 const { ODATA_SERVICE_PATH, ORG_DEFAULTS } = require("../config/org");
 const { extractSapErrorMessage, sapAuth } = require("../lib/sap-client");
 const { sendPOEmailToVendor } = require("../services/po-mail.service");
-const { fetchPRItemsFromSAP, fetchPrDraftById, fetchPrDraftList, pickRealItemNo, updatePrDraft } = require("../services/pr.service");
+const { fetchPRItemsFromSAP, fetchPrDraftById, pickRealItemNo, updatePrDraft } = require("../services/pr.service");
 
 const router = express.Router();
 
@@ -217,72 +217,9 @@ router.post("/api/po/create", async (req, res) => {
 		});
 	}
 });
-// ============================================================================
-// API BÁO CÁO TIẾN ĐỘ PO (REPORT) — MERGE TIMELINE & PHÂN QUYỀN VAI TRÒ (ROLE)
-// ============================================================================
-router.get("/api/po/report", async (req, res) => {
-	const userEmail = String(req.query.email || "").trim().toLowerCase();
+// LICH SU: truoc day o day co GET /api/po/report (bao cao tien do PO) — da XOA 15/08/2026
+// cung voi man POReport (man do chua bao gio chay dung: view va controller lech phien ban).
+// Trong route cu co logic merge moc thoi gian duyet PR (PrDraftSet) vao PO — neu can tai
+// dung thi xem git: git show ce9d5ae~1:src/routes/po.routes.js
 
-	// Chế độ Mock Data khi chưa cấu hình kết nối SAP
-	if (!process.env.SAP_HOST) {
-		return res.json({ success: true, sapIntegration: "mock", data: [] });
-	}
-
-	try {
-		// 1. Gọi OData lấy danh sách lịch sử Purchase Order từ SAP S/4HANA
-		const response = await axios.get(
-			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseOrderHistorySet`,
-			{ params: { "$format": "json" }, auth: sapAuth() }
-		);
-		let results = (response.data && response.data.d && response.data.d.results) || [];
-		console.log("===== PO HISTORY =====");
-		console.log(results.length);
-		console.dir(results, { depth: null });
-
-		// 2. Merge (trộn) dữ liệu mốc thời gian duyệt PR (giờ lấy từ PrDraftSet trên SAP,
-		// không còn approvalStore local) vào PO từ SAP. Sửa luôn 1 lỗi cũ: code trước đọc
-		// matchedPR.PurchasingApprovedAt/CfoProcessedAt/CeoProcessedAt — 3 field này CHƯA BAO
-		// GIỜ tồn tại (bản ghi PR luôn dùng tên PurchasingAt/CfoAt/CeoAt), nên LeadDate/CfoDate/
-		// CeoDate trước đây luôn ra null. Nay dùng đúng tên field.
-		const allDrafts = await fetchPrDraftList();
-		results = results.map((po) => {
-			const matchedPR = allDrafts.find(
-				(pr) => pr.SapPRId === po.PoNumber || pr.PRId === po.PreqNo || pr.InternalId === po.PreqNo
-			);
-
-			return {
-				...po,
-				// Gán thông tin người tạo PR
-				RequesterEmail: matchedPR ? matchedPR.RequesterEmail : (po.RequesterEmail || "requester@qdavy.com"),
-
-				// Gán các mốc thời gian (Dates) cho Timeline 6 bước
-				PrDate: matchedPR ? matchedPR.CreatedAt?.split("T")[0] : po.DocDate,
-				LeadDate: matchedPR?.PurchasingAt ? matchedPR.PurchasingAt.split("T")[0] : null,
-				CfoDate: matchedPR?.CfoAt ? matchedPR.CfoAt.split("T")[0] : null,
-				CeoDate: matchedPR?.CeoAt ? matchedPR.CeoAt.split("T")[0] : null,
-				DocDate: po.DocDate || new Date().toISOString().split("T")[0],
-				DeliveryDate: po.Status === "DELIVERED" ? po.DeliveryDate : null
-			};
-		});
-
-		// 3. Phân quyền xem dữ liệu báo cáo theo Email người dùng
-		if (userEmail === "requester@qdavy.com") {
-			// Requester chỉ lọc và thấy danh sách PO do chính mình đề nghị
-			results = results.filter((po) =>
-				String(po.RequesterEmail || "").toLowerCase() === "requester@qdavy.com"
-			);
-		}
-		// Các email cấp quản lý: purchasing@qdavy.com, cfo@qdavy.com, ceo@qdavy.com
-		// sẽ nhận được toàn bộ danh sách PO trên hệ thống.
-
-		return res.json({ success: true, sapIntegration: "fetched", data: results });
-	} catch (error) {
-		console.error("❌ Lỗi lấy báo cáo PO:", error.message);
-		return res.status(502).json({
-			success: false,
-			sapError: true,
-			message: "Node.js không thể kết nối tới SAP Gateway!"
-		});
-	}
-});
 module.exports = router;
