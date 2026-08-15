@@ -10,9 +10,11 @@ sap.ui.define([
 
 	var BACKEND = Config.BACKEND;
 
-	// Tile "report" (Bao cao tien do) da go khoi tat ca vai tro: tien trinh cua PR gio
-	// nam trong "Lich su de nghi" (man History + PRDetail timeline) nen tile nay trung
-	// lap va gay nhieu. View/route poReport van giu nguyen, chi khong hien tren dashboard.
+	// Man "Bao cao tien do PO" (POReport) da bi XOA HAN ngay 15/08/2026: view va controller
+	// la 2 phien ban lech nhau (6 o KPI la so cung trong XML, 3 bieu do va bang khong bind
+	// dung model, 8 handler view goi khong ton tai trong controller) nen man do chua bao gio
+	// chay dung. Tien trinh cua PR xem o "Lich su de nghi" (History + timeline PRDetail).
+	// Can lay lai thi checkout tu git truoc commit nay.
 	var TILES_BY_ROLE = {
 		REQUESTER:  ["pr01", "history"],
 		PURCHASING: ["materialCreate", "pr02", "rfq01", "rfq02", "po01", "history"],
@@ -383,10 +385,6 @@ sap.ui.define([
 
 		onNavToThresholdConfig: function () {
 			this.getOwnerComponent().getRouter().navTo("thresholdConfig");
-		},
-
-		onNavToPOReport: function () {
-			this.getOwnerComponent().getRouter().navTo("poReport");
 		},
 
 		onAvatarPress: function (oEvent) {

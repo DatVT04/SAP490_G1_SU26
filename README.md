@@ -39,4 +39,7 @@ Tìm code nhanh:
 | Cách gọi SAP OData | `src/lib/sap-client.js` |
 | Nội dung email | `src/services/rfq-mail.service.js`, `po-mail.service.js`, `mail-assets.js` |
 | Giao diện 1 màn | `webapp/view/<nhóm>/` + `webapp/controller/<nhóm>/` cùng tên |
+
+> **Đã xoá 15/08/2026:** màn `POReport` (view + controller + route + tile ẩn + CSS riêng) và
+> `Profile` (2 file còn sót sau khi route bị gỡ từ trước). Cần lấy lại thì checkout từ git.
 | CSS của 1 màn | `webapp/css/` — tên file có tên màn |

@@ -266,32 +266,6 @@
 						/>
 					</VBox>
 
-					<!-- REPORT — DA AN VOI MOI VAI TRO.
-					     Tien trinh cua PR gio nam trong "Lich su de nghi" (man History +
-					     timeline o PRDetail) nen tile nay trung lap. Giu nguyen ca khoi,
-					     view/route poReport va onNavToPOReport de bat lai bang cach doi
-					     visible ve bieu thuc cu neu hoi dong yeu cau. -->
-					<VBox
-						class="qdActionCard qdAccentGreen"
-						visible="false"
-					>
-						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
-							<VBox class="qdActionIconBox">
-								<core:Icon src="sap-icon://business-by-design" class="qdActionIcon"/>
-							</VBox>
-							<Text text="REPORT" class="qdActionCode"/>
-						</HBox>
-						<Title text="{i18n>tileReportTitle}" level="H3" class="qdActionTitle"/>
-						<Text text="{i18n>tileReportSubtitle}" class="qdActionDesc"/>
-						<Button
-							text="{i18n>dashTileOpen}"
-							icon="sap-icon://arrow-right"
-							iconFirst="false"
-							press=".onNavToPOReport"
-							class="qdActionBtn"
-						/>
-					</VBox>
-
 					<!-- CONFIG -->
 					<VBox
 						class="qdActionCard qdAccentSlate"

@@ -169,11 +169,6 @@
           "target": ["targetThresholdConfig"]
         },
         {
-          "name": "poReport",
-          "pattern": "po-report",
-          "target": ["targetPOReport"]
-        },
-        {
           "name": "materialCreate",
           "pattern": "material-create",
           "target": "materialCreate"
@@ -230,12 +225,6 @@
           "transition": "slide",
           "clearControlAggregation": true,
           "viewName": "admin.ThresholdConfig"
-        },
-        "targetPOReport": {
-          "viewType": "XML",
-          "transition": "slide",
-          "clearControlAggregation": true,
-          "viewName": "po.POReport"
         },
         "materialCreate": {
           "viewName": "admin.MaterialCreate",

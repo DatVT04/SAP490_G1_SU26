@@ -63,9 +63,15 @@ SAPUI5 freestyle (webapp/)  →  Node.js/Express (server.js, port 3001)  →  SA
    payment terms, map ngược bằng word-boundary ở server, có log mỗi lần gọi. Đồng thời đổi từ Groq
    sang Claude (`callClaude`) cho khớp `/api/ai/compare-quotations`. **Groq đã bị loại hoàn toàn
    khỏi codebase** — không còn `GROQ_API_KEY` ở đâu nữa.
-4. ~~`POReport.controller.js` hardcode `http://localhost:3001` + dùng jQuery `$.ajax`~~ —
-   **đã hết** (kiểm tra 11/08): file này giờ `import Config` và dùng `fetch(BACKEND + ...)` đúng
-   như các controller khác. Mục này lỗi thời.
+4. **Màn PO Report đã bị XOÁ HẲN 15/08/2026.** Lý do: view và controller là 2 phiên bản lệch
+   nhau nên màn chưa bao giờ chạy đúng — 6 ô KPI là số cứng viết thẳng trong XML
+   (125/18/36/14/89/5), 3 biểu đồ và bảng bind vào model mặc định trong khi controller ghi vào
+   model tên `reportModel`, và 8 handler view gọi (`onRefresh`, `onSearch`, `onApplyFilter`,
+   `onViewDetail`, `onEditPO`, `onMoreAction`, `formatDaysState`, `formatStatusState`) không
+   tồn tại trong controller. Route `po-report` cũng đã gỡ khỏi `manifest.json` — trước đó chỉ
+   tile bị ẩn còn route vẫn sống, gõ thẳng URL là vào được và thấy số liệu bịa.
+   **Endpoint `GET /api/po/report` trong `src/routes/po.routes.js` vẫn còn** nhưng giờ không ai
+   gọi — giữ lại vì phần merge mốc thời gian duyệt PR vào PO trong đó có thể tái dùng.
 5. ✅ **`ThresholdConfig` đã nối backend thật** (11/08). Route `PUT /api/thresholds` (kèm
    `saveThresholds()`) thực ra ĐÃ có sẵn từ trước — vấn đề chỉ là frontend chưa bao giờ gọi fetch.
    Nhưng màn hình cũ dựng quanh 1 ngưỡng phẳng 300tr trong khi backend đã chuyển sang **ngưỡng
@@ -187,6 +193,6 @@ Biến môi trường mới — xem `.env.example`: `RFQ_PORTAL_SECRET`, `APP_BA
 - Cẩn thận với `__dirname`: code trong `src/**` nằm sâu 2 cấp so với gốc project. Cần đường dẫn
   tính từ gốc thì dùng `APP_ROOT` như trong `src/lib/store.js`, đừng dùng thẳng `__dirname`.
 - SAPUI5: `Controller.extend(...)`, JSONModel cục bộ theo view, gọi backend bằng `fetch()`
-  (PR01/PR02/PO01) — **không** dùng jQuery `$.ajax` (đó là lỗi của POReport, đừng lặp lại).
+  (PR01/PR02/PO01) — **không** dùng jQuery `$.ajax`.
 - Comment tiếng Việt không dấu trong `server.js` (`// Trang thai duyet`, không phải convention
   đẹp nhưng đang nhất quán trong toàn file — giữ nguyên khi sửa cùng vùng code).
