@@ -130,6 +130,12 @@ function describePaymentTerms(code) {
 	return found ? found.label : mapped;
 }
 
+const PAYMENT_METHOD_LABELS = { TRANSFER: "Chuyển khoản", CASH: "Tiền mặt" };
+function describePaymentMethod(code) {
+	const raw = String(code || "").trim().toUpperCase();
+	return PAYMENT_METHOD_LABELS[raw] || (raw || "Không nêu");
+}
+
 // ============================================================================
 // PERSIST — lưu file JSON, không mất khi restart server
 // Trên Vercel, /var/task chỉ đọc (read-only) — chỉ /tmp mới ghi được (nhưng /tmp
@@ -2585,18 +2591,13 @@ async function sendPOEmailToVendor(vendorEmail, poNumber, data) {
         <p>Dear Vendor,</p>
 
         <p>
-            A new Purchase Order has been created.
+            A new Purchase Order has been created by QDAVY.
         </p>
 
         <table border="1" cellpadding="6" cellspacing="0">
             <tr>
                 <td><b>PO Number</b></td>
                 <td>${poNumber}</td>
-            </tr>
-
-            <tr>
-                <td><b>Company Code</b></td>
-                <td>${data.companyCode}</td>
             </tr>
 
             <tr>
@@ -2607,6 +2608,11 @@ async function sendPOEmailToVendor(vendorEmail, poNumber, data) {
             <tr>
                 <td><b>Currency</b></td>
                 <td>${data.currency}</td>
+            </tr>
+
+            <tr>
+                <td><b>Buyer Contact</b></td>
+                <td>${data.buyerName || ""}${data.buyerPhone ? " — " + data.buyerPhone : ""}</td>
             </tr>
         </table>
 
@@ -2627,8 +2633,44 @@ async function sendPOEmailToVendor(vendorEmail, poNumber, data) {
 
         <br>
 
+        <h3>Delivery / Ship-To</h3>
+        <table border="1" cellpadding="6" cellspacing="0">
+            <tr>
+                <td><b>Delivery Address</b></td>
+                <td>${data.deliveryAddress || ""}</td>
+            </tr>
+
+            <tr>
+                <td><b>Goods Recipient</b></td>
+                <td>${data.receiverName || ""}${data.receiverPhone ? " — " + data.receiverPhone : ""}</td>
+            </tr>
+
+            <tr>
+                <td><b>Requested Delivery Date</b></td>
+                <td>${data.deliveryDate || ""}</td>
+            </tr>
+        </table>
+
+        <br>
+
+        <h3>Payment</h3>
+        <table border="1" cellpadding="6" cellspacing="0">
+            <tr>
+                <td><b>Payment Method</b></td>
+                <td>${describePaymentMethod(data.paymentMethod)}</td>
+            </tr>
+
+            <tr>
+                <td><b>Payment Terms</b></td>
+                <td>${describePaymentTerms(data.paymentTerms)}</td>
+            </tr>
+        </table>
+
+        <br>
+
         <p>
-            Please review the Purchase Order and prepare the requested goods.
+            Please review the Purchase Order and proceed with the requested goods/services according to the details above.
+			If you have any questions, please contact the buyer.
         </p>
 
         <br>
@@ -2636,6 +2678,7 @@ async function sendPOEmailToVendor(vendorEmail, poNumber, data) {
         <p>Regards,</p>
 
         <p>Purchasing Department</p>
+		 <p>QDAVY</p>
     `;
 
 	const transporter = getMailTransporter();
@@ -2703,7 +2746,17 @@ app.post("/api/po/create", async (req, res) => {
 		docType,
 		docDate,
 		currency,
-		items
+		items,
+		// Cac field nay CHI dung de dien vao mail thong bao NCC (sendPOEmailToVendor),
+		// khong gui len SAP — deep entity PurchaseOrderHeaderSet khong co field tuong ung.
+		buyerName,
+		buyerPhone,
+		deliveryAddress,
+		receiverName,
+		receiverPhone,
+		deliveryDate,
+		paymentMethod,
+		paymentTerms
 	} = req.body || {};
 
 	if (!vendorNo || !Array.isArray(items) || items.length === 0) {
@@ -2835,12 +2888,20 @@ app.post("/api/po/create", async (req, res) => {
 				items,
 				currency,
 				docDate,
-				companyCode
+				companyCode,
+				buyerName,
+				buyerPhone,
+				deliveryAddress,
+				receiverName,
+				receiverPhone,
+				deliveryDate,
+				paymentMethod,
+				paymentTerms
 			}
 		);
 		console.log("=== EMAIL SENT ===");
 
-	
+
 		return res.status(201).json({
 			success: true,
 			sapIntegration: "created",
@@ -3211,43 +3272,43 @@ function buildRfqEmail(opts) {
 	};
 
 	const html = '<!DOCTYPE html>'
-+ '<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + htmlEscape(subject) + '</title></head>'
-+ '<body style="margin:0;padding:0;background:' + BRAND.bg + ';">'
-+ '<div style="display:none;max-height:0;overflow:hidden;opacity:0">'
-	+ 'Mời báo giá ' + htmlEscape(rfqId) + (deadlineVi ? ' — hạn nộp ' + deadlineVi : '') + '. Quý vị có thể gửi báo giá trực tuyến chỉ trong 1 phút.'
-+ '</div>'
-+ '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:' + BRAND.bg + ';padding:24px 12px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Arial,sans-serif">'
-+ '<tr><td align="center">'
-+ '<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 2px 14px rgba(11,31,63,.08)">'
+		+ '<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + htmlEscape(subject) + '</title></head>'
+		+ '<body style="margin:0;padding:0;background:' + BRAND.bg + ';">'
+		+ '<div style="display:none;max-height:0;overflow:hidden;opacity:0">'
+		+ 'Mời báo giá ' + htmlEscape(rfqId) + (deadlineVi ? ' — hạn nộp ' + deadlineVi : '') + '. Quý vị có thể gửi báo giá trực tuyến chỉ trong 1 phút.'
+		+ '</div>'
+		+ '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:' + BRAND.bg + ';padding:24px 12px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Arial,sans-serif">'
+		+ '<tr><td align="center">'
+		+ '<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 2px 14px rgba(11,31,63,.08)">'
 
-	// Header: logo tren nen trang + thanh gradient
-+ '<tr><td align="center" style="padding:26px 24px 18px">'
-	+ '<img src="cid:' + QDAVY_LOGO_CID + '" width="150" alt="QDAVY Global Group" style="display:block;border:0;width:150px;height:auto">'
-+ '</td></tr>'
-+ '<tr><td style="height:4px;background:linear-gradient(90deg,' + BRAND.blueDark + ' 0%,' + BRAND.blue + ' 100%);background-color:' + BRAND.blue + ';font-size:0;line-height:0">&nbsp;</td></tr>'
+		// Header: logo tren nen trang + thanh gradient
+		+ '<tr><td align="center" style="padding:26px 24px 18px">'
+		+ '<img src="cid:' + QDAVY_LOGO_CID + '" width="150" alt="QDAVY Global Group" style="display:block;border:0;width:150px;height:auto">'
+		+ '</td></tr>'
+		+ '<tr><td style="height:4px;background:linear-gradient(90deg,' + BRAND.blueDark + ' 0%,' + BRAND.blue + ' 100%);background-color:' + BRAND.blue + ';font-size:0;line-height:0">&nbsp;</td></tr>'
 
-	// Tieu de
-+ '<tr><td style="padding:26px 32px 6px">'
-	+ '<div style="font-size:11px;letter-spacing:2px;color:' + BRAND.slate + ';text-transform:uppercase">'
+		// Tieu de
+		+ '<tr><td style="padding:26px 32px 6px">'
+		+ '<div style="font-size:11px;letter-spacing:2px;color:' + BRAND.slate + ';text-transform:uppercase">'
 		+ (isReminder ? 'Thư nhắc · Reminder' : 'Thư mời báo giá · Request for Quotation')
-	+ '</div>'
-	+ '<div style="font-size:26px;font-weight:700;color:' + BRAND.navy + ';padding-top:4px">' + htmlEscape(rfqId) + '</div>'
-+ '</td></tr>'
+		+ '</div>'
+		+ '<div style="font-size:26px;font-weight:700;color:' + BRAND.navy + ';padding-top:4px">' + htmlEscape(rfqId) + '</div>'
+		+ '</td></tr>'
 
-	// Loi chao
-+ '<tr><td style="padding:14px 32px 0;font-size:14px;line-height:1.65;color:' + BRAND.navy + '">'
-	+ '<p style="margin:0 0 10px">Kính gửi <b>' + htmlEscape(vendorName) + '</b>,</p>'
-	+ '<p style="margin:0">'
+		// Loi chao
+		+ '<tr><td style="padding:14px 32px 0;font-size:14px;line-height:1.65;color:' + BRAND.navy + '">'
+		+ '<p style="margin:0 0 10px">Kính gửi <b>' + htmlEscape(vendorName) + '</b>,</p>'
+		+ '<p style="margin:0">'
 		+ (isReminder
 			? 'Chúng tôi đã gửi thư mời báo giá cho yêu cầu mua sắm dưới đây nhưng chưa nhận được phản hồi của Quý công ty. Rất mong Quý công ty dành ít phút gửi báo giá trước hạn.'
 			: 'Công ty QDAVY Global Group trân trọng kính mời Quý công ty gửi báo giá cho yêu cầu mua sắm dưới đây.')
-	+ '</p>'
-+ '</td></tr>'
+		+ '</p>'
+		+ '</td></tr>'
 
-	// The thong tin
-+ '<tr><td style="padding:18px 32px 0">'
-	+ '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:' + BRAND.bg + ';border-radius:10px;padding:6px 16px">'
-	+ '<tr><td style="padding:10px 16px">'
+		// The thong tin
+		+ '<tr><td style="padding:18px 32px 0">'
+		+ '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:' + BRAND.bg + ';border-radius:10px;padding:6px 16px">'
+		+ '<tr><td style="padding:10px 16px">'
 		+ '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">'
 		+ infoRow('Mã yêu cầu báo giá', htmlEscape(rfqId), true)
 		+ (prLabel ? infoRow('Mã đề nghị mua hàng', htmlEscape(prLabel)) : '')
@@ -3258,61 +3319,61 @@ function buildRfqEmail(opts) {
 			: '')
 		+ infoRow('Đầu mối liên hệ', '<a href="mailto:' + htmlEscape(buyerEmail) + '" style="color:' + BRAND.blueDark + ';text-decoration:none">' + htmlEscape(buyerEmail) + '</a>')
 		+ '</table>'
-	+ '</td></tr></table>'
-+ '</td></tr>'
+		+ '</td></tr></table>'
+		+ '</td></tr>'
 
-	// Bang vat tu
-+ '<tr><td style="padding:24px 32px 0">'
-	+ '<div style="font-size:13px;font-weight:700;color:' + BRAND.navy + ';padding-bottom:8px">NỘI DUNG CẦN BÁO GIÁ</div>'
-	+ '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">'
-	+ '<tr style="background:' + BRAND.navy + '">'
+		// Bang vat tu
+		+ '<tr><td style="padding:24px 32px 0">'
+		+ '<div style="font-size:13px;font-weight:700;color:' + BRAND.navy + ';padding-bottom:8px">NỘI DUNG CẦN BÁO GIÁ</div>'
+		+ '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">'
+		+ '<tr style="background:' + BRAND.navy + '">'
 		+ '<th style="padding:9px 8px;font-size:11px;letter-spacing:.6px;color:#fff;text-align:center;width:34px">#</th>'
 		+ '<th style="padding:9px 8px;font-size:11px;letter-spacing:.6px;color:#fff;text-align:left">HÀNG HOÁ / DỊCH VỤ</th>'
 		+ '<th style="padding:9px 8px;font-size:11px;letter-spacing:.6px;color:#fff;text-align:right;white-space:nowrap">SỐ LƯỢNG</th>'
-	+ '</tr>'
-	+ itemRows
-	+ '</table>'
-+ '</td></tr>'
+		+ '</tr>'
+		+ itemRows
+		+ '</table>'
+		+ '</td></tr>'
 
-	// CTA portal
-+ (quoteLink
-	? '<tr><td style="padding:26px 32px 0">'
-		+ '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ' + BRAND.line + ';border-radius:12px">'
-		+ '<tr><td align="center" style="padding:22px 20px">'
+		// CTA portal
+		+ (quoteLink
+			? '<tr><td style="padding:26px 32px 0">'
+			+ '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ' + BRAND.line + ';border-radius:12px">'
+			+ '<tr><td align="center" style="padding:22px 20px">'
 			+ '<div style="font-size:15px;font-weight:700;color:' + BRAND.navy + '">Gửi báo giá trực tuyến — nhanh hơn trả lời email</div>'
 			+ '<div style="font-size:13px;color:' + BRAND.slate + ';padding:6px 0 16px;line-height:1.6">Không cần tạo tài khoản. Link dưới đây dành riêng cho Quý công ty và chỉ dùng cho yêu cầu ' + htmlEscape(rfqId) + '.</div>'
 			+ '<a href="' + htmlEscape(quoteLink) + '" style="display:inline-block;background:' + BRAND.blueDark + ';color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 30px;border-radius:9px">Nhập báo giá ngay &rarr;</a>'
 			+ '<div style="font-size:11px;color:' + BRAND.slate + ';padding-top:14px;word-break:break-all;line-height:1.5">Nếu nút trên không bấm được, sao chép đường dẫn sau vào trình duyệt:<br><span style="color:' + BRAND.blueDark + '">' + htmlEscape(quoteLink) + '</span></div>'
-		+ '</td></tr></table>'
-	+ '</td></tr>'
-	: '')
+			+ '</td></tr></table>'
+			+ '</td></tr>'
+			: '')
 
-	// Bang truong bat buoc
-+ '<tr><td style="padding:26px 32px 0">'
-	+ '<div style="font-size:13px;font-weight:700;color:' + BRAND.navy + '">NẾU QUÝ CÔNG TY TRẢ LỜI BẰNG EMAIL</div>'
-	+ '<div style="font-size:13px;color:' + BRAND.slate + ';padding:6px 0 10px;line-height:1.6">Vui lòng nêu đủ các mục sau để chúng tôi đưa vào bảng so sánh; thiếu mục nào chúng tôi sẽ phải hỏi lại và báo giá bị chậm xét.</div>'
-	+ '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border-top:2px solid ' + BRAND.line + '">'
-	+ fieldRows
-	+ '</table>'
-+ '</td></tr>'
+		// Bang truong bat buoc
+		+ '<tr><td style="padding:26px 32px 0">'
+		+ '<div style="font-size:13px;font-weight:700;color:' + BRAND.navy + '">NẾU QUÝ CÔNG TY TRẢ LỜI BẰNG EMAIL</div>'
+		+ '<div style="font-size:13px;color:' + BRAND.slate + ';padding:6px 0 10px;line-height:1.6">Vui lòng nêu đủ các mục sau để chúng tôi đưa vào bảng so sánh; thiếu mục nào chúng tôi sẽ phải hỏi lại và báo giá bị chậm xét.</div>'
+		+ '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border-top:2px solid ' + BRAND.line + '">'
+		+ fieldRows
+		+ '</table>'
+		+ '</td></tr>'
 
-	// Ket
-+ '<tr><td style="padding:22px 32px 0;font-size:14px;line-height:1.65;color:' + BRAND.navy + '">'
-	+ '<p style="margin:0 0 10px">Báo giá nộp sau hạn vẫn được ghi nhận nhưng có thể không kịp đưa vào vòng xét chọn.</p>'
-	+ '<p style="margin:0">Trân trọng cảm ơn,<br><b>Phòng Thu mua — QDAVY Global Group</b></p>'
-+ '</td></tr>'
+		// Ket
+		+ '<tr><td style="padding:22px 32px 0;font-size:14px;line-height:1.65;color:' + BRAND.navy + '">'
+		+ '<p style="margin:0 0 10px">Báo giá nộp sau hạn vẫn được ghi nhận nhưng có thể không kịp đưa vào vòng xét chọn.</p>'
+		+ '<p style="margin:0">Trân trọng cảm ơn,<br><b>Phòng Thu mua — QDAVY Global Group</b></p>'
+		+ '</td></tr>'
 
-	// Footer
-+ '<tr><td style="padding:24px 32px 28px">'
-	+ '<div style="border-top:1px solid ' + BRAND.line + ';padding-top:14px;font-size:11px;line-height:1.7;color:' + BRAND.slate + '">'
+		// Footer
+		+ '<tr><td style="padding:24px 32px 28px">'
+		+ '<div style="border-top:1px solid ' + BRAND.line + ';padding-top:14px;font-size:11px;line-height:1.7;color:' + BRAND.slate + '">'
 		+ 'Thư này được gửi tự động từ Hệ thống Mua sắm QDAVY. Nếu thư rơi vào mục Spam/Quảng cáo, vui lòng đánh dấu <b>&ldquo;Không phải spam&rdquo;</b> và thêm '
 		+ htmlEscape(buyerEmail) + ' vào danh bạ để nhận được các yêu cầu sau.<br>'
 		+ 'Mọi thắc mắc xin liên hệ Phòng Thu mua qua địa chỉ ' + htmlEscape(buyerEmail) + '.'
-	+ '</div>'
-+ '</td></tr>'
+		+ '</div>'
+		+ '</td></tr>'
 
-+ '</table>'
-+ '</td></tr></table></body></html>';
+		+ '</table>'
+		+ '</td></tr></table></body></html>';
 
 	// ── Ban plain-text ───────────────────────────────────────────────────
 	const textItems = items.length

@@ -500,8 +500,13 @@ sap.ui.define([
 			var sDocDate = oView.byId("inDocDate").getValue();
 			var sDeliveryDate = oView.byId("inDeliveryDate").getValue();
 			var sCurrency = oView.byId("inCurrency").getValue();
+			var sBuyerName = oView.byId("inBuyerName").getValue();
 			var sBuyerPhone = oView.byId("inBuyerAddress").getValue();
+			var sDeliveryAddress = oView.byId("inDeliveryAddress").getValue();
+			var sReceiverName = oView.byId("inReceiverName").getValue();
 			var sReceiverPhone = oView.byId("inReceiverPhone").getValue();
+			var sPaymentMethod = oView.byId("inPaymentMethod").getSelectedKey();
+			var sPaymentTerms = oView.byId("inPaymentTerms").getSelectedKey();
 
 			var sNetPriceRaw = oView.byId("inNetPrice").getValue() || "0";
 			var fNetPrice = Number(sNetPriceRaw.toString().replace(/\D/g, "")) || 0;
@@ -534,7 +539,11 @@ sap.ui.define([
 			if (!sPurchGroup) { MessageBox.error("Vui lòng nhập Nhóm mua hàng (Purchasing Group)."); return; }
 			if (!sDocDate) { MessageBox.error("Vui lòng chọn Ngày lập chứng từ (Doc Date)."); return; }
 			if (!sVendorNo) { MessageBox.error("Vui lòng chọn Nhà cung cấp (Vendor)."); return; }
+			if (!sDeliveryAddress || !sDeliveryAddress.trim()) { MessageBox.error("Vui lòng nhập Địa chỉ giao hàng."); return; }
+			if (!sReceiverName || !sReceiverName.trim()) { MessageBox.error("Vui lòng nhập Người nhận hàng."); return; }
 			if (!sReceiverPhone || !sReceiverPhone.trim()) { MessageBox.error("Vui lòng nhập Số điện thoại người nhận."); return; }
+			if (!sDeliveryDate) { MessageBox.error("Vui lòng chọn Ngày nhận hàng dự kiến."); return; }
+			if (!sPaymentTerms) { MessageBox.error("Vui lòng chọn Điều khoản thanh toán."); return; }
 			if (!sVendorEmail || !sVendorEmail.trim()) { MessageBox.error("Vui lòng nhập Email Nhà cung cấp."); return; }
 			if (fNetPrice <= 0) { MessageBox.error("Đơn giá thương lượng phải lớn hơn 0."); return; }
 
@@ -570,7 +579,15 @@ sap.ui.define([
 				docType: sDocType,
 				docDate: sDocDate,
 				currency: sCurrency,
-				items: aItemsPayload
+				items: aItemsPayload,
+				buyerName: sBuyerName.trim(),
+				buyerPhone: sBuyerPhone.trim(),
+				deliveryAddress: sDeliveryAddress.trim(),
+				receiverName: sReceiverName.trim(),
+				receiverPhone: sReceiverPhone.trim(),
+				deliveryDate: sDeliveryDate,
+				paymentMethod: sPaymentMethod,
+				paymentTerms: sPaymentTerms
 			};
 
 			oView.setBusy(true);
@@ -590,9 +607,7 @@ sap.ui.define([
 						MessageBox.success("Tạo Purchase Order thành công!\nMã PO: " + sPoNum + sMailInfo, {
 							onClose: function () {
 								this._currentPR = null;
-								oView.byId("poCreationArea").setVisible(false);
-								oView.byId("approvedPRTable").removeSelections(true);
-								this._loadApprovedPRs();
+								this.getOwnerComponent().getRouter().navTo("dashboard");
 							}.bind(this)
 						});
 					} else {
