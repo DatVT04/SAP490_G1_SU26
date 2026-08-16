@@ -4,6 +4,7 @@
 	xmlns:mvc="sap.ui.core.mvc"
 	xmlns:core="sap.ui.core"
 	displayBlock="true"
+	height="100%"
 >
 	<Page
 		title="{hist>/pageTitle}"
@@ -12,12 +13,13 @@
 		class="qdDashboardPage"
 		busy="{hist>/busy}"
 		busyIndicatorDelay="0"
+		enableScrolling="false"
 	>
 		<subHeader>
 			<OverflowToolbar>
 				<SearchField
 					width="100%"
-					placeholder="Tìm theo số PR / email..."
+					placeholder="Tìm theo số PR / email / phòng ban / IO..."
 					liveChange=".onSearch"
 				/>
 				<ToolbarSpacer/>
@@ -26,23 +28,22 @@
 		</subHeader>
 
 		<content>
-			<VBox class="sapUiSmallMargin">
+			<!-- VBox full chiều cao trang -->
+			<VBox fitContainer="true" class="sapUiSmallMargin" height="100%">
 
-				<!-- ===== PENDING (Purchasing / CFO / CEO) ===== -->
+				<!-- ===== PENDING (approver) — cao vừa đủ, không chiếm hết ===== -->
 				<VBox visible="{hist>/showPending}" class="sapUiSmallMarginBottom">
 					<Title text="{hist>/pendingTitle}" level="H3" class="sapUiTinyMarginBottom"/>
-					<!-- Cuộn trong khung cố định — danh sách chờ hiếm khi dài nhưng đồng bộ
-					     cơ chế với mọi bảng khác: header dính, cuộn chạm đáy tự nạp tiếp. -->
-					<ScrollContainer height="18rem" width="100%" vertical="true" horizontal="false" focusable="false">
 					<Table
 						id="pendingTable"
 						items="{hist>/pending}"
 						growing="true"
-						growingThreshold="15"
+						growingThreshold="10"
 						growingScrollToLoad="true"
 						sticky="ColumnHeaders"
 						mode="None"
 						noDataText="Không có đề nghị đang chờ"
+						class="sapUiTinyMarginBottom"
 					>
 						<headerToolbar>
 							<OverflowToolbar>
@@ -53,6 +54,8 @@
 							<Column width="9rem"><Text text="Số PR"/></Column>
 							<Column width="9rem"><Text text="Trạng thái"/></Column>
 							<Column minScreenWidth="Tablet" demandPopin="true"><Text text="Người đề nghị"/></Column>
+							<Column minScreenWidth="Tablet" demandPopin="true" width="10rem"><Text text="Phòng ban"/></Column>
+							<Column minScreenWidth="Tablet" demandPopin="true" width="10rem"><Text text="Internal Order"/></Column>
 							<Column hAlign="End" width="9rem"><Text text="Giá trị"/></Column>
 							<Column minScreenWidth="Desktop" demandPopin="true" width="10rem"><Text text="Ngày tạo"/></Column>
 							<Column width="5rem"><Text text=""/></Column>
@@ -66,6 +69,8 @@
 										state="{path: 'hist>Status', formatter: '.formatStatusState'}"
 									/>
 									<Text text="{hist>RequesterEmail}"/>
+									<Text text="{path: 'hist>', formatter: '.formatCostCenters'}"/>
+									<Text text="{path: 'hist>', formatter: '.formatInternalOrders'}"/>
 									<ObjectNumber
 										number="{path: 'hist>TotalValue', formatter: '.formatMoney'}"
 										unit="{hist>Currency}"
@@ -76,59 +81,68 @@
 							</ColumnListItem>
 						</items>
 					</Table>
-					</ScrollContainer>
 				</VBox>
 
-				<!-- ===== HISTORY ===== -->
-				<VBox>
+				<!-- ===== HISTORY — chiếm phần còn lại của màn hình ===== -->
+				<VBox fitContainer="true" height="100%" class="sapUiTinyMarginTop">
 					<Title text="{hist>/historyTitle}" level="H3" class="sapUiTinyMarginBottom"/>
-					<!-- Lịch sử chỉ tăng theo thời gian (25+ sau 1 ngày test) — khung cuộn
-					     ăn hết chiều cao còn lại của màn hình thay vì kéo dài cả trang. -->
-					<ScrollContainer height="calc(100vh - 26rem)" width="100%" vertical="true" horizontal="false" focusable="false">
-					<Table
-						id="historyTable"
-						items="{hist>/history}"
-						growing="true"
-						growingThreshold="20"
-						growingScrollToLoad="true"
-						sticky="ColumnHeaders"
-						mode="None"
-						noDataText="Chưa có lịch sử"
+					<!-- ScrollContainer flex: ăn hết chiều cao còn lại -->
+					<ScrollContainer
+						width="100%"
+						height="100%"
+						vertical="true"
+						horizontal="true"
+						focusable="false"
+						class="qdHistoryScroll"
 					>
-						<headerToolbar>
-							<OverflowToolbar>
-								<ObjectStatus text="{hist>/historyCountText}" state="Information"/>
-							</OverflowToolbar>
-						</headerToolbar>
-						<columns>
-							<Column width="9rem"><Text text="Số PR"/></Column>
-							<Column width="9rem"><Text text="Trạng thái"/></Column>
-							<Column minScreenWidth="Tablet" demandPopin="true"><Text text="Người đề nghị"/></Column>
-							<Column hAlign="End" width="9rem"><Text text="Giá trị"/></Column>
-							<Column minScreenWidth="Desktop" demandPopin="true" width="10rem"><Text text="Ngày tạo"/></Column>
-							<Column minScreenWidth="Desktop" demandPopin="true" width="10rem"><Text text="Cập nhật"/></Column>
-							<Column width="5rem"><Text text=""/></Column>
-						</columns>
-						<items>
-							<ColumnListItem type="Active" press=".onItemPress">
-								<cells>
-									<ObjectIdentifier title="{hist>PRId}" text="{hist>SapPRId}"/>
-									<ObjectStatus
-										text="{path: 'hist>Status', formatter: '.formatStatus'}"
-										state="{path: 'hist>Status', formatter: '.formatStatusState'}"
-									/>
-									<Text text="{hist>RequesterEmail}"/>
-									<ObjectNumber
-										number="{path: 'hist>TotalValue', formatter: '.formatMoney'}"
-										unit="{hist>Currency}"
-									/>
-									<Text text="{path: 'hist>CreatedAt', formatter: '.formatDate'}"/>
-									<Text text="{path: 'hist>UpdatedAt', formatter: '.formatDate'}"/>
-									<Button icon="sap-icon://display" type="Transparent" press=".onItemPress"/>
-								</cells>
-							</ColumnListItem>
-						</items>
-					</Table>
+						<Table
+							id="historyTable"
+							items="{hist>/history}"
+							growing="true"
+							growingThreshold="20"
+							growingScrollToLoad="true"
+							sticky="ColumnHeaders"
+							mode="None"
+							noDataText="Chưa có lịch sử"
+						>
+							<headerToolbar>
+								<OverflowToolbar>
+									<ObjectStatus text="{hist>/historyCountText}" state="Information"/>
+								</OverflowToolbar>
+							</headerToolbar>
+							<columns>
+								<Column width="9rem"><Text text="Số PR"/></Column>
+								<Column width="9rem"><Text text="Trạng thái"/></Column>
+								<Column minScreenWidth="Tablet" demandPopin="true"><Text text="Người đề nghị"/></Column>
+								<Column minScreenWidth="Tablet" demandPopin="true" width="10rem"><Text text="Phòng ban"/></Column>
+								<Column minScreenWidth="Tablet" demandPopin="true" width="10rem"><Text text="Internal Order"/></Column>
+								<Column hAlign="End" width="9rem"><Text text="Giá trị"/></Column>
+								<Column minScreenWidth="Desktop" demandPopin="true" width="10rem"><Text text="Ngày tạo"/></Column>
+								<Column minScreenWidth="Desktop" demandPopin="true" width="10rem"><Text text="Cập nhật"/></Column>
+								<Column width="5rem"><Text text=""/></Column>
+							</columns>
+							<items>
+								<ColumnListItem type="Active" press=".onItemPress">
+									<cells>
+										<ObjectIdentifier title="{hist>PRId}" text="{hist>SapPRId}"/>
+										<ObjectStatus
+											text="{path: 'hist>Status', formatter: '.formatStatus'}"
+											state="{path: 'hist>Status', formatter: '.formatStatusState'}"
+										/>
+										<Text text="{hist>RequesterEmail}"/>
+										<Text text="{path: 'hist>', formatter: '.formatCostCenters'}"/>
+										<Text text="{path: 'hist>', formatter: '.formatInternalOrders'}"/>
+										<ObjectNumber
+											number="{path: 'hist>TotalValue', formatter: '.formatMoney'}"
+											unit="{hist>Currency}"
+										/>
+										<Text text="{path: 'hist>CreatedAt', formatter: '.formatDate'}"/>
+										<Text text="{path: 'hist>UpdatedAt', formatter: '.formatDate'}"/>
+										<Button icon="sap-icon://display" type="Transparent" press=".onItemPress"/>
+									</cells>
+								</ColumnListItem>
+							</items>
+						</Table>
 					</ScrollContainer>
 				</VBox>
 
