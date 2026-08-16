@@ -454,9 +454,13 @@ sap.ui.define([
 				var sRowClass = "qdAiChatRow " + (bUser ? "qdAiChatRowUser" : "qdAiChatRowAi")
 					+ (bFollow ? " qdAiChatRowFollow" : "");
 				var sBubbleClass = "qdAiChatBubble " + (bUser ? "qdAiChatBubbleUser" : "qdAiChatBubbleAi");
+				// pending = o da dat truoc, dang cho server tra loi. Ve 3 cham nhay thay vi
+				// bong bong rong, de nguoi dung biet AI dang xu ly chu khong phai bi treo.
 				var sBody = bUser
 					? that._escapeHtml(m.text).replace(/\n/g, "<br/>")
-					: that._formatAiMessageHtml(m.text);
+					: (m.pending
+						? '<span class="qdAiChatTyping"><i></i><i></i><i></i></span>'
+						: that._formatAiMessageHtml(m.text));
 				var sLabelHtml = bFollow
 					? ""
 					: '<span class="qdAiChatLabel">' + (bUser ? "Bạn hỏi" : "AI gợi ý") + '</span>';
@@ -529,11 +533,35 @@ sap.ui.define([
 			oModel.setProperty("/busyAi", true);
 
 			// Them tin cua nguoi dung vao chat NGAY (khong doi API tra ve) de UX phan hoi tuc thi.
+			//
+			// VA DAT SAN 1 O TRONG cho cau tra loi NGAY DUOI cau hoi vua gui.
+			// Truoc day cau tra loi duoc .push() vao CUOI mang luc no ve tu server, nen hoi
+			// lien 2 cau (chua kip tra loi cau dau) la thu tu thanh Q1, Q2, A1, A2 — cau hoi
+			// don cuc mot cho, cau tra loi don cuc mot cho, nhin nhu bi lap va khong con la
+			// hoi-dap tuan tu nua (feedback 16/08). Nay moi cau tra loi biet cho cua no.
+			var sSlotId = "ai-" + Date.now() + "-" + Math.round(Math.random() * 1e6);
 			var aMessages = (oModel.getProperty("/aiMessages") || []).slice();
 			aMessages.push({ role: "user", text: sQuestion });
+			aMessages.push({ role: "ai", text: "", pending: true, id: sSlotId });
 			oModel.setProperty("/aiMessages", aMessages);
 			that._renderAiChat();
 			oInput.setValue("");
+
+			// Dien cau tra loi (hoac loi) vao DUNG o da dat truoc, tra cuu theo id chu khong
+			// theo vi tri — vi tri co the doi neu nguoi dung bam "AI so sanh bao gia" (ham do
+			// reset ca mach chat) trong luc dang cho tra loi.
+			var fnFillSlot = function (sText) {
+				var aNext = (oModel.getProperty("/aiMessages") || []).slice();
+				for (var i = 0; i < aNext.length; i++) {
+					if (aNext[i] && aNext[i].id === sSlotId) {
+						aNext[i] = { role: "ai", text: sText, id: sSlotId };
+						oModel.setProperty("/aiMessages", aNext);
+						that._renderAiChat();
+						return;
+					}
+				}
+				// Khong tim thay o = mach chat da bi reset -> bo qua, khong noi vao cuoi.
+			};
 
 			fetch(BACKEND + "/api/ai/ask", {
 				method: "POST",
@@ -548,16 +576,18 @@ sap.ui.define([
 				.then(function (res) {
 					oModel.setProperty("/busyAi", false);
 					if (res && res.success) {
-						var aNext = (oModel.getProperty("/aiMessages") || []).slice();
-						aNext.push({ role: "ai", text: res.answer || "" });
-						oModel.setProperty("/aiMessages", aNext);
-						that._renderAiChat();
+						fnFillSlot(res.answer || "");
 					} else {
+						// Loi cung phai hien TRONG mach chat, khong chi bung toast roi de lai
+						// bong bong "dang soan..." treo vinh vien.
+						fnFillSlot("Xin lỗi, tôi chưa trả lời được câu này. "
+							+ ((res && res.message) || "AI không phản hồi."));
 						MessageToast.show((res && res.message) || "AI không phản hồi.");
 					}
 				})
 				.catch(function () {
 					oModel.setProperty("/busyAi", false);
+					fnFillSlot("Không gọi được AI (lỗi kết nối). Bạn thử hỏi lại giúp tôi.");
 					MessageToast.show("Không gọi được AI.");
 				});
 		},

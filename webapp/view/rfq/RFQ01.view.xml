@@ -204,7 +204,10 @@
 								visible="{= ${/aiMessages}.length > 0 }"
 								class="qdAiChatPanel sapUiSmallMarginBottom"
 							>
-								<core:HTML content="{/aiChatHtml}"/>
+								<!-- preferDOM="false": mac dinh sap.ui.core.HTML uu tien giu DOM dang co,
+								     doi content khong phai luc nao cung ve lai sach -> de sinh ra bong bong
+								     cu con sot lai, nhin nhu chat bi lap. Ep ve lai moi lan cho chac. -->
+								<core:HTML content="{/aiChatHtml}" preferDOM="false"/>
 							</ScrollContainer>
 
 							<!-- Hoi dap AI tuong tac: sau khi co goi y ban dau, nguoi dung hoi them
@@ -226,6 +229,7 @@
 									placeholder="Hỏi thêm AI về các nhà cung cấp này..."
 									maxLength="500"
 									submit=".onAiAskPress"
+									enabled="{= !${/busyAi} }"
 									class="sapUiTinyMarginEnd qdAiChatInput"
 								>
 									<layoutData>

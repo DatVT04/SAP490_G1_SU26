@@ -186,3 +186,34 @@
 	margin-bottom: 0;
 }
 
+/* 3 cham nhay khi AI dang soan cau tra loi. O tra loi duoc dat san ngay duoi cau
+   hoi (xem onAiAskPress), nen nguoi dung thay ngay "AI dang tra loi cau nay" thay
+   vi doi mot luc roi cau tra loi bat ngo hien o cuoi danh sach. */
+.qdAiChatTyping {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.28rem;
+	padding: 0.15rem 0;
+}
+
+.qdAiChatTyping i {
+	width: 0.42rem;
+	height: 0.42rem;
+	border-radius: 50%;
+	background: var(--qd-accent-purple);
+	opacity: 0.35;
+	animation: qdAiTypingBlink 1.2s infinite ease-in-out;
+}
+
+.qdAiChatTyping i:nth-child(2) { animation-delay: 0.18s; }
+.qdAiChatTyping i:nth-child(3) { animation-delay: 0.36s; }
+
+@keyframes qdAiTypingBlink {
+	0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+	40% { opacity: 1; transform: translateY(-0.15rem); }
+}
+
+/* Nguoi dung tat hieu ung chuyen dong trong he dieu hanh thi khong nhay nua. */
+@media (prefers-reduced-motion: reduce) {
+	.qdAiChatTyping i { animation: none; opacity: 0.6; }
+}
