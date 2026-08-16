@@ -209,6 +209,32 @@
 								     cu con sot lai, nhin nhu chat bi lap. Ep ve lai moi lan cho chac. -->
 								<core:HTML content="{/aiChatHtml}" preferDOM="false"/>
 							</ScrollContainer>
+							<!-- CAC THE "AI GOI Y CHIA NHOM" — thay cho MessageBox to che man hinh cu.
+							     Moi nhom 1 the: chip vat tu + chip NCC + ly do + nut Ap dung. Nam trong
+							     trang nen xem duoc cac nhom canh nhau va van thao tac cho khac duoc. -->
+							<VBox visible="{= ${/aiGroups}.length > 0 }" class="sapUiSmallMarginBottom">
+								<HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiTinyMarginBottom">
+									<Title text="Phương án AI đề xuất — chọn nhóm để làm trước" level="H4" class="qdCardTitle"/>
+									<Button icon="sap-icon://decline" type="Transparent" tooltip="Đóng gợi ý, tự chia tay" press=".onDismissGroupsPress"/>
+								</HBox>
+								<HBox wrap="Wrap" items="{/aiGroups}" class="qdAiGroupRow">
+									<VBox class="qdAiGroupCard">
+										<HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiTinyMarginBottom">
+											<Title text="{name}" level="H5" class="qdAiGroupTitle"/>
+											<ObjectStatus text="Đang áp dụng" state="Success" visible="{applied}"/>
+										</HBox>
+										<HBox wrap="Wrap" items="{path: 'itemChips', templateShareable: false}" class="qdAiChipRow">
+											<Text text="{}" class="qdAiChip qdAiChipItem"/>
+										</HBox>
+										<HBox wrap="Wrap" items="{path: 'vendorChips', templateShareable: false}" class="qdAiChipRow" visible="{hasVendors}">
+											<Text text="{}" class="qdAiChip qdAiChipVendor"/>
+										</HBox>
+										<MessageStrip text="Chưa có NCC phù hợp trong danh sách — chọn NCC thủ công ở bảng dưới." type="Warning" showIcon="true" visible="{= !${hasVendors} }" class="sapUiTinyMarginBottom"/>
+										<Text text="{reason}" class="qdAiGroupReason" maxLines="3"/>
+										<Button text="Áp dụng nhóm này" type="Emphasized" icon="sap-icon://accept" press=".onApplyGroupPress" class="sapUiTinyMarginTop"/>
+									</VBox>
+								</HBox>
+							</VBox>
 
 							<!-- Hoi dap AI tuong tac: sau khi co goi y ban dau, nguoi dung hoi them
 							     ("NCC nao giao nhanh nhat?", "vi sao khong chon V2?"...) thay vi chi

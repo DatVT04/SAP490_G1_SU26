@@ -35,7 +35,9 @@ sap.ui.define([
 				PRItems: [],
 				selectedLineCount: 0,
 				groupHint: "",
-				busyGroupAi: false
+				busyGroupAi: false,
+				// aiGroups: cac the "AI goi y chia nhom" dang hien (xem _showGroupSuggestion)
+				aiGroups: []
 			}));
 
 			// Hien vong xoay NGAY khi bat busy. Mac dinh UI5 tre 1 giay: trong 1 giay do
@@ -90,6 +92,7 @@ sap.ui.define([
 			oView.getModel().setProperty("/PRItems", []);
 			oView.getModel().setProperty("/selectedLineCount", 0);
 			oView.getModel().setProperty("/groupHint", "");
+			oView.getModel().setProperty("/aiGroups", []);
 			var oVendorTable = oView.byId("vendorTable");
 			if (oVendorTable) { oVendorTable.removeSelections(true); }
 			var oItemTable = oView.byId("prItemTable");
@@ -311,6 +314,7 @@ sap.ui.define([
 			this._currentPR = oPRData;
 			oView.getModel().setProperty("/aiMessages", []);
 			oView.getModel().setProperty("/aiChatHtml", "");
+			oView.getModel().setProperty("/aiGroups", []);
 			oView.getModel().setProperty("/hasSelectedPR", true);
 			oView.getModel().setProperty(
 				"/selectedPRLabel",
@@ -667,46 +671,79 @@ sap.ui.define([
 				});
 		},
 
-		/** Hien phuong an AI de xuat + cho chon ap dung nhom nao vao bang. */
+		/**
+		 * Hien phuong an AI de xuat duoi dang THE (card) ngay trong trang — moi nhom 1 the
+		 * co chip dong vat tu, chip NCC, ly do va nut "Ap dung". Truoc day dung
+		 * MessageBox.show do nguyen ca doan van AI vao 1 hop thoai he thong: vua to vua
+		 * che het man hinh, nut bam la chuoi text dai, va chan moi thao tac khac
+		 * (feedback 16/08: "form nay to va xau qua"). The nam trong trang nen nguoi dung
+		 * nhin duoc ca 2-3 nhom canh nhau, doi qua lai giua cac nhom thoai mai.
+		 */
 		_showGroupSuggestion: function (oRes) {
-			var that = this;
+			var oModel = this.getView().getModel();
 			var aGroups = oRes.groups || [];
-			var aVendors = this.getView().getModel().getProperty("/Vendors") || [];
+			var aVendors = oModel.getProperty("/Vendors") || [];
 			var mVendorName = {};
 			aVendors.forEach(function (v) { mVendorName[String(v.VendorNo)] = v.VendorName || v.VendorNo; });
 
-			var sText = "AI đề xuất tách thành " + aGroups.length + " nhóm:\n\n";
-			aGroups.forEach(function (g, i) {
-				sText += "- Nhóm " + (i + 1) + " — " + g.name + ": dòng " + g.lines.join(", ")
-					+ (g.vendorNos.length
-						? " · mời " + g.vendorNos.map(function (no) { return mVendorName[no] || no; }).join(", ")
-						: " · CHƯA CÓ NCC PHÙ HỢP trong danh sách")
-					+ (g.reason ? " (" + g.reason + ")" : "") + "\n";
-			});
+			var aPRItems = oModel.getProperty("/PRItems") || [];
+			var mItemDesc = {};
+			aPRItems.forEach(function (it) {
+				mItemDesc[this._normalizeLineNo(it.LineNo)] = it.Description || it.LineNo;
+			}.bind(this));
+
+			// View-model cho tung the: chip hien MO TA vat tu (nguoi doc hieu ngay) thay vi
+			// so dong kho hieu; ly do cat ngan — ban day du AI viet van nam trong g.reason,
+			// ai can doc them thi bam "Hoi AI" o khung chat.
+			var aCards = aGroups.map(function (g, i) {
+				return {
+					idx: i,
+					name: g.name || ("Nhóm " + (i + 1)),
+					lines: g.lines,
+					vendorNos: g.vendorNos,
+					itemChips: g.lines.map(function (l) {
+						return mItemDesc[this._normalizeLineNo(l)] || ("Dòng " + l);
+					}.bind(this)),
+					vendorChips: g.vendorNos.map(function (no) { return mVendorName[no] || no; }),
+					hasVendors: g.vendorNos.length > 0,
+					reason: g.reason || "",
+					applied: false
+				};
+			}.bind(this));
+
+			oModel.setProperty("/aiGroups", aCards);
+
+			// Khung chat chi con 1 cau dan ngan + canh bao dong bi sot (neu co) — noi dung
+			// chinh da nam tren the, khong lap lai ca doan van nua.
+			var sText = "Tôi đề xuất tách PR này thành " + aCards.length + " nhóm — xem các thẻ bên dưới, "
+				+ "bấm \"Áp dụng\" ở nhóm muốn làm trước. Đây chỉ là bản nháp, bạn vẫn sửa lại được.";
 			if ((oRes.missingLines || []).length) {
-				sText += "\n- LƯU Ý: AI chưa xếp nhóm cho dòng " + oRes.missingLines.join(", ")
-					+ " — bạn tự chọn nhóm cho các dòng này.\n";
+				sText += "\n- LƯU Ý: tôi chưa xếp được nhóm cho dòng " + oRes.missingLines.join(", ")
+					+ " — bạn tự tích tay cho các dòng này.";
 			}
-			sText += "\nĐây chỉ là bản nháp. Chọn một nhóm để hệ thống tích sẵn dòng + NCC, "
-				+ "bạn vẫn sửa lại được trước khi gửi.";
-
-			this.getView().getModel().setProperty("/aiMessages", [{ role: "ai", text: sText }]);
+			oModel.setProperty("/aiMessages", [{ role: "ai", text: sText }]);
 			this._renderAiChat();
+		},
 
-			// Moi lan chi lam duoc 1 nhom (1 RFQ = 1 lan bam gui), nen hoi chon nhom nao
-			// truoc thay vi co ap ca 3 nhom cung luc roi khong biet dang gui cai nao.
-			var aActions = aGroups.map(function (g, i) { return "Nhóm " + (i + 1) + ": " + g.name; });
-			aActions.push("Tự chọn");
-			MessageBox.show(sText, {
-				icon: MessageBox.Icon.INFORMATION,
-				title: "AI gợi ý chia nhóm",
-				actions: aActions,
-				onClose: function (sAction) {
-					var iIdx = aActions.indexOf(sAction);
-					if (iIdx < 0 || iIdx >= aGroups.length) { return; }
-					that._applyGroupSuggestion(aGroups[iIdx]);
-				}
+		/** Bam "Ap dung" tren 1 the nhom. */
+		onApplyGroupPress: function (oEvent) {
+			var oCtx = oEvent.getSource().getBindingContext();
+			var oCard = oCtx && oCtx.getObject();
+			if (!oCard) { return; }
+			this._applyGroupSuggestion(oCard);
+
+			// Danh dau the dang ap dung de vien no sang len — nguoi dung biet minh dang
+			// lam nhom nao trong khi cac the khac van bam doi qua lai duoc.
+			var oModel = this.getView().getModel();
+			var aCards = (oModel.getProperty("/aiGroups") || []).map(function (c) {
+				return Object.assign({}, c, { applied: c.idx === oCard.idx });
 			});
+			oModel.setProperty("/aiGroups", aCards);
+		},
+
+		/** Dong day the goi y (nguoi dung muon tu chia tay). */
+		onDismissGroupsPress: function () {
+			this.getView().getModel().setProperty("/aiGroups", []);
 		},
 
 		/** Tick san dong + NCC theo 1 nhom AI de xuat. */

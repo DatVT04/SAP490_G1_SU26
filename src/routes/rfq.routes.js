@@ -451,6 +451,24 @@ router.get("/api/rfq/:id/compare", async (req, res) => {
 			console.error(`[GET /api/rfq/${id}/compare] Doc PR goc that bai:`, extractSapErrorMessage(error));
 		}
 
+		// CHI tra ve nhung dong THUOC RFQ NAY. 1 PR gio co the tach thanh nhieu RFQ
+		// (moi nhom dong 1 cai) — man RFQ-02 hien "Noi dung yeu cau" tu pr.items, neu
+		// de nguyen ca PR thi nguoi mua nhin thay ca 3 dong trong khi RFQ nay chi hoi
+		// gia 1 dong (bug 16/08). TotalValue cung tinh lai theo dong cua nhom, khong
+		// dung tong ca PR nua. ItemLines rong = RFQ om ca PR, chay y nhu cu.
+		if (pr && Array.isArray(pr.items)) {
+			const groupItems = itemsOfRfq(rfq, pr.items);
+			const groupTotal = groupItems.reduce(function (sum, it) {
+				return sum + (Number(it.EstimatedValue) || 0);
+			}, 0);
+			pr = Object.assign({}, pr, {
+				items: groupItems,
+				// Giu tong ca PR o field rieng de FE nao can van doc duoc.
+				PrTotalValue: pr.TotalValue,
+				TotalValue: groupTotal > 0 ? groupTotal : pr.TotalValue
+			});
+		}
+
 		return res.json({
 			success: true,
 			rfq: rfqTimesToIso(rfq),
