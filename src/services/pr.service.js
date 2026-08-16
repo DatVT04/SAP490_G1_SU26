@@ -111,6 +111,29 @@ async function createPRInSAP(record) {
 	}
 }
 
+/**
+ * Suy ra loai hach toan (Account Assignment Category) khi doc dong item tu SAP.
+ *
+ * ZPR_DRAFT_ITEM-ACCT_ASSIGN_CAT co the RONG (cac PR tao truoc khi field nay duoc ghi,
+ * hoac SAP khong map duoc luc deep-create). Truoc day mapSapItemToClient tra thang gia
+ * tri rong ra FE, ma man PRDetail lai an/hien o Cost Center / Internal Order / Asset
+ * theo dung field nay ("visible: AcctAssignCat === 'K'"...) — nen dong hang khong hien
+ * bat ky thong tin hach toan nao, du du lieu AssetNo/CostCenter van co day du trong DB
+ * (bug 16/08: PR 0010004257 co AssetNo 100000 nhung man chi tiet khong hien gi).
+ *
+ * Suy theo DU LIEU THUC CO trước, chi dung MaterialType lam phuong an cuoi — nguoc lai
+ * se gan nham nhan cho dong da co CostCenter that.
+ */
+function deriveAcctAssignCat(sapItem) {
+	const cat = String((sapItem && sapItem.AcctAssignCat) || "").trim().toUpperCase();
+	if (cat) { return cat; }
+	if (sapItem && sapItem.AssetNo) { return "A"; }
+	if (sapItem && sapItem.InternalOrder) { return "F"; }
+	if (sapItem && sapItem.CostCenter) { return "K"; }
+	if (String((sapItem && sapItem.MaterialType) || "").toUpperCase() === "ZAST") { return "A"; }
+	return "K";
+}
+
 /** 1 dong item tu PrDraftItemSet (SAP) -> shape cu FE dang doc (isFreeText la boolean). */
 function mapSapItemToClient(sapItem) {
 	return {
@@ -125,7 +148,7 @@ function mapSapItemToClient(sapItem) {
 		InternalOrder: sapItem.InternalOrder || "",
 		AssetNo: sapItem.AssetNo || "",
 		GLAccount: sapItem.GLAccount || "",
-		AcctAssignCat: sapItem.AcctAssignCat || "",
+		AcctAssignCat: deriveAcctAssignCat(sapItem),
 		isFreeText: sapXToBool(sapItem.IsFreeText)
 	};
 }

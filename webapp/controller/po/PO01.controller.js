@@ -630,9 +630,12 @@ sap.ui.define([
 		// khong co thi de trong cho nhap tay nhu cu.
 		_fillVendorTaxCode: function (oVendor) {
 			var sTax = (oVendor && (oVendor.TaxCode || oVendor.TaxNumber || oVendor.Stcd1 || oVendor.TaxNumber1)) || "";
-			if (sTax) {
-				this.getView().byId("inVendorTaxCode").setValue(sTax);
-			}
+			// Ghi de KE CA khi rong. Truoc day co `if (sTax)` bao quanh: doi tu NCC co
+			// MST sang NCC chua co MST thi o nay giu nguyen ma so cua NCC TRUOC DO —
+			// tao PO cho NCC nay ma man hinh hien ma so thue cua NCC khac (bug 16/08).
+			// LFA1-STCD1 hien con trong o vai NCC (vd 0080000013 FPT) nen tinh huong
+			// nay xay ra that chu khong phai gia dinh.
+			this.getView().byId("inVendorTaxCode").setValue(sTax);
 		},
 
 		// Doc bao gia THANG cua RFQ da chot de tu dien: dieu khoan thanh toan (cung bo ma
