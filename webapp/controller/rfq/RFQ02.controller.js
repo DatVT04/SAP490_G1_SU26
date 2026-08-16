@@ -15,8 +15,16 @@ sap.ui.define([
 		DRAFT: "Nháp",
 		SENT: "Đã gửi NCC",
 		QUOTATIONS_RECEIVED: "Đã có báo giá",
-		AWARDED: "Đã chốt NCC"
+		AWARDED: "Đã chốt NCC",
+		// Trang thai nay do /api/po/create ghi len RfqSet khi nhom da thanh don hang.
+		// Thieu o day thi formatRfqStatus tra ve nguyen ma "PO_CREATED" — lac quer giua
+		// mot cot toan tieng Viet (bug 16/08).
+		PO_CREATED: "Đã tạo PO"
 	};
+
+	// RFQ o cac trang thai nay la DA XONG VIEC: khong con gi de nhap bao gia hay chot
+	// nua. Truoc day chi coi AWARDED la xong nen RFQ da tao PO van nam o tab "Dang cho".
+	var RFQ_CLOSED_STATUSES = ["AWARDED", "PO_CREATED"];
 
 	return Controller.extend("com.qdavy.procurement.controller.rfq.RFQ02", {
 
@@ -139,13 +147,22 @@ sap.ui.define([
 				}));
 			}
 
-			// "Dang cho" = tat ca tru AWARDED (gom DRAFT/SENT/QUOTATIONS_RECEIVED),
-			// khong liet ke tung trang thai de sau nay them trang thai moi khong sot.
+			// "Dang cho" = tat ca tru cac trang thai DA XONG (xem RFQ_CLOSED_STATUSES),
+			// "Da chot" = dung cac trang thai do. Khai bao tap trung o 1 cho de sau nay
+			// them trang thai ket thuc moi thi ca 2 tab cung dung, khong lech nhau.
 			var sStatus = this._sRfqStatusKey || "OPEN";
 			if (sStatus === "AWARDED") {
-				aFilters.push(new Filter("Status", FilterOperator.EQ, "AWARDED"));
+				aFilters.push(new Filter({
+					filters: RFQ_CLOSED_STATUSES.map(function (sClosed) {
+						return new Filter("Status", FilterOperator.EQ, sClosed);
+					}),
+					and: false
+				}));
 			} else if (sStatus === "OPEN") {
-				aFilters.push(new Filter("Status", FilterOperator.NE, "AWARDED"));
+				// Nhieu Filter trong cung 1 mang duoc ListBinding AND lai voi nhau.
+				RFQ_CLOSED_STATUSES.forEach(function (sClosed) {
+					aFilters.push(new Filter("Status", FilterOperator.NE, sClosed));
+				});
 			}
 
 			oBinding.filter(aFilters);
@@ -701,7 +718,7 @@ sap.ui.define([
 
 		formatRfqStatusState: function (s) {
 			s = String(s || "").toUpperCase();
-			if (s === "AWARDED") { return "Success"; }
+			if (s === "AWARDED" || s === "PO_CREATED") { return "Success"; }
 			if (s === "QUOTATIONS_RECEIVED") { return "Information"; }
 			if (s === "SENT") { return "Warning"; }
 			return "None";
