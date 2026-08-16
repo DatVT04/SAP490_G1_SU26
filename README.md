@@ -12,10 +12,6 @@
 
 ## Cấu trúc dự án
 
-> Tái cấu trúc ngày **15/08/2026**: `server.js` (4.520 dòng) tách thành 31 module trong `src/`,
-> `webapp/css/style.css` (1.854 dòng) chẻ thành 13 file, view/controller gom theo nhóm màn hình.
-> **Không có URL, API hay tính năng nào thay đổi** — chỉ đổi chỗ ngồi của code.
-
 ### Tôi cần sửa cái này thì vào file nào?
 
 | Tôi muốn sửa… | Mở file |
