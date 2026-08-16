@@ -18,7 +18,6 @@
 						<Text text="Khai báo vật tư cần mua, hệ thống sẽ tạo Purchase Requisition trong SAP" class="qdPageSub"/>
 					</VBox>
 				</HBox>
-
 				<HBox class="qdFlowSteps">
 					<Text text="PR-01 Tạo đề nghị" class="qdFlowStep qdFlowStepActive"/>
 					<core:Icon src="sap-icon://navigation-right-arrow" class="qdFlowArrow"/>
@@ -28,36 +27,38 @@
 				</HBox>
 			</VBox>
 
-			<!-- ============ THONG TIN CHUNG ============ -->
+			<!-- ============ THÔNG TIN CHUNG ============ -->
 			<VBox class="qdContentCard">
 				<HBox alignItems="Center" class="sapUiSmallMarginBottom">
 					<Text text="1" class="qdStepBadge"/>
 					<Title text="Thông tin chung" level="H3" class="qdCardTitle"/>
 				</HBox>
-
 				<HBox wrap="Wrap" class="qdInfoRow">
 					<VBox class="qdInfoCell">
 						<Label text="{i18n>prRequesterLabel}" class="qdInfoLabel"/>
 						<Text text="{user>/fullName}" class="qdInfoValue"/>
 						<Text text="{user>/email}" class="qdInfoHint"/>
 					</VBox>
-					<!-- Day CHI la bo phan mac dinh dien san cho dong moi. Cost Center that su
-					     ghi len SAP lay theo TUNG DONG vat tu ben duoi, khong lay o day. -->
 					<VBox class="qdInfoCell">
 						<Label text="Bộ phận mặc định" class="qdInfoLabel"/>
-						<Text text="{= ${user>/costCenter} ? ${user>/costCenter} : 'Chưa được gán bộ phận' }" class="qdInfoValue"/>
+						<Text
+							text="{= ${user>/costCenter} ? ${user>/costCenter} : 'Chưa được gán bộ phận' }"
+							class="qdInfoValue"
+						/>
 						<Text text="Chỉ điền sẵn cho dòng mới — mỗi dòng vật tư chọn bộ phận riêng được" class="qdInfoHint"/>
 					</VBox>
-					<!-- Nhom chot chi mua sam bang VND. Giu nguyen /header/currency trong model
-					     (server, PR-02, PO-01 deu doc field nay) — chi bo o cho chon. -->
 					<VBox class="qdInfoCell">
 						<Label text="{i18n>prCurrencyLabel}" class="qdInfoLabel"/>
 						<Text text="{/header/currency}" class="qdInfoValue"/>
 					</VBox>
+					<VBox class="qdInfoCell">
+						<Label text="Vai trò" class="qdInfoLabel"/>
+						<Text text="{user>/role}" class="qdInfoValue"/>
+					</VBox>
 				</HBox>
 			</VBox>
 
-			<!-- ============ DANH SACH VAT TU ============ -->
+			<!-- ============ DANH SÁCH VẬT TƯ ============ -->
 			<VBox class="qdContentCard">
 				<HBox alignItems="Center" justifyContent="SpaceBetween" wrap="Wrap" class="sapUiSmallMarginBottom">
 					<HBox alignItems="Center">
@@ -73,9 +74,9 @@
 					/>
 				</HBox>
 
-				<!-- ScrollContainer: header cột dính trong vùng cuộn này -->
+				<!-- Khung cao hơn để thấy nhiều dòng; header cột dính khi cuộn -->
 				<ScrollContainer
-					height="22rem"
+					height="28rem"
 					width="100%"
 					vertical="true"
 					horizontal="true"
@@ -87,35 +88,34 @@
 						items="{/items}"
 						mode="None"
 						growing="false"
-						fixedLayout="true"
+						fixedLayout="false"
 						sticky="ColumnHeaders"
 						class="qdItemsTable"
-						noDataText="Chưa có dòng vật tư"
+						noDataText="Chưa có dòng vật tư — bấm Thêm dòng"
 					>
 						<columns>
-							<Column width="13rem"><Text text="Vật tư"/></Column>
-							<Column width="11rem"><Text text="Mô tả *"/></Column>
-							<Column width="4.5rem"><Text text="ĐVT"/></Column>
-							<Column width="5.5rem" hAlign="End"><Text text="Số lượng"/></Column>
-							<!-- Đây là ĐƠN GIÁ, không phải thành tiền: lineTotal = quantity × estimatedValue.
-							     Ghi "Giá trị ước tính" khiến người nhập tưởng phải gõ thành tiền → PR sai gấp n lần. -->
+							<Column minWidth="12rem" width="14%"><Text text="Vật tư *"/></Column>
+							<Column minWidth="10rem" width="12%"><Text text="Mô tả *"/></Column>
+							<Column width="4.5rem" hAlign="Center"><Text text="ĐVT"/></Column>
+							<Column width="6rem" hAlign="End"><Text text="Số lượng *"/></Column>
 							<Column width="7.5rem" hAlign="End"><Text text="Đơn giá *"/></Column>
-							<Column width="10rem"><Text text="Bộ phận *"/></Column>
-							<Column width="13rem"><Text text="Ngân sách áp dụng"/></Column>
-							<Column width="7rem"><Text text="Asset"/></Column>
+							<Column minWidth="10rem" width="14%"><Text text="Bộ phận *"/></Column>
+							<Column minWidth="12rem" width="16%"><Text text="Ngân sách áp dụng (IO)"/></Column>
+							<Column width="8rem"><Text text="Asset (ZAST)"/></Column>
 							<Column width="3rem" hAlign="Center"><Text text=""/></Column>
 						</columns>
+
 						<items>
 							<ColumnListItem>
 								<cells>
-									<!-- Mã và mô tả tách 2 cột (additionalText) thay vì dồn 1 chuỗi
-									     "MAT001 - Mô tả": gõ tìm theo mô tả vẫn ra đúng dòng. -->
+									<!-- Vật tư -->
 									<ComboBox
 										selectedKey="{materialNo}"
 										items="{path: '/materials', templateShareable: false}"
 										selectionChange=".onMaterialChange"
-										placeholder="— Chọn —"
+										placeholder="— Chọn vật tư —"
 										showSecondaryValues="true"
+										filterSecondaryValues="true"
 										width="100%"
 									>
 										<core:ListItem
@@ -125,14 +125,18 @@
 										/>
 									</ComboBox>
 
-									<Input value="{description}" width="100%"/>
+									<!-- Mô tả -->
+									<Input
+										value="{description}"
+										liveChange=".onItemValueChange"
+										width="100%"
+										placeholder="Mô tả *"
+									/>
 
-									<!-- ĐVT lấy từ material master (BaseUoM), không cho sửa tay:
-									     gõ sai đơn vị là SAP từ chối cả PR. -->
-									<Text text="{uom}"/>
+									<!-- ĐVT (từ material master) -->
+									<Text text="{uom}" textAlign="Center"/>
 
-									<!-- valueLiveUpdate: tổng tiền chạy ngay khi gõ, không phải click ra ngoài.
-									     _recalcTotal() đọc từ model nên bắt buộc phải có thuộc tính này. -->
+									<!-- Số lượng -->
 									<Input
 										value="{quantity}"
 										type="Number"
@@ -141,8 +145,10 @@
 										liveChange=".onItemValueChange"
 										change=".onItemValueChange"
 										width="100%"
+										placeholder="0"
 									/>
 
+									<!-- Đơn giá -->
 									<Input
 										value="{estimatedValue}"
 										type="Number"
@@ -151,42 +157,36 @@
 										liveChange=".onItemValueChange"
 										change=".onItemValueChange"
 										width="100%"
+										placeholder="0"
 									/>
 
-									<!-- Bộ phận (Cost Center) — bắt buộc với vật tư thường.
-									     Vật tư Tài sản (ZAST) ghi thẳng vào Asset nên ẩn cả 2 ô này. -->
+									<!-- Bộ phận (CC) — bắt buộc mọi dòng, kể cả ZAST -->
 									<ComboBox
 										selectedKey="{costCenter}"
 										items="{path: '/costCenters', templateShareable: false}"
 										placeholder="Chọn bộ phận *"
 										selectionChange=".onCostCenterSelect"
 										width="100%"
-										visible="{= ${materialType} !== 'ZAST' }"
 									>
 										<core:Item
 											key="{CostCenter}"
-											text="{= ${Description} &amp;&amp; ${Description} !== ${CostCenter} ? ${CostCenter} + ' - ' + ${Description} : ${CostCenter} }"
+											text="{= ${Description} &amp;&amp; ${Description} !== ${CostCenter} ? ${Description} : ${CostCenter} }"
 										/>
 									</ComboBox>
 
-									<!-- CHỈ ĐỌC. Mỗi phòng ban gắn đúng 1 Internal Order ngân sách nên
-									     không cho chọn — tự hiện theo bộ phận. Giá trị này KHÔNG gửi lên
-									     SAP (PR luôn là Cat 'K' + Cost Center), chỉ dùng để tra ngưỡng
-									     ngân sách quyết định có leo CEO hay không. -->
-									<Text
-										text="{internalOrderText}"
-										class="qdCellHint"
-										visible="{= ${materialType} !== 'ZAST' }"
-									/>
+									<!-- IO ngân sách — chỉ đọc, theo bộ phận -->
+									<Text text="{internalOrderText}" class="qdCellHint"/>
 
+									<!-- Asset — chỉ nhập khi ZAST; hàng thường disabled -->
 									<Input
 										value="{assetNo}"
-										tooltip="Mã tài sản cố định do Kế toán tạo trước trên SAP (AS01). Chưa có mã thì liên hệ Kế toán."
+										tooltip="Vật tư Tài sản (ZAST): bắt buộc mã tài sản do Kế toán tạo trên SAP (AS01)."
 										enabled="{= ${materialType} === 'ZAST' }"
 										placeholder="{= ${materialType} === 'ZAST' ? 'Mã tài sản *' : '—' }"
 										width="100%"
 									/>
 
+									<!-- Xóa dòng -->
 									<Button
 										icon="sap-icon://delete"
 										type="Transparent"
@@ -199,11 +199,13 @@
 					</Table>
 				</ScrollContainer>
 
+				<!-- Hướng dẫn đủ nghiệp vụ -->
 				<Text
-					text="Bạn không cần biết cấu hình SAP: Vật tư và Bộ phận đều CHỌN TỪ DANH SÁCH có sẵn (hệ thống tự kéo từ SAP về). Chi phí ghi về bộ phận bạn chọn. Cột Ngân sách áp dụng chỉ để bạn biết khoản này soi vào ngân sách nào — mỗi bộ phận có sẵn một Internal Order ngân sách, không phải chọn; vượt ngân sách đó thì sau CFO sẽ cần CEO duyệt. Vật tư loại Tài sản thì thay 2 cột trên bằng mã tài sản do Kế toán tạo trước trên SAP (chưa có mã thì liên hệ Kế toán). GL Account hệ thống tự xác định, không phải điền."
+					text="Vật tư và Bộ phận chọn từ danh sách SAP. Bộ phận bắt buộc trên mọi dòng (kể cả tài sản). Cột Ngân sách áp dụng tự hiện Internal Order của phòng — không chọn tay; vượt ngưỡng thì sau CFO cần CEO duyệt. Vật tư loại Tài sản (ZAST) bắt buộc thêm mã Asset (AS01). GL Account hệ thống tự xác định."
 					class="qdInfoHint sapUiTinyMarginTop"
 				/>
 
+				<!-- Tổng -->
 				<HBox
 					class="qdTotalBar"
 					justifyContent="SpaceBetween"
@@ -212,7 +214,7 @@
 				>
 					<VBox>
 						<Text text="Tổng giá trị đề nghị" class="qdTotalLabel"/>
-						<Text text="{= ${/items}.length } dòng vật tư" class="qdInfoHint"/>
+						<Text text="{= ${/items}.length } dòng vật tư · Thành tiền = Số lượng × Đơn giá" class="qdInfoHint"/>
 					</VBox>
 					<HBox alignItems="Baseline">
 						<Title text="{/totalText}" level="H2" class="qdTotalValue"/>
