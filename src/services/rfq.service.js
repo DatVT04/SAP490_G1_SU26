@@ -194,6 +194,24 @@ function coveredLineSet(rfqs, prItems) {
 	return all;
 }
 
+/**
+ * PR da duoc "phu kin" chua — MOI dong deu da nam trong mot RFQ nao do?
+ *
+ * Day la dieu kien de PR duoc phep roi khoi trang thai PENDING_RFQ. Truoc day
+ * /api/rfq/:id/send cu gui xong 1 RFQ la day PR sang RFQ_SENT ngay — dung khi
+ * 1 PR = 1 RFQ, nhung tu khi tach nhom thi SAI: gui nhom 1 (1/3 dong) xong la
+ * PR bien mat khoi man RFQ-01 (man do loc theo Status=PENDING_RFQ), 2 dong con
+ * lai khong bao gio duoc hoi gia nua (bug 16/08).
+ */
+async function prFullyCovered(pr) {
+	if (!pr || !Array.isArray(pr.items) || pr.items.length === 0) { return true; }
+	const rfqs = await fetchRfqsByPr(pr);
+	const covered = coveredLineSet(rfqs, pr.items);
+	return pr.items.every(function (it) {
+		return covered.has(normalizeLineNo(it.LineNo));
+	});
+}
+
 /** Loc cac dong PR thuoc ve 1 RFQ cu the. ItemLines rong = tra ve tat ca. */
 function itemsOfRfq(rfq, prItems) {
 	const lines = parseItemLines(rfq && rfq.ItemLines);
@@ -322,7 +340,14 @@ async function promoteRfqAfterQuotation(rfqId, session) {
 
 	const prRecord = await fetchPrDraftByRfq(rfq);
 	if (prRecord && (prRecord.Status === "PENDING_RFQ" || prRecord.Status === "RFQ_SENT")) {
-		await updatePrDraft(prRecord.InternalId, { Status: "QUOTATIONS_RECEIVED" });
+		// PR con dong chua duoc gan vao RFQ nao thi GIU NGUYEN trang thai — doi PR
+		// sang QUOTATIONS_RECEIVED luc nay se lam no bien mat khoi man RFQ-01 trong
+		// khi cac dong con lai chua he duoc hoi gia. Xem prFullyCovered().
+		if (await prFullyCovered(prRecord)) {
+			await updatePrDraft(prRecord.InternalId, { Status: "QUOTATIONS_RECEIVED" });
+		} else {
+			console.log(`[promoteRfqAfterQuotation] PR ${prRecord.PRId} con dong chua co RFQ — giu nguyen Status ${prRecord.Status}.`);
+		}
 	}
 }
 module.exports = {
@@ -331,6 +356,7 @@ module.exports = {
 	coveredLineSet,
 	fetchRfqsByPr,
 	formatItemLines,
+	prFullyCovered,
 	generateNextRfqId,
 	itemsOfRfq,
 	loadRfqContext,

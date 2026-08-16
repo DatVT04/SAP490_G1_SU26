@@ -15,7 +15,7 @@ const { notifyCfo, notifyRequester } = require("../services/notify.service");
 const { fetchPrDraftById, fetchPrDraftByRfq, updatePrDraft } = require("../services/pr.service");
 const { sendRfqInviteEmails } = require("../services/rfq-mail.service");
 const { appBaseUrl, rfqQuoteLink } = require("../services/rfq-portal.service");
-const { backfillQuotationEmails, coveredLineSet, fetchRfqsByPr, formatItemLines, generateNextRfqId, itemsOfRfq, loadRfqContext, normalizeLineNo, parseItemLines, prLabelOf, promoteRfqAfterQuotation, resolveQuotationEmails } = require("../services/rfq.service");
+const { backfillQuotationEmails, coveredLineSet, fetchRfqsByPr, formatItemLines, generateNextRfqId, itemsOfRfq, loadRfqContext, normalizeLineNo, parseItemLines, prFullyCovered, prLabelOf, promoteRfqAfterQuotation, resolveQuotationEmails } = require("../services/rfq.service");
 const { fetchAllVendorsFromSAP } = require("../services/vendor.service");
 
 const router = express.Router();
@@ -284,8 +284,17 @@ router.post("/api/rfq/:id/send", async (req, res) => {
 		await sapWrite("MERGE", `RfqSet('${odataEscape(id)}')`, mergeData);
 
 		// Chuyen PR goc sang RFQ_SENT (khong ha cap neu vi ly do nao do da qua giai doan sau).
+		//
+		// CHI chuyen khi MOI dong cua PR da nam trong mot RFQ. Truoc day gui xong 1 RFQ
+		// la doi trang thai ngay — dung khi 1 PR = 1 RFQ, nhung tu khi tach nhom thi
+		// SAI: gui nhom 1 (1/3 dong) xong la PR roi khoi Status=PENDING_RFQ va bien mat
+		// khoi man RFQ-01, 2 dong con lai khong bao gio duoc hoi gia nua (bug 16/08).
 		if (pr && pr.Status === "PENDING_RFQ") {
-			await updatePrDraft(pr.InternalId, { Status: "RFQ_SENT" });
+			if (await prFullyCovered(pr)) {
+				await updatePrDraft(pr.InternalId, { Status: "RFQ_SENT" });
+			} else {
+				console.log(`[POST /api/rfq/${id}/send] PR ${pr.PRId} con dong chua co RFQ — giu Status PENDING_RFQ de tao tiep nhom sau.`);
+			}
 		}
 
 		return res.json({
