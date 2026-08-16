@@ -327,12 +327,31 @@ sap.ui.define([
 					}];
 				}
 
-				oModel.setProperty("/RfqGroups", aGroups);
-				oModel.setProperty("/hasMultiGroup", aGroups.length > 1);
+				// Nhom da co PO thi KHONG dua vao danh sach lam viec nua. De lai chi ton
+				// tai kha nang bam "Tao PO" lan hai va an nguyen mot hop bao loi do cua SAP
+				// ("PR already converted to PO ..."), trong khi that ra moi thu deu dung —
+				// nguoi dung tuong he thong hong (feedback 16/08).
+				var aPending = aGroups.filter(function (g) { return !g.Done; });
 
-				// Nhay den nhom DAU TIEN chua co PO — nguoi dung bam lien tuc la lam het
-				// cac nhom ma khong phai tu tim nhom nao con thieu.
-				var oNext = aGroups.filter(function (g) { return !g.Done; })[0] || aGroups[0];
+				if (aPending.length === 0) {
+					// Moi nhom deu da co don hang: khong con viec gi de lam voi PR nay. An han
+					// vung tao PO thay vi de nguoi dung bam roi an bao loi. PR se bien mat khoi
+					// danh sach ben trai o lan tai lai sau (backend ha Status ve PO_CREATED
+					// khi du nhom).
+					this._currentGroup = null;
+					oModel.setProperty("/RfqGroups", []);
+					oModel.setProperty("/hasMultiGroup", false);
+					oView.byId("poCreationArea").setVisible(false);
+					MessageToast.show("PR " + (oPRData.PrNumber || "") + " đã tạo đủ đơn hàng cho tất cả các nhóm.");
+					return;
+				}
+
+				oModel.setProperty("/RfqGroups", aPending);
+				oModel.setProperty("/hasMultiGroup", aPending.length > 1);
+
+				// Nhay thang vao nhom dau tien con thieu — bam lien tuc la lam het cac nhom
+				// ma khong phai tu tim nhom nao chua xong.
+				var oNext = aPending[0];
 				oModel.setProperty("/selectedGroupKey", oNext.key);
 				this._applyGroup(oNext);
 
@@ -744,6 +763,15 @@ sap.ui.define([
 				return;
 			}
 
+			// Chan trong truong hop nhom hien tai da co don hang (vd nguoi dung mo 2 tab,
+			// hoac danh sach chua kip tai lai). De request di den SAP thi no tra ve
+			// "PR already converted to PO ..." — dung ky thuat nhung doc nhu he thong hong.
+			if (this._currentGroup && this._currentGroup.Done) {
+				MessageBox.information("Nhóm này đã có đơn hàng trên SAP rồi — không cần tạo lại.",
+					{ title: "Đã có đơn hàng" });
+				return;
+			}
+
 			var sVendorNo = oView.byId("inSelectedVendor").getSelectedKey();
 			var sVendorEmail = oView.byId("inVendorEmail").getValue();
 			var sCompanyCode = oView.byId("inCompanyCode").getValue();
@@ -899,10 +927,27 @@ sap.ui.define([
 							}.bind(this)
 						});
 					} else {
+						var sRaw = (res && res.message) || "";
+
+						// "PR already converted to PO xxx" KHONG phai su co — don hang da ton
+						// tai, mo he thong ra la thay. Hien dang thong bao trung tinh + tai lai
+						// danh sach, thay vi hop bao loi do lam nguoi dung tuong hong nang.
+						if (/already converted to PO/i.test(sRaw)) {
+							var aPo = sRaw.match(/\b\d{10}\b/);
+							MessageBox.information(
+								"Yêu cầu mua hàng này đã được chuyển thành đơn hàng trên SAP"
+								+ (aPo ? " (PO " + aPo[0] + ")" : "")
+								+ " rồi. Không cần tạo lại.",
+								{ title: "Đã có đơn hàng" }
+							);
+							this._loadApprovedPRs();
+							return;
+						}
+
 						// Hien ca danh sach errordetails tu SAP chu khong chi 1 dong message.
 						// Truoc day chi hien "An exception was raised" — cau chung chung ma
 						// Gateway tra ve khi ABAP raise exception, khong noi len duoc gi ca.
-						var sMsg = (res && res.message) || "Không thể khởi tạo PO trên SAP.";
+						var sMsg = sRaw || "Không thể khởi tạo PO trên SAP.";
 						var aDetails = (res && res.sapErrorDetails) || [];
 						if (aDetails.length) {
 							sMsg += "\n\nChi tiết từ SAP:\n" + aDetails.map(function (d) {
