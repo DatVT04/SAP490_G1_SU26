@@ -94,14 +94,14 @@
 						noDataText="Chưa có dòng vật tư — bấm Thêm dòng"
 					>
 						<columns>
-							<Column minWidth="12rem" width="14%"><Text text="Vật tư *"/></Column>
-							<Column minWidth="10rem" width="12%"><Text text="Mô tả *"/></Column>
+							<Column width="14%"><Text text="Vật tư *"/></Column>
+							<Column width="12%"><Text text="Mô tả *"/></Column>
 							<Column width="4.5rem" hAlign="Center"><Text text="ĐVT"/></Column>
 							<Column width="6rem" hAlign="End"><Text text="Số lượng *"/></Column>
 							<Column width="7.5rem" hAlign="End"><Text text="Đơn giá *"/></Column>
-							<Column minWidth="10rem" width="14%"><Text text="Bộ phận *"/></Column>
-							<Column minWidth="12rem" width="16%"><Text text="Ngân sách áp dụng (IO)"/></Column>
-							<Column width="8rem"><Text text="Asset (ZAST)"/></Column>
+							<Column width="14%"><Text text="Bộ phận *"/></Column>
+							<Column width="16%"><Text text="Ngân sách áp dụng (IO)"/></Column>
+							<Column width="10rem"><Text text="Asset (ZAST)"/></Column>
 							<Column width="3rem" hAlign="Center"><Text text=""/></Column>
 						</columns>
 
@@ -143,7 +143,7 @@
 										textAlign="End"
 										valueLiveUpdate="true"
 										liveChange=".onItemValueChange"
-										change=".onItemValueChange"
+										change=".onQuantityChange"
 										width="100%"
 										placeholder="0"
 									/>
@@ -188,14 +188,29 @@
 									<!-- IO ngân sách — chỉ đọc, theo bộ phận -->
 									<Text text="{internalOrderText}" class="qdCellHint"/>
 
-									<!-- Asset — chỉ nhập khi ZAST; hàng thường disabled -->
-									<Input
-										value="{assetNo}"
-										tooltip="Vật tư Tài sản (ZAST): bắt buộc mã tài sản do Kế toán tạo trên SAP (AS01)."
-										enabled="{= ${materialType} === 'ZAST' }"
-										placeholder="{= ${materialType} === 'ZAST' ? 'Mã tài sản *' : '—' }"
-										width="100%"
-									/>
+									<!-- Asset — mỗi đơn vị số lượng của dòng ZAST có 1 mã tài sản riêng.
+									     Số ô = số lượng, tự sinh lại khi nhập Số lượng xong (Enter/Tab).
+									     Hàng thường: 1 ô disabled, không nhập. -->
+									<VBox width="100%">
+										<Input
+											visible="{= ${materialType} !== 'ZAST' }"
+											enabled="false"
+											placeholder="—"
+											width="100%"
+										/>
+										<VBox
+											visible="{= ${materialType} === 'ZAST' }"
+											items="{path: 'assetNumbers', templateShareable: false}"
+										>
+											<Input
+												value="{value}"
+												tooltip="Vật tư Tài sản (ZAST): bắt buộc mã tài sản do Kế toán tạo trên SAP (AS01), mỗi đơn vị số lượng 1 mã riêng."
+												placeholder="Mã tài sản *"
+												width="100%"
+												class="sapUiTinyMarginBottom"
+											/>
+										</VBox>
+									</VBox>
 
 									<!-- Xóa dòng -->
 									<Button
@@ -212,7 +227,7 @@
 
 				<!-- Hướng dẫn đủ nghiệp vụ -->
 				<Text
-					text="Vật tư và Bộ phận chọn từ danh sách SAP. Bộ phận bắt buộc trên mọi dòng (kể cả tài sản). Cột Ngân sách áp dụng tự hiện Internal Order của phòng — không chọn tay; vượt ngưỡng thì sau CFO cần CEO duyệt. Vật tư loại Tài sản (ZAST) bắt buộc thêm mã Asset (AS01). GL Account hệ thống tự xác định."
+					text="Vật tư và Bộ phận chọn từ danh sách SAP. Bộ phận bắt buộc trên mọi dòng (kể cả tài sản). Cột Ngân sách áp dụng tự hiện Internal Order của phòng — không chọn tay; vượt ngưỡng thì sau CFO cần CEO duyệt. Vật tư loại Tài sản (ZAST): nhập Số lượng xong (Enter/Tab) hệ thống tự hiện đủ số ô Asset tương ứng — mỗi đơn vị số lượng 1 mã Asset riêng (AS01). GL Account hệ thống tự xác định."
 					class="qdInfoHint sapUiTinyMarginTop"
 				/>
 

@@ -37,8 +37,21 @@ sap.ui.define([
 			internalOrder: "",
 			internalOrderText: "",
 			filteredInternalOrders: [],
-			assetNo: ""
+			assetNumbers: []
 		};
+	}
+
+	// Tai san (ZAST): moi don vi so luong can 1 ma Asset rieng (khong gop chung
+	// 1 ma cho ca dong nhieu so luong) — moi ma se thanh 1 dong PR rieng (Quantity=1)
+	// khi gui len SAP, xem _expandItemsForSubmit.
+	function buildAssetNumbers(sMaterialType, nQuantity, sFirstAssetNo) {
+		if (sMaterialType !== "ZAST") { return []; }
+		var n = Math.max(1, Math.floor(Number(nQuantity) || 0));
+		var aResult = [];
+		for (var i = 0; i < n; i++) {
+			aResult.push({ value: i === 0 ? (sFirstAssetNo || "") : "" });
+		}
+		return aResult;
 	}
 
 	function syncAcctAssignCat(aItems) {
@@ -114,20 +127,22 @@ sap.ui.define([
 
 			var oModel = this.getView().getModel();
 			var aOldItems = (oData.items || []).map(function (it) {
+				var sMaterialType = it.MaterialType || "";
+				var nQuantity = Number(it.Quantity) || null;
 				return {
 					isFreeText: !!it.isFreeText,
 					materialNo: it.MaterialNo || "",
-					materialType: it.MaterialType || "",
-					acctAssignCat: it.AcctAssignCat || (it.MaterialType === "ZAST" ? "A" : "K"),
+					materialType: sMaterialType,
+					acctAssignCat: it.AcctAssignCat || (sMaterialType === "ZAST" ? "A" : "K"),
 					description: it.Description || "",
 					uom: it.UoM || "",
-					quantity: Number(it.Quantity) || null,
+					quantity: nQuantity,
 					estimatedValue: Number(it.EstimatedValue) || null,
 					costCenter: it.CostCenter || "",
 					internalOrder: it.InternalOrder || "",
 					internalOrderText: "",
 					filteredInternalOrders: [],
-					assetNo: it.AssetNo || ""
+					assetNumbers: buildAssetNumbers(sMaterialType, nQuantity, it.AssetNo || "")
 				};
 			});
 			if (aOldItems.length === 0) {
@@ -480,17 +495,69 @@ sap.ui.define([
 			oModel.setProperty(sPath + "/acctAssignCat", bAsset ? "A" : "K");
 
 			// ZAST và hàng thường: đều giữ / gán CC + IO
-			if (!bAsset) {
-				oModel.setProperty(sPath + "/assetNo", "");
-			}
 			if (!oModel.getProperty(sPath + "/costCenter") && this._defaultCC) {
 				oModel.setProperty(sPath + "/costCenter", this._defaultCC);
 			}
 			var oItem = oModel.getProperty(sPath);
 			this._refreshIOListOfItem(oItem);
+			this._syncAssetNumbers(oItem);
 			oModel.setProperty(sPath, oItem);
 
 			this._recalcTotal();
+		},
+
+		// Goi khi nguoi dung go xong So luong va roi khoi o (Enter/Tab): tu dong
+		// sinh du so o Asset theo so luong (chi ap dung cho vat tu Tai san ZAST).
+		onQuantityChange: function (oEvent) {
+			var oCtx = oEvent.getSource().getBindingContext();
+			if (!oCtx) { return; }
+			var sPath = oCtx.getPath();
+			var oModel = this.getView().getModel();
+			var oItem = oModel.getProperty(sPath);
+			this._syncAssetNumbers(oItem);
+			oModel.setProperty(sPath, oItem);
+			this._recalcTotal();
+		},
+
+		// Giu lai gia tri Asset da nhap theo dung vi tri khi resize mang assetNumbers
+		// (khong xoa sach roi nhap lai khi nguoi dung sua so luong).
+		_syncAssetNumbers: function (item) {
+			if (item.materialType !== "ZAST") {
+				item.assetNumbers = [];
+				return;
+			}
+			var n = Math.max(1, Math.floor(Number(item.quantity) || 0));
+			var aOld = item.assetNumbers || [];
+			var aNew = [];
+			for (var i = 0; i < n; i++) {
+				aNew.push(aOld[i] || { value: "" });
+			}
+			item.assetNumbers = aNew;
+		},
+
+		// Vat tu Tai san (ZAST) so luong > 1: moi ma Asset thanh 1 dong PR rieng
+		// (Quantity=1) de SAP luu dung 1 Asset / 1 dong, khong gop nhieu Asset vao
+		// chung 1 dong. Backend (approval.routes.js) khong doi gi — van nhan
+		// items[].assetNo nhu truoc, chi la gio co the co nhieu dong hon input.
+		_expandItemsForSubmit: function (aItems) {
+			var aResult = [];
+			aItems.forEach(function (item) {
+				if (item.materialType === "ZAST" && item.assetNumbers && item.assetNumbers.length > 1) {
+					item.assetNumbers.forEach(function (oAsset) {
+						var oSplit = Object.assign({}, item);
+						oSplit.quantity = 1;
+						oSplit.assetNo = oAsset.value;
+						delete oSplit.assetNumbers;
+						aResult.push(oSplit);
+					});
+				} else {
+					var oCopy = Object.assign({}, item);
+					oCopy.assetNo = (item.assetNumbers && item.assetNumbers[0] && item.assetNumbers[0].value) || "";
+					delete oCopy.assetNumbers;
+					aResult.push(oCopy);
+				}
+			});
+			return aResult;
 		},
 
 		onResetPress: function () {
@@ -555,10 +622,13 @@ sap.ui.define([
 						+ this._userCC + ". Vui lòng tải lại trang.");
 					return;
 				}
-				// ZAST thêm bắt buộc Asset
+				// ZAST thêm bắt buộc đủ Asset No cho từng đơn vị số lượng
 				if (item.materialType === "ZAST") {
-					if (!String(item.assetNo || "").trim()) {
-						MessageBox.warning("Dòng " + idx + ": Vật tư Tài sản (ZAST) bắt buộc nhập Asset No.");
+					var aAssets = item.assetNumbers || [];
+					if (aAssets.length !== Number(item.quantity)
+						|| aAssets.some(function (a) { return !String(a.value || "").trim(); })) {
+						MessageBox.warning("Dòng " + idx + ": Vật tư Tài sản (ZAST) bắt buộc nhập đủ "
+							+ item.quantity + " mã Asset (mỗi đơn vị số lượng 1 mã).");
 						return;
 					}
 				}
@@ -575,7 +645,7 @@ sap.ui.define([
 					requesterEmail: oUser.email,
 					currency: sCurrency,
 					totalPRValue: nTotalPRValue,
-					items: aItems,
+					items: this._expandItemsForSubmit(aItems),
 					resubmitOf: this._resubmitOf || undefined
 				})
 			})
