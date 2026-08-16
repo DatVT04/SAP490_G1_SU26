@@ -797,9 +797,16 @@ sap.ui.define([
 			if (!sPaymentTerms) { MessageBox.error("Vui lòng chọn Điều khoản thanh toán."); return; }
 			if (!sVendorEmail || !sVendorEmail.trim()) { MessageBox.error("Vui lòng nhập Email Nhà cung cấp."); return; }
 
+			// oModel phai khai bao TRUOC khoi kiem tra don gia ben duoi. Truoc day dong
+			// `var oModel = ...` nam sau khoi do: `var` bi hoisted nen oModel la undefined
+			// tai thoi diem goi oModel.getProperty() -> TypeError -> UI5 nuot loi vao
+			// console va nut "Tao PO" bam khong ra gi ca (bug 16/08).
+			var oModel = oView.getModel();
+			var aTableItems = oModel.getProperty("/poItems") || [];
+
 			// Truoc day chi kiem tra o "Don gia thuong luong" chung > 0. Nay gia nam o
 			// TUNG DONG nen phai soat tung dong — 1 dong gia 0 lot qua se tao PO sai tien.
-			var aZeroLines = (oModel.getProperty("/poItems") || []).filter(function (it) {
+			var aZeroLines = aTableItems.filter(function (it) {
 				return !(Number(it.NetPrice) > 0);
 			});
 			if (aZeroLines.length) {
@@ -808,9 +815,6 @@ sap.ui.define([
 					+ ". Nhập đơn giá cho từng dòng trong bảng Chi tiết dòng hàng.");
 				return;
 			}
-
-			var oModel = oView.getModel();
-			var aTableItems = oModel.getProperty("/poItems") || [];
 
 			var aItemsPayload = aTableItems.map(function (it, idx) {
 				return {
