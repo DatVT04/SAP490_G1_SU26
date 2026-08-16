@@ -7,6 +7,7 @@
 
 
 const express = require("express");
+const { findActiveEmployeeByEmail } = require("../services/employee.service");
 const { extractSapErrorMessage, odataEscape } = require("../lib/sap-client");
 const { boolToSapX } = require("../lib/sap-format");
 const { buildApprovalFlagsByCostCenter } = require("../services/approval.service");
@@ -47,6 +48,46 @@ router.post("/api/approval/submit", async (req, res) => {
 
 	if (!process.env.SAP_HOST) {
 		return res.status(503).json({ success: false, message: "He thong SAP chua duoc cau hinh (thieu SAP_HOST)." });
+	}
+
+	// ── CHOT CHAN: chi duoc lap de nghi cho CHINH bo phan cua minh ──────────
+	// Khoa o giao dien (PR01) chi la tien nghi — ai mo DevTools hoac goi thang
+	// API nay van gui duoc cost center bat ky. Doi chieu lai voi EmployeeSet
+	// tren SAP theo email nguoi gui, khong tin gia tri nao do client gui len.
+	let employeeCC = "";
+	try {
+		const employee = await findActiveEmployeeByEmail(String(requesterEmail).trim());
+		if (!employee) {
+			return res.status(403).json({
+				success: false,
+				message: "Không tìm thấy nhân viên " + requesterEmail + " trên hệ thống."
+			});
+		}
+		employeeCC = String(employee.CostCenter || "").trim().toUpperCase();
+	} catch (error) {
+		console.error("[POST /api/approval/submit] Doc EmployeeSet that bai:", extractSapErrorMessage(error));
+		return res.status(502).json({ success: false, message: "Không kiểm tra được bộ phận của người đề nghị. Vui lòng thử lại." });
+	}
+
+	if (!employeeCC) {
+		return res.status(403).json({
+			success: false,
+			message: "Tài khoản của bạn chưa được gán Bộ phận (Cost Center) trên SAP nên chưa lập được đề nghị mua sắm."
+		});
+	}
+
+	for (var c = 0; c < items.length; c++) {
+		const lineCC = String(items[c].costCenter || "").trim().toUpperCase();
+		if (lineCC && lineCC !== employeeCC) {
+			return res.status(403).json({
+				success: false,
+				message: "Dòng " + (c + 1) + ": bạn chỉ được lập đề nghị cho bộ phận " + employeeCC
+					+ ", không được lập cho " + lineCC + "."
+			});
+		}
+		// Dong khong gui cost center -> gan bang bo phan cua nguoi de nghi, khong
+		// de rong roi cho SAP tu quyet.
+		items[c].costCenter = employeeCC;
 	}
 
 	// Chi con 2 loai account assignment: 'A' (vat tu Tai san) va 'K' (Cost Center).

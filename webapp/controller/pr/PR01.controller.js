@@ -192,7 +192,13 @@ sap.ui.define([
 			var that = this;
 
 			aItems.forEach(function (item) {
-				if (!item.costCenter && sCC) {
+				// Da khoa bo phan (that._userCC) thi GHI DE, khong chi dien khi trong:
+				// dong cu con giu bo phan khac (vd nguoi dung doi tai khoan tren cung
+				// trinh duyet) van phai bi keo ve dung bo phan cua tai khoan hien tai.
+				if (that._userCC && item.costCenter !== that._userCC) {
+					item.costCenter = that._userCC;
+					bChanged = true;
+				} else if (!item.costCenter && sCC) {
 					item.costCenter = sCC;
 					bChanged = true;
 				}
@@ -268,24 +274,45 @@ sap.ui.define([
 					});
 					oModel.setProperty("/costCenters", aCC);
 
+					// ── KHOA BO PHAN THEO TAI KHOAN ────────────────────────────────
+					// Moi nguoi CHI duoc lap de nghi mua sam cho chinh bo phan cua minh.
+					// Bo phan lay tu EmployeeSet-CostCenter tren SAP (Login.controller.js
+					// do vao model "user"), khong phai nguoi dung tu khai — nen them tai
+					// khoan requester cho phong moi la tu dong khoa dung phong do, khong
+					// phai sua code (yeu cau 16/08).
 					var sUserCC = String(
 						that.getOwnerComponent().getModel("user").getProperty("/costCenter") || ""
 					).trim();
 					if (sUserCC) {
-						var bInList = aCC.some(function (cc) {
+						var oMine = aCC.filter(function (cc) {
 							return String(cc.CostCenter) === sUserCC;
-						});
-						if (!bInList) {
-							aCC = [{
-								CostCenter: sUserCC,
-								Description: VN_CC[sUserCC] || (sUserCC + " — bộ phận của bạn")
-							}].concat(aCC);
-							oModel.setProperty("/costCenters", aCC);
-						}
+						})[0] || {
+							CostCenter: sUserCC,
+							Description: VN_CC[sUserCC] || sUserCC
+						};
+
+						// Danh sach chi con DUNG 1 bo phan -> khong con gi de chon nham.
+						oModel.setProperty("/costCenters", [oMine]);
+						oModel.setProperty("/lockCostCenter", true);
+						oModel.setProperty("/lockedCostCenterText",
+							oMine.Description === sUserCC
+								? sUserCC
+								: oMine.Description + " (" + sUserCC + ")");
+						oModel.setProperty("/costCenterHint", "");
+
 						that._userCC = sUserCC;
 						that._defaultCC = sUserCC;
-					} else if (aCC.length > 0 && !that._defaultCC) {
-						that._defaultCC = aCC[0].CostCenter || "";
+					} else {
+						// Tai khoan chua duoc gan Cost Center tren SAP: khong doan bua mot
+						// phong nao do cho no chay: chon nham phong la sai ca hach toan lan
+						// ngan sach. Mo lai o chon + bao ro de bo phan nhan su bo sung.
+						oModel.setProperty("/lockCostCenter", false);
+						oModel.setProperty("/costCenterHint",
+							"Tài khoản của bạn chưa được gán Bộ phận (Cost Center) trên SAP — "
+							+ "vui lòng báo quản trị bổ sung trong EmployeeSet trước khi lập đề nghị.");
+						if (aCC.length > 0 && !that._defaultCC) {
+							that._defaultCC = aCC[0].CostCenter || "";
+						}
 					}
 					that._applyDefaultsToEmptyItems();
 				})
@@ -518,6 +545,14 @@ sap.ui.define([
 				// Mọi dòng (kể cả ZAST) bắt buộc Bộ phận
 				if (!item.costCenter) {
 					MessageBox.warning("Dòng " + idx + ": Vui lòng chọn Bộ phận (Cost Center).");
+					return;
+				}
+				// Lop chan thu 2 (lop 1 la o nhap da khoa, lop 3 la backend): du lieu cu
+				// trong model van co the mang bo phan khac neu nguoi dung doi tai khoan
+				// giua chung ma khong tai lai trang.
+				if (this._userCC && item.costCenter !== this._userCC) {
+					MessageBox.error("Dòng " + idx + ": bạn chỉ được lập đề nghị cho bộ phận "
+						+ this._userCC + ". Vui lòng tải lại trang.");
 					return;
 				}
 				// ZAST thêm bắt buộc Asset

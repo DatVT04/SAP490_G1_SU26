@@ -160,19 +160,30 @@
 										placeholder="0"
 									/>
 
-									<!-- Bộ phận (CC) — bắt buộc mọi dòng, kể cả ZAST -->
-									<ComboBox
-										selectedKey="{costCenter}"
-										items="{path: '/costCenters', templateShareable: false}"
-										placeholder="Chọn bộ phận *"
-										selectionChange=".onCostCenterSelect"
-										width="100%"
-									>
-										<core:Item
-											key="{CostCenter}"
-											text="{= ${Description} &amp;&amp; ${Description} !== ${CostCenter} ? ${Description} : ${CostCenter} }"
+									<!-- Bộ phận (CC) — bắt buộc mọi dòng, kể cả ZAST.
+									     Khoá theo bộ phận của chính tài khoản đang đăng nhập: không ai
+									     được lập đề nghị hộ phòng ban khác. Chỉ hiện ô chọn khi tài khoản
+									     chưa có Cost Center trên SAP (xem /costCenterHint). -->
+									<VBox width="100%">
+										<Text
+											text="{/lockedCostCenterText}"
+											visible="{= !!${/lockCostCenter} }"
+											class="qdInfoValue"
 										/>
-									</ComboBox>
+										<ComboBox
+											selectedKey="{costCenter}"
+											items="{path: '/costCenters', templateShareable: false}"
+											placeholder="Chọn bộ phận *"
+											selectionChange=".onCostCenterSelect"
+											visible="{= !${/lockCostCenter} }"
+											width="100%"
+										>
+											<core:Item
+												key="{CostCenter}"
+												text="{= ${Description} &amp;&amp; ${Description} !== ${CostCenter} ? ${Description} : ${CostCenter} }"
+											/>
+										</ComboBox>
+									</VBox>
 
 									<!-- IO ngân sách — chỉ đọc, theo bộ phận -->
 									<Text text="{internalOrderText}" class="qdCellHint"/>
