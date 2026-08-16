@@ -144,7 +144,30 @@
 							     ly do chon nen backend (enrichWithRfqAward) doc them tu RfqSet
 							     va VendorSet roi ghep vao. Truoc day CFO chi thay con so tong
 							     tien, khong biet Purchasing chot ai va vi sao. -->
-							<VBox class="qdAwardBox sapUiTinyMarginTopBottom" visible="{= !!${RfqAwardedVendor} }">
+							<!-- PR TACH NHIEU NHOM (16/08/2026): moi nhom 1 NCC + 1 gia rieng, cong lai
+							     moi ra tong cua PR. Khoi nay liet ke tung nhom de CFO biet dang duyet
+							     cho nhung ai — truoc day chi thay 1 con so gop, khong ro co bao nhieu
+							     nha cung cap ben trong. PR 1 nhom van hien khoi cu ben duoi. -->
+							<VBox class="qdAwardBox sapUiTinyMarginTopBottom" visible="{= ${RfqGroupCount} > 1 }">
+								<HBox alignItems="Center" class="sapUiTinyMarginBottom">
+									<core:Icon src="sap-icon://supplier" class="qdAwardIcon sapUiTinyMarginEnd"/>
+									<Text text="{RfqGroupCount} nhóm nhà cung cấp — mỗi nhóm sẽ thành 1 đơn hàng riêng" class="qdInfoLabel"/>
+								</HBox>
+								<List items="{RfqGroups}" showSeparators="Inner" class="sapUiTinyMarginBottom">
+									<StandardListItem
+										title="{= (${AwardedVendorName} || ${AwardedVendor} || 'Chưa chốt NCC') }"
+										description="{RfqId} · {= ${ItemLines} ? ('dòng ' + ${ItemLines}) : 'toàn bộ dòng' } · {= ${AwardReason} || '(chưa ghi lý do)' }"
+										info="{parts: ['FinalValue','Currency'], formatter: '.formatValue'}"
+										infoState="{= ${Status} === 'AWARDED' || ${Status} === 'PO_CREATED' ? 'Success' : 'Warning' }"
+									/>
+								</List>
+								<Text
+									text="Tổng cộng: {parts: ['TotalValue','Currency'], formatter: '.formatValue'}"
+									class="qdAwardValue"
+								/>
+							</VBox>
+							
+							<VBox class="qdAwardBox sapUiTinyMarginTopBottom" visible="{= !!${RfqAwardedVendor} &amp;&amp; !(${RfqGroupCount} > 1) }">
 								<HBox alignItems="Center" class="sapUiTinyMarginBottom">
 									<core:Icon src="sap-icon://supplier" class="qdAwardIcon sapUiTinyMarginEnd"/>
 									<Text text="Nhà cung cấp đã chốt qua {RfqId}" class="qdInfoLabel"/>

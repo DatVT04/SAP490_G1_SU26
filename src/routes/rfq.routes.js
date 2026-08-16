@@ -15,7 +15,7 @@ const { notifyCfo, notifyRequester } = require("../services/notify.service");
 const { fetchPrDraftById, fetchPrDraftByRfq, updatePrDraft } = require("../services/pr.service");
 const { sendRfqInviteEmails } = require("../services/rfq-mail.service");
 const { appBaseUrl, rfqQuoteLink } = require("../services/rfq-portal.service");
-const { backfillQuotationEmails, generateNextRfqId, loadRfqContext, prLabelOf, promoteRfqAfterQuotation, resolveQuotationEmails } = require("../services/rfq.service");
+const { backfillQuotationEmails, coveredLineSet, fetchRfqsByPr, formatItemLines, generateNextRfqId, itemsOfRfq, loadRfqContext, normalizeLineNo, parseItemLines, prLabelOf, promoteRfqAfterQuotation, resolveQuotationEmails } = require("../services/rfq.service");
 const { fetchAllVendorsFromSAP } = require("../services/vendor.service");
 
 const router = express.Router();
@@ -49,7 +49,10 @@ router.get("/api/rfq", async (req, res) => {
 
 // 1) Tao RFQ tu 1 PR + danh sach NCC duoc moi
 router.post("/api/rfq/create", async (req, res) => {
-	const { prId, sapPrNumber, vendorIds, createdBy, currency } = req.body || {};
+	// itemLines: danh sach so dong PR thuoc nhom nay (mang ["00001","00003"] hoac
+	// chuoi "00001,00003"). BO TRONG = lay toan bo dong CHUA duoc gan vao RFQ nao —
+	// nho vay RFQ01 ban cu (chua biet tach nhom) goi len van chay dung nhu truoc.
+	const { prId, sapPrNumber, vendorIds, createdBy, currency, itemLines } = req.body || {};
 
 	if (!process.env.SAP_HOST) {
 		return res.status(503).json({ success: false, message: "He thong SAP chua duoc cau hinh (thieu SAP_HOST)." });
@@ -63,7 +66,7 @@ router.post("/api/rfq/create", async (req, res) => {
 
 	// Máy trạng thái theo quy trình TO-BE đã chốt: Purchasing phải DUYỆT PR trước
 	// (PENDING_PURCHASING → PENDING_RFQ qua PATCH /api/approval/:id), rồi mới được
-	// tạo RFQ ở đây. Chặn tạo trùng bằng check RfqId đã gắn.
+	// tạo RFQ ở đây.
 	let prRecord;
 	try {
 		prRecord = await fetchPrDraftById(prId);
@@ -82,10 +85,64 @@ router.post("/api/rfq/create", async (req, res) => {
 				+ ". Purchasing phai duyet PR (chuyen sang PENDING_RFQ) truoc khi tao RFQ."
 		});
 	}
-	if (prRecord.RfqId) {
+	// ── XAC DINH NHOM DONG CHO RFQ NAY ──────────────────────────────────────
+	// Truoc day o day chan cung "PR da co RfqId thi khong tao trung". Nay 1 PR duoc
+	// phep co NHIEU RFQ (moi nhom dong 1 RFQ, gui cho nhom NCC khac nhau), nen doi
+	// sang chan theo DONG: moi dong PR chi duoc nam trong dung 1 RFQ.
+	let existingRfqs = [];
+	try {
+		existingRfqs = await fetchRfqsByPr(prRecord);
+	} catch (error) {
+		const message = extractSapErrorMessage(error);
+		console.error("[POST /api/rfq/create] Doc RfqSet THAT BAI:", message);
+		return res.status(502).json({ success: false, message });
+	}
+
+	const prItems = prRecord.items || [];
+	if (prItems.length === 0) {
+		return res.status(400).json({ success: false, message: "PR " + prId + " khong co dong vat tu nao." });
+	}
+
+	const covered = coveredLineSet(existingRfqs, prItems);
+	const requested = Array.isArray(itemLines) ? itemLines.map(String) : parseItemLines(itemLines);
+	let targetLines;
+
+	if (requested.length === 0) {
+		targetLines = prItems
+			.map(function (it) { return it.LineNo; })
+			.filter(function (l) { return !covered.has(normalizeLineNo(l)); });
+		if (targetLines.length === 0) {
+			return res.status(400).json({
+				success: false,
+				message: "Moi dong cua PR " + prId + " deu da nam trong mot RFQ — khong con dong nao de tao RFQ moi."
+			});
+		}
+	} else {
+		const known = new Set(prItems.map(function (it) { return normalizeLineNo(it.LineNo); }));
+		const unknown = requested.filter(function (l) { return !known.has(normalizeLineNo(l)); });
+		if (unknown.length) {
+			return res.status(400).json({
+				success: false,
+				message: "PR " + prId + " khong co dong: " + unknown.join(", ")
+			});
+		}
+		const dup = requested.filter(function (l) { return covered.has(normalizeLineNo(l)); });
+		if (dup.length) {
+			return res.status(400).json({
+				success: false,
+				message: "Cac dong sau da nam trong RFQ khac cua PR nay: " + dup.join(", ")
+			});
+		}
+		targetLines = requested;
+	}
+
+	const itemLinesValue = formatItemLines(targetLines);
+	// ITEM_LINES la CHAR255 ben SAP — ABAP cat cut am tham khong bao loi (da dinh 1
+	// lan voi ZPR_DRAFT-RFQID CHAR10, xem CLAUDE.md). Chan tu day cho ro rang.
+	if (itemLinesValue.length > 255) {
 		return res.status(400).json({
 			success: false,
-			message: "PR " + prId + " da co RFQ " + prRecord.RfqId + " — khong tao trung."
+			message: "Nhom nay co qua nhieu dong (" + targetLines.length + ") — vuot suc chua cua ITEM_LINES (255 ky tu). Chia nho nhom ra."
 		});
 	}
 
@@ -140,21 +197,39 @@ router.post("/api/rfq/create", async (req, res) => {
 			AwardedAt: "",
 			FinalValue: "0",
 			Currency: currency || "VND",
+			ItemLines: itemLinesValue,
 			RfqToQuotations: rfqToQuotations
 		}, session);
 
-		// RFQ da tao thanh cong tren SAP -> gan RfqId vao PR (Status van PENDING_RFQ,
-		// RfqId != rong la dau hieu "da co RFQ, dang o buoc gui/nhap bao gia").
-		prRecord.RfqId = rfqId;
-		prRecord.UpdatedAt = new Date().toISOString();
-		await updatePrDraft(prRecord.InternalId, { RfqId: rfqId }, session);
+		// ZPR_DRAFT-RFQID chi la 1 field CHAR10, khong chua noi N ma RFQ. Nay no chi
+		// con y nghia "RFQ DAU TIEN cua PR nay", giu lai de cac man hinh cu chua doc
+		// theo danh sach khong vo. NGUON SU THAT day du la RfqSet loc theo PrId
+		// (fetchRfqsByPr) — code moi phai dung ham do, dung tin RfqId nua.
+		const remainingLines = prItems.filter(function (it) {
+			return !covered.has(normalizeLineNo(it.LineNo))
+				&& parseItemLines(itemLinesValue).indexOf(normalizeLineNo(it.LineNo)) === -1;
+		}).length;
+
+		if (!prRecord.RfqId) {
+			prRecord.RfqId = rfqId;
+			prRecord.UpdatedAt = new Date().toISOString();
+			await updatePrDraft(prRecord.InternalId, { RfqId: rfqId }, session);
+		}
 
 		notifyRequester(
 			prRecord,
 			"Đề nghị " + prRecord.PRId + " đang được Purchasing gửi yêu cầu báo giá (RFQ " + rfqId + ") tới nhà cung cấp."
 		);
 
-		return res.status(201).json({ success: true, rfqId, status: "DRAFT" });
+		return res.status(201).json({
+			success: true,
+			rfqId,
+			status: "DRAFT",
+			itemLines: itemLinesValue,
+			// So dong cua PR chua duoc gan vao RFQ nao — FE dua vao day de biet con
+			// phai tao them nhom nua hay da phu kin ca PR.
+			remainingLines: remainingLines
+		});
 	} catch (error) {
 		const message = extractSapErrorMessage(error);
 		console.error("[POST /api/rfq/create] THAT BAI:", message);
@@ -190,7 +265,9 @@ router.post("/api/rfq/:id/send", async (req, res) => {
 			quotations: resolved,
 			prLabel: prLabelOf(rfq, pr),
 			deadline: normalizeSapDeadline(deadline),
-			items: (pr && pr.items) || [],
+			// Chi cac dong THUOC RFQ nay (ItemLines) — khong gui ca ro hang cua PR cho
+			// moi NCC nua. Xem itemsOfRfq/rfq.service.js.
+			items: itemsOfRfq(rfq, (pr && pr.items) || []),
 			baseUrl: appBaseUrl(req),
 			buyerEmail: sentBy || process.env.EMAIL_USER,
 			isReminder: false
@@ -264,7 +341,9 @@ router.post("/api/rfq/:id/remind", async (req, res) => {
 			quotations: resolved,
 			prLabel: prLabelOf(rfq, pr),
 			deadline: rfq.Deadline,
-			items: (pr && pr.items) || [],
+			// Chi cac dong THUOC RFQ nay (ItemLines) — khong gui ca ro hang cua PR cho
+			// moi NCC nua. Xem itemsOfRfq/rfq.service.js.
+			items: itemsOfRfq(rfq, (pr && pr.items) || []),
 			baseUrl: appBaseUrl(req),
 			buyerEmail: sentBy || process.env.EMAIL_USER,
 			isReminder: true
@@ -467,6 +546,44 @@ router.post("/api/rfq/:id/award", async (req, res) => {
 		const rfqResp = await sapRead(`RfqSet('${odataEscape(id)}')`);
 		const rfq = rfqResp.data && rfqResp.data.d;
 		const prRecord = rfq && await fetchPrDraftByRfq(rfq);
+
+		// ── CHO DU MOI NHOM ROI MOI DAY PR LEN CFO ──────────────────────────────
+		// 1 PR gio co the co N RFQ (moi nhom dong 1 NCC). Chot xong nhom nay ma cac
+		// nhom con lai chua co bao gia thi CHUA duoc chuyen PR sang PENDING_CFO —
+		// CFO se duyet tren mot con so thieu. Doc lai TAT CA RFQ cua PR (ban vua
+		// MERGE o tren da nam trong ket qua doc lai nay) roi moi quyet dinh.
+		let siblingRfqs = [];
+		if (prRecord) {
+			try {
+				siblingRfqs = await fetchRfqsByPr(prRecord);
+			} catch (error) {
+				console.error(`[POST /api/rfq/${id}/award] Doc cac RFQ anh em that bai:`, extractSapErrorMessage(error));
+				siblingRfqs = [];
+			}
+		}
+		const pendingGroups = siblingRfqs
+			.filter(function (r) { return String(r.Status || "").toUpperCase() !== "AWARDED"; })
+			.map(function (r) { return String(r.RfqId); });
+
+		if (prRecord && pendingGroups.length > 0) {
+			console.log(`[POST /api/rfq/${id}/award] PR ${prRecord.PRId} con ${pendingGroups.length} nhom chua chot `
+				+ `(${pendingGroups.join(", ")}) — giu nguyen trang thai PR, chua day len CFO.`);
+			return res.json({
+				success: true,
+				finalValue,
+				awardedVendor: String(vendorNo),
+				pendingGroups: pendingGroups,
+				prPromoted: false
+			});
+		}
+
+		// Tat ca nhom da chot -> gia tri PR = TONG gia trung thau cua moi nhom.
+		const groupTotal = siblingRfqs.reduce(function (sum, r) {
+			return sum + (Number(r.FinalValue) || 0);
+		}, 0);
+		const prFinalValue = siblingRfqs.length > 1 ? groupTotal : finalValue;
+		const isMultiGroup = siblingRfqs.length > 1;
+
 		if (prRecord) {
 			// Tinh lai co/khong vuot nguong CEO tren GIA THAT tu bao gia thang, khong dung
 			// gia uoc tinh luc tao PR nua — gia uoc tinh va gia thuong luong co the lech nhau
@@ -474,12 +591,12 @@ router.post("/api/rfq/:id/award", async (req, res) => {
 			// PHAI dung ban theo CostCenter: item khong con InternalOrder nen ban goc
 			// luon tra needsProcurementHeadReview=false -> PR vuot ngan sach van truot
 			// thang qua CFO, khong bao gio leo CEO.
-			const recalculatedFlags = await buildApprovalFlagsByCostCenter(finalValue, prRecord.items);
+			const recalculatedFlags = await buildApprovalFlagsByCostCenter(prFinalValue, prRecord.items);
 
 			if (prRecord.EstimatedTotalValue == null) {
 				prRecord.EstimatedTotalValue = prRecord.TotalValue;
 			}
-			prRecord.TotalValue = finalValue;
+			prRecord.TotalValue = prFinalValue;
 			prRecord.Currency = finalCurrency;
 			prRecord.needsProcurementHeadReview = recalculatedFlags.needsProcurementHeadReview;
 			prRecord.needsLegalReview = recalculatedFlags.needsLegalReview;
@@ -489,12 +606,18 @@ router.post("/api/rfq/:id/award", async (req, res) => {
 			prRecord.Status = "PENDING_CFO";
 			prRecord.UpdatedAt = new Date().toISOString();
 			prRecord.RfqId = id;
-			prRecord.RfqAwardedVendor = String(vendorNo);
-			prRecord.RfqFinalValue = finalValue;
+			// PR nhieu nhom = nhieu NCC thang thau khac nhau -> 1 field RfqAwardedVendor
+			// khong the dai dien cho ca PR. De RONG co y: PO-01 doc field nay de tu dien
+			// san NCC + don gia; neu dien 1 NCC trong khi gia la TONG cua ca 3 nhom thi
+			// se de ra dung cai loi "moi dong deu mang gia ca don" da gap. PO-01 se doc
+			// theo tung RFQ o ban sua sau; tu gio toi luc do, PR nhieu nhom bat nguoi mua
+			// chon NCC tay (hanh vi cu, an toan).
+			prRecord.RfqAwardedVendor = isMultiGroup ? "" : String(vendorNo);
+			prRecord.RfqFinalValue = prFinalValue;
 
 			await updatePrDraft(prRecord.InternalId, {
 				EstimatedTotalValue: String(prRecord.EstimatedTotalValue),
-				TotalValue: String(finalValue),
+				TotalValue: String(prFinalValue),
 				Currency: finalCurrency,
 				NeedsProcurementHeadReview: boolToSapX(recalculatedFlags.needsProcurementHeadReview),
 				NeedsLegalReview: boolToSapX(recalculatedFlags.needsLegalReview),
@@ -502,24 +625,36 @@ router.post("/api/rfq/:id/award", async (req, res) => {
 				EscalationIO: recalculatedFlags.escalationIO || "",
 				Status: "PENDING_CFO",
 				RfqId: id,
-				RfqAwardedVendor: String(vendorNo),
-				RfqFinalValue: String(finalValue)
+				RfqAwardedVendor: isMultiGroup ? "" : String(vendorNo),
+				RfqFinalValue: String(prFinalValue)
 			});
+
+			const groupNote = isMultiGroup
+				? " (tong " + siblingRfqs.length + " nhom bao gia)"
+				: "";
 
 			notifyRequester(
 				prRecord,
-				"RFQ " + id + " da chon nha cung cap " + vendorNo + ". De nghi " + prRecord.PRId + " chuyen sang cho CFO xem xet."
+				"RFQ " + id + " da chon nha cung cap " + vendorNo + ". De nghi " + prRecord.PRId + " chuyen sang cho CFO xem xet" + groupNote + "."
 			);
 			await notifyCfo(
 				prRecord.PRId,
 				"RFQ " + id + " da chon NCC " + vendorNo + " — gia tri bao gia "
-				+ Number(finalValue).toLocaleString("vi-VN") + " " + finalCurrency + ". Cho CFO duyet."
+				+ Number(prFinalValue).toLocaleString("vi-VN") + " " + finalCurrency + groupNote + ". Cho CFO duyet."
 			);
 		} else {
 			console.error(`[POST /api/rfq/${id}/award] Khong tim thay PR tuong ung tren SAP de cap nhat trang thai.`);
 		}
 
-		return res.json({ success: true, finalValue, awardedVendor: String(vendorNo) });
+		return res.json({
+			success: true,
+			finalValue,
+			awardedVendor: String(vendorNo),
+			pendingGroups: [],
+			prPromoted: !!prRecord,
+			prTotalValue: prFinalValue,
+			groupCount: siblingRfqs.length
+		});
 	} catch (error) {
 		const message = extractSapErrorMessage(error);
 		console.error(`[POST /api/rfq/${id}/award] THAT BAI:`, message);

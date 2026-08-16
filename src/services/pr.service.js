@@ -296,8 +296,7 @@ async function updatePrDraft(internalId, fields, session) {
  * Loi khi doc phan bo sung nay khong duoc lam hong ca danh sach phe duyet.
  */
 async function enrichWithRfqAward(prList) {
-	const needEnrich = prList.filter((pr) => pr.RfqId);
-	if (needEnrich.length === 0) { return prList; }
+	if (!Array.isArray(prList) || prList.length === 0) { return prList; }
 
 	let vendorMap = {};
 	try {
@@ -307,24 +306,78 @@ async function enrichWithRfqAward(prList) {
 		console.error("[enrichWithRfqAward] Doc VendorSet that bai:", extractSapErrorMessage(error));
 	}
 
-	await Promise.all(needEnrich.map(async function (pr) {
-		pr.RfqAwardedVendorName = vendorMap[String(pr.RfqAwardedVendor)] || "";
-		try {
-			const resp = await sapRead(`RfqSet('${odataEscape(pr.RfqId)}')`);
-			const rfq = resp.data && resp.data.d;
-			if (rfq) {
-				pr.RfqAwardReason = rfq.AwardReason || "";
-				pr.RfqAwardedBy = rfq.AwardedBy || "";
-				pr.RfqAwardedAt = sapTsToIso(rfq.AwardedAt, 0) || "";
-				pr.RfqStatus = rfq.Status || "";
-			}
-		} catch (error) {
-			console.error(`[enrichWithRfqAward] Doc RFQ ${pr.RfqId} that bai:`, extractSapErrorMessage(error));
-		}
-	}));
+	// Doc CA BANG RfqSet dung 1 lan cho ca danh sach.
+	//
+	// Truoc day o day loc `prList.filter(pr => pr.RfqId)` roi doc tung RfqSet('<id>')
+	// theo khoa. Cach do gio SAI ve nghiep vu: 1 PR co the co NHIEU RFQ (moi nhom
+	// dong 1 cai — xem rfq.service.js), ma ZPR_DRAFT-RFQID chi la 1 field CHAR10 nen
+	// chi giu duoc RFQ DAU TIEN; cac nhom sau bi bo qua hoan toan. Nay doi chieu theo
+	// PrId/SapPrNumber giong fetchRfqsByPr() — dung 1 request thay vi N request.
+	let allRfqs = [];
+	try {
+		const resp = await sapRead("RfqSet");
+		allRfqs = (resp.data && resp.data.d && resp.data.d.results) || [];
+	} catch (error) {
+		console.error("[enrichWithRfqAward] Doc RfqSet that bai:", extractSapErrorMessage(error));
+		return prList;
+	}
+
+	prList.forEach(function (pr) {
+		const internalId = String(pr.InternalId || "").trim();
+		const prId = String(pr.PRId || "").trim();
+		const sapPrId = String(pr.SapPRId || "").trim();
+
+		const mine = allRfqs.filter(function (rfq) {
+			const rfqPrId = String(rfq.PrId || "").trim();
+			const rfqSapNo = String(rfq.SapPrNumber || "").trim();
+			if (rfqPrId && (rfqPrId === internalId || rfqPrId === prId)) { return true; }
+			if (rfqSapNo && (rfqSapNo === prId || rfqSapNo === sapPrId)) { return true; }
+			return false;
+		});
+
+		if (mine.length === 0) { return; }
+
+		// Moi nhom = 1 RFQ = 1 NCC thang thau = sau nay 1 PO. PR-02 (CFO duyet) va
+		// PO-01 doc mang nay. ItemLines rong = nhom do gom toan bo dong cua PR.
+		pr.RfqGroups = mine.map(function (rfq) {
+			const vendorNo = String(rfq.AwardedVendor || "");
+			return {
+				RfqId: String(rfq.RfqId || ""),
+				ItemLines: String(rfq.ItemLines || ""),
+				Status: rfq.Status || "",
+				AwardedVendor: vendorNo,
+				AwardedVendorName: vendorMap[vendorNo] || "",
+				AwardReason: rfq.AwardReason || "",
+				AwardedBy: rfq.AwardedBy || "",
+				AwardedAt: sapTsToIso(rfq.AwardedAt, 0) || "",
+				FinalValue: Number(rfq.FinalValue) || 0,
+				Currency: rfq.Currency || pr.Currency || "VND"
+			};
+		}).sort(function (a, b) { return a.RfqId.localeCompare(b.RfqId); });
+
+		pr.RfqGroupCount = pr.RfqGroups.length;
+		pr.RfqAllAwarded = pr.RfqGroups.every(function (g) {
+			return String(g.Status || "").toUpperCase() === "AWARDED";
+		});
+
+		// Cac field le giu nguyen ten cu de man hinh chua doc theo RfqGroups khong vo.
+		// PR 1 nhom: y het truoc day. PR nhieu nhom: RfqAwardedVendorName de RONG co y
+		// (khong ton tai "1 NCC cua ca PR"), de PO-01 khong tu dien bua.
+		const primary = pr.RfqGroups[0];
+		pr.RfqAwardReason = pr.RfqGroups.length === 1
+			? primary.AwardReason
+			: pr.RfqGroups.map(function (g) { return g.RfqId + ": " + g.AwardReason; }).filter(Boolean).join(" | ");
+		pr.RfqAwardedBy = primary.AwardedBy;
+		pr.RfqAwardedAt = primary.AwardedAt;
+		pr.RfqStatus = pr.RfqGroups.length === 1
+			? primary.Status
+			: (pr.RfqAllAwarded ? "AWARDED" : "IN_PROGRESS");
+		pr.RfqAwardedVendorName = pr.RfqGroups.length === 1 ? primary.AwardedVendorName : "";
+	});
 
 	return prList;
 }
+
 // 🎯 Lấy SỐ DÒNG (ItemNo) THẬT của PR trực tiếp từ SAP OData — không đoán, không hardcode.
 
 async function fetchPRItemsFromSAP(prNumber) {

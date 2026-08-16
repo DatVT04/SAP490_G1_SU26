@@ -25,7 +25,17 @@ sap.ui.define([
 				busyAi: false,
 				selectedVendorCount: 0,
 				hasSelectedPR: false,
-				selectedPRLabel: ""
+				selectedPRLabel: "",
+				// ── TACH RFQ THEO NHOM DONG (16/08/2026) ──
+				// PRItems: cac dong vat tu cua PR dang chon. Moi dong co them:
+				//   _assigned   = dong nay da nam trong 1 RFQ khac (khong tick lai duoc)
+				//   _assignedTo = ma RFQ dang giu dong do, de hien cho nguoi dung biet
+				// selectedLineCount: so dong dang tick — nut "Tao & Gui RFQ" doi > 0.
+				// groupHint: cau tom tat trang thai chia nhom hien tren MessageStrip.
+				PRItems: [],
+				selectedLineCount: 0,
+				groupHint: "",
+				busyGroupAi: false
 			}));
 
 			// Hien vong xoay NGAY khi bat busy. Mac dinh UI5 tre 1 giay: trong 1 giay do
@@ -77,8 +87,64 @@ sap.ui.define([
 			oView.getModel().setProperty("/hasSelectedPR", false);
 			oView.getModel().setProperty("/selectedPRLabel", "");
 			oView.getModel().setProperty("/selectedVendorCount", 0);
+			oView.getModel().setProperty("/PRItems", []);
+			oView.getModel().setProperty("/selectedLineCount", 0);
+			oView.getModel().setProperty("/groupHint", "");
 			var oVendorTable = oView.byId("vendorTable");
 			if (oVendorTable) { oVendorTable.removeSelections(true); }
+			var oItemTable = oView.byId("prItemTable");
+			if (oItemTable) { oItemTable.removeSelections(true); }
+		},
+
+		// ── CHUAN HOA SO DONG ──
+		// FE/SAP co the ra "1" hoac "00001" tuy cho. Phai dem 0 ve dung 5 ky tu truoc
+		// khi so sanh, khong thi cung 1 dong ma bi coi la 2 dong khac nhau. Giong het
+		// normalizeLineNo() ben src/services/rfq.service.js — sua ben nao nho sua ben kia.
+		_normalizeLineNo: function (vValue) {
+			var s = String(vValue === undefined || vValue === null ? "" : vValue).trim();
+			if (!s) { return ""; }
+			return /^\d+$/.test(s) ? ("00000" + s).slice(-5) : s;
+		},
+
+		// Tu danh sach RFQ doc tu /api/rfq -> map { <khoa PR> : { <soDong>: <maRFQ> } }.
+		// Khoa PR gom ca PrId lan SapPrNumber vi RfqSet luu 1 trong 2 tuy thoi diem tao.
+		// RFQ co ItemLines RONG = RFQ kieu cu, phu kin TOAN BO dong cua PR (quy uoc da
+		// chot o backend) — danh dau bang "*" de ham tra cuu hieu la "het dong roi".
+		_buildAssignedMap: function (aRfqs) {
+			var that = this;
+			var mMap = {};
+			(aRfqs || []).forEach(function (rfq) {
+				var aKeys = [String(rfq.PrId || "").trim(), String(rfq.SapPrNumber || "").trim()]
+					.filter(Boolean);
+				if (aKeys.length === 0) { return; }
+				var sLines = String(rfq.ItemLines || "").trim();
+				var aLines = sLines ? sLines.split(",") : ["*"];
+				aKeys.forEach(function (sKey) {
+					mMap[sKey] = mMap[sKey] || {};
+					aLines.forEach(function (sLine) {
+						var sNorm = sLine === "*" ? "*" : that._normalizeLineNo(sLine);
+						if (sNorm) { mMap[sKey][sNorm] = String(rfq.RfqId || ""); }
+					});
+				});
+			});
+			return mMap;
+		},
+
+		/** Ma RFQ dang giu dong nay, hoac "" neu dong con trong. */
+		_assignedRfqOf: function (mAssigned, oPR, sLineNo) {
+			var that = this;
+			var aKeys = [oPR.PRId, oPR.SapPRId, oPR.InternalId]
+				.map(function (v) { return String(v || "").trim(); })
+				.filter(Boolean);
+			var sHit = "";
+			aKeys.forEach(function (sKey) {
+				var mLines = mAssigned[sKey];
+				if (!mLines) { return; }
+				if (mLines["*"]) { sHit = sHit || mLines["*"]; }
+				var sNorm = that._normalizeLineNo(sLineNo);
+				if (mLines[sNorm]) { sHit = sHit || mLines[sNorm]; }
+			});
+			return sHit;
 		},
 
 		// ── 1. PR DA DUOC PURCHASING DUYET HOP LE (PENDING_RFQ) — chi trang thai nay
@@ -94,34 +160,59 @@ sap.ui.define([
 			var oTable = oView.byId("pendingPRTable");
 			oTable.setBusy(true);
 
-			fetch(BACKEND + "/api/approval/pending?role=PURCHASING&status=PENDING_RFQ")
-				.then(function (r) { return r.json(); })
-				.then(function (res) {
+			// Doc SONG SONG danh sach PR cho xu ly va TOAN BO RFQ da co. Truoc day chi
+			// can PR: 1 PR = 1 RFQ nen chi viec loc `!pr.RfqId` la du. Nay 1 PR co the
+			// co NHIEU RFQ (moi nhom dong 1 cai), nen phai doi chieu tung DONG xem con
+			// dong nao chua duoc gan khong — con thi PR van phai hien o day de tao tiep.
+			Promise.all([
+				fetch(BACKEND + "/api/approval/pending?role=PURCHASING&status=PENDING_RFQ")
+					.then(function (r) { return r.json(); }),
+				fetch(BACKEND + "/api/rfq")
+					.then(function (r) { return r.json(); })
+					.catch(function () { return { success: false, data: [] }; })
+			])
+				.then(function (aRes) {
 					oTable.setBusy(false);
-					if (res && res.success) {
-						// PR da gan RfqId nghia la RFQ da duoc tao roi (dang o buoc gui/nhap
-						// bao gia ben RFQ-02) -> khong hien o man tao RFQ nua, tranh tao trung.
-						var aMapped = (res.data || []).filter(function (pr) {
-							return !pr.RfqId;
-						}).map(function (pr) {
-							var aItems = pr.items || [];
-							var firstItem = aItems[0] || {};
-							var sDesc = aItems.length > 1
-								? (firstItem.Description || "") + " (+ " + (aItems.length - 1) + " vật tư khác)"
-								: (firstItem.Description || "");
-							return {
-								PRId: pr.PRId || pr.InternalId || "",
-								SapPRId: pr.SapPRId || "",
-								Description: sDesc,
-								RequesterEmail: pr.RequesterEmail || "",
-								TotalValue: pr.TotalValue || 0,
-								Currency: pr.Currency || "VND",
-								_items: aItems
-							};
+					var resPR = aRes[0];
+					var resRfq = aRes[1];
+					if (!resPR || !resPR.success) { return; }
+
+					var mAssigned = that._buildAssignedMap((resRfq && resRfq.data) || []);
+					that._assignedMap = mAssigned;
+
+					var aMapped = (resPR.data || []).map(function (pr) {
+						var aItems = pr.items || [];
+						var aFree = aItems.filter(function (it) {
+							return !that._assignedRfqOf(mAssigned, pr, it.LineNo);
 						});
-						oView.getModel().setProperty("/PendingPRs", aMapped);
-						that._autoSelectFirstPR();
-					}
+						return { _pr: pr, _items: aItems, _free: aFree };
+					}).filter(function (o) {
+						// Con it nhat 1 dong chua co RFQ thi PR moi con viec de lam o man nay.
+						return o._free.length > 0;
+					}).map(function (o) {
+						var pr = o._pr;
+						var firstItem = o._items[0] || {};
+						var sDesc = o._items.length > 1
+							? (firstItem.Description || "") + " (+ " + (o._items.length - 1) + " vật tư khác)"
+							: (firstItem.Description || "");
+						return {
+							PRId: pr.PRId || pr.InternalId || "",
+							SapPRId: pr.SapPRId || "",
+							InternalId: pr.InternalId || "",
+							Description: sDesc,
+							RequesterEmail: pr.RequesterEmail || "",
+							TotalValue: pr.TotalValue || 0,
+							Currency: pr.Currency || "VND",
+							// Hien ngay tren danh sach: PR nao dang chia do dang thi biet lien,
+							// khoi phai bam vao moi thay.
+							LineSummary: o._free.length === o._items.length
+								? o._items.length + " dòng"
+								: (o._items.length - o._free.length) + "/" + o._items.length + " dòng đã có RFQ",
+							_items: o._items
+						};
+					});
+					oView.getModel().setProperty("/PendingPRs", aMapped);
+					that._autoSelectFirstPR();
 				})
 				.catch(function () {
 					oTable.setBusy(false);
@@ -215,6 +306,7 @@ sap.ui.define([
 			var oPRData = oContext ? oContext.getObject() : null;
 			if (!oPRData) { return; }
 
+			var that = this;
 			var oView = this.getView();
 			this._currentPR = oPRData;
 			oView.getModel().setProperty("/aiMessages", []);
@@ -226,6 +318,96 @@ sap.ui.define([
 			);
 			oView.byId("vendorTable").removeSelections(true);
 			oView.getModel().setProperty("/selectedVendorCount", 0);
+
+			// Do bang dong vat tu de nguoi dung chon nhung dong thuoc nhom RFQ lan nay.
+			var mAssigned = this._assignedMap || {};
+			var aRows = (oPRData._items || []).map(function (it) {
+				var sRfq = that._assignedRfqOf(mAssigned, oPRData, it.LineNo);
+				return {
+					LineNo: it.LineNo || "",
+					MaterialNo: it.MaterialNo || "",
+					Description: it.Description || "",
+					Quantity: it.Quantity || 0,
+					UoM: it.UoM || "",
+					EstimatedValue: it.EstimatedValue || 0,
+					Currency: oPRData.Currency || "VND",
+					_assigned: !!sRfq,
+					_assignedTo: sRfq || "",
+					StatusText: sRfq ? ("Đã thuộc " + sRfq) : "Chưa có RFQ"
+				};
+			});
+			oView.getModel().setProperty("/PRItems", aRows);
+			oView.getModel().setProperty("/selectedLineCount", 0);
+
+			var oItemTable = oView.byId("prItemTable");
+			if (oItemTable) { oItemTable.removeSelections(true); }
+
+			// Mac dinh tick san MOI dong con trong: PR chi mua tu 1 NCC (da so truong hop)
+			// thi nguoi dung khong phai lam gi them, bam Tao & Gui la xong nhu truoc day.
+			// Muon tach nhom thi bo tick bot — chu dong hon la bat tick tay tu dau.
+			this._selectFreeLines();
+			this._updateGroupHint();
+		},
+
+		/** Tick san toan bo dong chua thuoc RFQ nao. */
+		_selectFreeLines: function () {
+			var oView = this.getView();
+			var oTable = oView.byId("prItemTable");
+			if (!oTable) { return; }
+			var aRows = oView.getModel().getProperty("/PRItems") || [];
+			var fnApply = function () {
+				oTable.removeSelections(true);
+				oTable.getItems().forEach(function (oItem) {
+					var oCtx = oItem.getBindingContext();
+					var oRow = oCtx && oCtx.getObject();
+					if (oRow && !oRow._assigned) { oTable.setSelectedItem(oItem, true); }
+				});
+				this.onItemSelectionChange();
+			}.bind(this);
+
+			// JSONModel.setProperty cap nhat binding dong bo nen thuong da co items ngay;
+			// neu chua (lan render dau) thi doi updateFinished. Giong _autoSelectFirstPR.
+			if (oTable.getItems().length >= aRows.length && aRows.length > 0) {
+				fnApply();
+			} else {
+				oTable.attachEventOnce("updateFinished", fnApply);
+			}
+		},
+
+		onItemSelectionChange: function () {
+			var oTable = this.getView().byId("prItemTable");
+			if (!oTable) { return; }
+			// Chan tick nhung dong da thuoc RFQ khac: chung van hien de nguoi dung biet
+			// PR nay dang chia do dang, nhung khong duoc gan lai vao RFQ moi.
+			var aInvalid = oTable.getSelectedItems().filter(function (oItem) {
+				var oCtx = oItem.getBindingContext();
+				var oRow = oCtx && oCtx.getObject();
+				return oRow && oRow._assigned;
+			});
+			if (aInvalid.length) {
+				aInvalid.forEach(function (oItem) { oTable.setSelectedItem(oItem, false); });
+				MessageToast.show("Dòng này đã thuộc một RFQ khác của PR — không thể đưa vào RFQ mới.");
+			}
+			this.getView().getModel().setProperty("/selectedLineCount", oTable.getSelectedItems().length);
+			this._updateGroupHint();
+		},
+
+		_updateGroupHint: function () {
+			var oModel = this.getView().getModel();
+			var aRows = oModel.getProperty("/PRItems") || [];
+			var iTotal = aRows.length;
+			var iAssigned = aRows.filter(function (r) { return r._assigned; }).length;
+			var iSelected = oModel.getProperty("/selectedLineCount") || 0;
+			var iFree = iTotal - iAssigned;
+
+			var sHint = "PR có " + iTotal + " dòng. ";
+			if (iAssigned > 0) { sHint += iAssigned + " dòng đã thuộc RFQ trước đó. "; }
+			sHint += "Đang chọn " + iSelected + "/" + iFree + " dòng còn lại cho RFQ này.";
+			if (iSelected > 0 && iSelected < iFree) {
+				sHint += " Sau khi gửi xong nhóm này, PR vẫn ở lại đây để bạn tạo tiếp nhóm cho "
+					+ (iFree - iSelected) + " dòng còn lại.";
+			}
+			oModel.setProperty("/groupHint", sHint);
 		},
 
 		// Tu dong chon dong PR dau tien khi vao man / sau khi tai lai danh sach, de cot
@@ -241,8 +423,21 @@ sap.ui.define([
 					this._clearPRSelection();
 					return;
 				}
-				oTable.setSelectedItem(aItems[0], true);
-				this._applyPRSelection(aItems[0]);
+				// Vua tao xong 1 nhom cho PR nay ma no con dong chua hoi gia -> chon lai
+				// DUNG PR do thay vi nhay ve PR dau danh sach, de nguoi dung lam tiep nhom
+				// sau ngay. _reselectPRId chi dung 1 lan roi xoa.
+				var oTarget = aItems[0];
+				if (this._reselectPRId) {
+					var sWanted = String(this._reselectPRId);
+					var oMatch = aItems.filter(function (oItem) {
+						var oRow = oItem.getBindingContext() && oItem.getBindingContext().getObject();
+						return oRow && String(oRow.PRId) === sWanted;
+					})[0];
+					if (oMatch) { oTarget = oMatch; }
+					this._reselectPRId = null;
+				}
+				oTable.setSelectedItem(oTarget, true);
+				this._applyPRSelection(oTarget);
 			}.bind(this);
 
 			if (oTable.getItems().length > 0) {
@@ -392,6 +587,148 @@ sap.ui.define([
 				});
 		},
 
+		// ── 3a. AI GOI Y CHIA NHOM DONG THEO NCC ──
+		// Khac "AI goi y NCC" o tren (goi y 1 NCC cho ca PR): nut nay tra loi "PR nay
+		// nen tach thanh may RFQ, moi nhom gom dong nao, moi ai". Ket qua dung de TICK
+		// SAN checkbox — nguoi mua van sua tay thoai mai truoc khi bam gui, AI chi lam
+		// ban nhap. Mot NCC co the ban nhieu nganh hang nen gop/tach lai la binh thuong.
+		onAiSuggestGroupsPress: function () {
+			var that = this;
+			var oModel = this.getView().getModel();
+
+			if (!this._currentPR) {
+				MessageToast.show("Hãy chọn một PR trước.");
+				return;
+			}
+			var aVendors = oModel.getProperty("/Vendors") || [];
+			if (aVendors.length === 0) {
+				MessageToast.show("Chưa có danh sách Nhà cung cấp để AI phân tích.");
+				return;
+			}
+			// Chi hoi AI ve nhung dong CHUA thuoc RFQ nao — dong da chot roi thi khong
+			// con gi de chia nua, dua vao chi lam nhieu context va de AI goi y nham.
+			var aFree = (oModel.getProperty("/PRItems") || []).filter(function (r) { return !r._assigned; });
+			if (aFree.length === 0) {
+				MessageToast.show("Mọi dòng của PR này đều đã thuộc một RFQ.");
+				return;
+			}
+			if (aFree.length === 1) {
+				MessageToast.show("Chỉ còn 1 dòng — không cần chia nhóm, chọn NCC rồi gửi luôn.");
+				return;
+			}
+
+			oModel.setProperty("/busyGroupAi", true);
+
+			fetch(BACKEND + "/api/ai/suggest-rfq-groups", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ items: aFree, vendors: aVendors })
+			})
+				.then(function (r) { return r.json(); })
+				.then(function (res) {
+					oModel.setProperty("/busyGroupAi", false);
+					if (!res || !res.success) {
+						MessageToast.show((res && res.message) || "AI không phản hồi.");
+						return;
+					}
+					// AI tra ve khong dung JSON: van hien nguyen van trong khung chat de
+					// nguoi dung tu doc va chia tay, thay vi mat trang khong biet vi sao.
+					if (!res.parsed || !(res.groups || []).length) {
+						oModel.setProperty("/aiMessages", [{
+							role: "ai",
+							text: res.raw || "AI chưa đưa ra được phương án chia nhóm cho PR này."
+						}]);
+						that._renderAiChat();
+						return;
+					}
+					that._aiGroups = res.groups;
+					that._showGroupSuggestion(res);
+				})
+				.catch(function () {
+					oModel.setProperty("/busyGroupAi", false);
+					MessageToast.show("Không gọi được AI gợi ý chia nhóm.");
+				});
+		},
+
+		/** Hien phuong an AI de xuat + cho chon ap dung nhom nao vao bang. */
+		_showGroupSuggestion: function (oRes) {
+			var that = this;
+			var aGroups = oRes.groups || [];
+			var aVendors = this.getView().getModel().getProperty("/Vendors") || [];
+			var mVendorName = {};
+			aVendors.forEach(function (v) { mVendorName[String(v.VendorNo)] = v.VendorName || v.VendorNo; });
+
+			var sText = "AI đề xuất tách thành " + aGroups.length + " nhóm:\n\n";
+			aGroups.forEach(function (g, i) {
+				sText += "- Nhóm " + (i + 1) + " — " + g.name + ": dòng " + g.lines.join(", ")
+					+ (g.vendorNos.length
+						? " · mời " + g.vendorNos.map(function (no) { return mVendorName[no] || no; }).join(", ")
+						: " · CHƯA CÓ NCC PHÙ HỢP trong danh sách")
+					+ (g.reason ? " (" + g.reason + ")" : "") + "\n";
+			});
+			if ((oRes.missingLines || []).length) {
+				sText += "\n- LƯU Ý: AI chưa xếp nhóm cho dòng " + oRes.missingLines.join(", ")
+					+ " — bạn tự chọn nhóm cho các dòng này.\n";
+			}
+			sText += "\nĐây chỉ là bản nháp. Chọn một nhóm để hệ thống tích sẵn dòng + NCC, "
+				+ "bạn vẫn sửa lại được trước khi gửi.";
+
+			this.getView().getModel().setProperty("/aiMessages", [{ role: "ai", text: sText }]);
+			this._renderAiChat();
+
+			// Moi lan chi lam duoc 1 nhom (1 RFQ = 1 lan bam gui), nen hoi chon nhom nao
+			// truoc thay vi co ap ca 3 nhom cung luc roi khong biet dang gui cai nao.
+			var aActions = aGroups.map(function (g, i) { return "Nhóm " + (i + 1) + ": " + g.name; });
+			aActions.push("Tự chọn");
+			MessageBox.show(sText, {
+				icon: MessageBox.Icon.INFORMATION,
+				title: "AI gợi ý chia nhóm",
+				actions: aActions,
+				onClose: function (sAction) {
+					var iIdx = aActions.indexOf(sAction);
+					if (iIdx < 0 || iIdx >= aGroups.length) { return; }
+					that._applyGroupSuggestion(aGroups[iIdx]);
+				}
+			});
+		},
+
+		/** Tick san dong + NCC theo 1 nhom AI de xuat. */
+		_applyGroupSuggestion: function (oGroup) {
+			var that = this;
+			var oView = this.getView();
+			var oItemTable = oView.byId("prItemTable");
+			var oVendorTable = oView.byId("vendorTable");
+
+			var mWanted = {};
+			(oGroup.lines || []).forEach(function (l) { mWanted[that._normalizeLineNo(l)] = true; });
+
+			if (oItemTable) {
+				oItemTable.removeSelections(true);
+				oItemTable.getItems().forEach(function (oItem) {
+					var oRow = oItem.getBindingContext() && oItem.getBindingContext().getObject();
+					if (oRow && !oRow._assigned && mWanted[that._normalizeLineNo(oRow.LineNo)]) {
+						oItemTable.setSelectedItem(oItem, true);
+					}
+				});
+				this.onItemSelectionChange();
+			}
+
+			var mVendor = {};
+			(oGroup.vendorNos || []).forEach(function (no) { mVendor[String(no)] = true; });
+			if (oVendorTable) {
+				oVendorTable.removeSelections(true);
+				oVendorTable.getItems().forEach(function (oItem) {
+					var oRow = oItem.getBindingContext() && oItem.getBindingContext().getObject();
+					if (oRow && mVendor[String(oRow.VendorNo)]) {
+						oVendorTable.setSelectedItem(oItem, true);
+					}
+				});
+				this.onVendorSelectionChange();
+			}
+
+			MessageToast.show("Đã tích sẵn nhóm \"" + oGroup.name + "\". Kiểm tra lại rồi bấm Tạo & Gửi RFQ.");
+		},
+
 		// ── 3b. HOI THEM AI (chat tuong tac tren nen du lieu NCC dang xem) ──
 		// Server van an danh hoa ten/email NCC truoc khi goi AI nhu nut goi y chinh.
 		onAiAskPress: function () {
@@ -470,6 +807,16 @@ sap.ui.define([
 				return;
 			}
 
+			// Dong vat tu thuoc RFQ lan nay. Khong tick dong nao = khong biet dang hoi
+			// gia cai gi, chan luon thay vi de backend tu doan.
+			var aLines = (oView.byId("prItemTable").getSelectedItems() || []).map(function (oItem) {
+				return oItem.getBindingContext().getObject().LineNo;
+			});
+			if (aLines.length === 0) {
+				MessageBox.warning("Hãy chọn ít nhất 1 dòng vật tư để đưa vào RFQ này.");
+				return;
+			}
+
 			var oDeadlinePicker = oView.byId("dpDeadline");
 			var sDeadline = oDeadlinePicker.getValue();
 			if (!sDeadline) {
@@ -485,7 +832,7 @@ sap.ui.define([
 				return;
 			}
 
-			var fnSubmit = function () { that._submitRFQ(aSelected, sDeadline); };
+			var fnSubmit = function () { that._submitRFQ(aSelected, sDeadline, aLines); };
 
 			// Chi canh bao (khong chan cung): 1 NCC van hop le nhung se phai nhap
 			// ly do sole-source khi chot o man RFQ-02.
@@ -504,7 +851,7 @@ sap.ui.define([
 			fnSubmit();
 		},
 
-		_submitRFQ: function (aSelectedVendors, sDeadline) {
+		_submitRFQ: function (aSelectedVendors, sDeadline, aItemLines) {
 			var that = this;
 			var oView = this.getView();
 			var oUser = this.getOwnerComponent().getModel("user").getData() || {};
@@ -520,7 +867,10 @@ sap.ui.define([
 					sapPrNumber: oPR.SapPRId || "",
 					vendorIds: aSelectedVendors.map(function (v) { return v.VendorNo; }),
 					createdBy: oUser.email || "",
-					currency: oPR.Currency || "VND"
+					currency: oPR.Currency || "VND",
+					// Danh sach dong PR thuoc RFQ nay. Backend luu vao ZG1_RFQ-ITEM_LINES va
+					// tu do loc dong khi gui mail moi bao gia + khi NCC mo portal.
+					itemLines: aItemLines || []
 				})
 			})
 				.then(function (r) {
@@ -531,6 +881,9 @@ sap.ui.define([
 						throw new Error((oResult.body && oResult.body.message) || "Tạo RFQ thất bại.");
 					}
 					var sRfqId = oResult.body.rfqId;
+					// So dong cua PR con chua duoc gan vao RFQ nao — backend tinh giup,
+					// FE dua vao day de biet co giu PR lai cho nguoi dung tao nhom tiep khong.
+					that._lastRemainingLines = Number(oResult.body.remainingLines) || 0;
 
 					// Tao xong thi gui email ngay trong cung 1 thao tac
 					return fetch(BACKEND + "/api/rfq/" + encodeURIComponent(sRfqId) + "/send", {
@@ -563,10 +916,21 @@ sap.ui.define([
 					} else {
 						sMsg += " LƯU Ý: gửi email thất bại (" + (oBody.message || "không rõ lý do") + ") — có thể gửi lại sau.";
 					}
+					// PR chia nhieu nhom: gui xong nhom nay van con dong chua hoi gia. Noi ro
+					// va GIU PR lai (khong _clearPRSelection) de nguoi dung tao tiep nhom sau —
+					// truoc day man hinh luon nhay ve trang thai "chua chon PR", nguoi dung se
+					// tuong da xong ca PR trong khi moi lam duoc 1 phan.
+					var iRemaining = that._lastRemainingLines || 0;
+					if (iRemaining > 0) {
+						sMsg += "\n\nPR này còn " + iRemaining + " dòng chưa có RFQ. "
+							+ "Màn hình sẽ giữ nguyên PR để bạn chọn nhóm tiếp theo.";
+					}
 					MessageBox.success(sMsg, {
 						title: "Tạo RFQ thành công — " + oSendResult.rfqId,
 						onClose: function () {
+							var sKeepPRId = iRemaining > 0 ? oPR.PRId : null;
 							that._clearPRSelection();
+							that._reselectPRId = sKeepPRId;
 							that._loadPendingPRs();
 						}
 					});

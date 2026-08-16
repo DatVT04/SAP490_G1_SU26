@@ -91,6 +91,154 @@ router.post("/api/ai/recommend-vendor", async (req, res) => {
 	}
 });
 
+// ============================================================================
+// 5b) AI GOI Y CHIA NHOM DONG PR THEO NHA CUNG CAP (16/08/2026)
+//
+// Khac /api/ai/recommend-vendor (goi y 1 NCC cho CA PR): route nay tra loi cau
+// hoi "PR nay co 5 dong khac loai nhau, nen tach thanh may RFQ va moi ai?".
+// NCC ban ban ghe khong bao gia duoc switch Cisco — gui ca ro hang cho tat ca
+// vua lam phien NCC vua lo thong tin mua sam sang NCC khac.
+//
+// Van AN DANH HOA nhu 2 route AI kia: AI chi thay vendorCode V1/V2/... + cac
+// thuoc tinh phuc vu viec chon (category tu LFA1-SORTL, city, lich su bao gia),
+// KHONG bao gio thay ten/email/MST that. Dich nguoc o Node truoc khi tra ve FE.
+//
+// Tra ve JSON co cau truc (khong phai van xuoi nhu 2 route kia) vi FE phai dung
+// ket qua de TICK SAN checkbox tren bang vat tu — parse van xuoi de sai. Neu AI
+// tra ve khong dung JSON thi van tra raw text de nguoi dung tu doc, khong nem loi.
+// ============================================================================
+router.post("/api/ai/suggest-rfq-groups", async (req, res) => {
+	const { items, vendors: candidateVendors } = req.body || {};
+
+	if (!process.env.ANTHROPIC_API_KEY) {
+		return res.status(500).json({ success: false, message: "Thieu ANTHROPIC_API_KEY." });
+	}
+	if (!Array.isArray(items) || items.length === 0) {
+		return res.status(400).json({ success: false, message: "Thieu danh sach dong vat tu cua PR." });
+	}
+	if (!Array.isArray(candidateVendors) || candidateVendors.length === 0) {
+		return res.status(400).json({ success: false, message: "Thieu danh sach nha cung cap (goi /api/vendors truoc)." });
+	}
+
+	// anonMap dung de dich nguoc trong VAN BAN (ra "Ten NCC (ma)"), con codeToVendorNo
+	// de dich nguoc trong DU LIEU (ra dung VendorNo cho FE tick san checkbox NCC).
+	// Hai muc dich khac nhau nen giu 2 map rieng, khong dung chung 1 cai.
+	const anonMap = {};
+	const codeToVendorNo = {};
+	candidateVendors.forEach(function (v, idx) {
+		codeToVendorNo["V" + (idx + 1)] = String(v.VendorNo || v.Lifnr || "");
+	});
+
+	const performanceStats = await computeVendorPerformanceStats();
+	const anonymized = anonymizeVendorsForAI(candidateVendors, anonMap, performanceStats);
+
+	const compactItems = items.map(function (it) {
+		return {
+			lineNo: String(it.LineNo || ""),
+			description: String(it.Description || ""),
+			materialNo: String(it.MaterialNo || ""),
+			quantity: Number(it.Quantity) || 0,
+			uom: String(it.UoM || "")
+		};
+	});
+
+	const prompt = `Bạn là chuyên gia mua hàng. Một Đề nghị mua hàng (PR) có nhiều dòng vật tư `
+		+ `khác loại nhau, cần tách thành nhiều Yêu cầu báo giá (RFQ) — mỗi RFQ gom những dòng mà `
+		+ `CÙNG một nhóm nhà cung cấp có thể cung cấp được.\n\n`
+		+ `Các dòng vật tư của PR:\n${JSON.stringify(compactItems, null, 2)}\n\n`
+		+ `Danh sách nhà cung cấp đã ẩn danh hóa:\n${JSON.stringify(anonymized, null, 2)}\n`
+		+ VENDOR_FIELD_EXPLANATION
+		+ `\nNguyên tắc chia nhóm:\n`
+		+ `- Gom các dòng cùng ngành hàng vào một nhóm (ví dụ văn phòng phẩm và mực in thường `
+		+ `cùng một nhà cung cấp; switch mạng và bản quyền phần mềm thì không).\n`
+		+ `- MỖI DÒNG CHỈ ĐƯỢC THUỘC ĐÚNG MỘT NHÓM, và mọi dòng đều phải được xếp vào một nhóm.\n`
+		+ `- Mỗi nhóm nên đề xuất tối thiểu 2 nhà cung cấp để có cơ sở so sánh báo giá; chỉ đề xuất `
+		+ `1 khi thực sự không có lựa chọn nào khác.\n`
+		+ `- Nếu không nhà cung cấp nào trong danh sách phù hợp với một nhóm, vẫn tạo nhóm đó nhưng `
+		+ `để mảng vendorCodes rỗng và nói rõ trong reason là chưa có NCC phù hợp.\n`
+		+ `- Trường "category" của nhà cung cấp là ngành hàng họ kinh doanh. Nếu nó trống hoặc chỉ là `
+		+ `tên viết tắt không rõ nghĩa thì ĐỪNG suy đoán bừa — nói rõ trong reason là thiếu dữ liệu.\n\n`
+		+ `CHỈ TRẢ VỀ JSON THUẦN, không kèm chữ nào khác, không bọc trong dấu \`\`\`, đúng dạng:\n`
+		+ `{"groups":[{"name":"Tên nhóm ngắn gọn","lines":["00001","00003"],"vendorCodes":["V2","V5"],`
+		+ `"reason":"Một câu ngắn giải thích vì sao gom các dòng này và vì sao mời các NCC này"}]}\n\n`
+		+ `Các giá trị "name" và "reason" viết bằng TIẾNG VIỆT CÓ DẤU đầy đủ. Giá trị trong "lines" `
+		+ `phải là lineNo COPY NGUYÊN VĂN từ dữ liệu ở trên.`;
+
+	try {
+		const aiText = await callClaude(prompt, 2000);
+
+		// AI doi khi van boc JSON trong ```json ... ``` du da yeu cau khong — cat bo
+		// truoc khi parse thay vi de JSON.parse nem loi va mat toan bo ket qua.
+		let jsonText = String(aiText || "").trim();
+		const fenced = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/);
+		if (fenced) { jsonText = fenced[1].trim(); }
+
+		let parsed = null;
+		try {
+			parsed = JSON.parse(jsonText);
+		} catch (parseError) {
+			console.error("[POST /api/ai/suggest-rfq-groups] AI khong tra ve JSON hop le:", parseError.message);
+		}
+
+		if (!parsed || !Array.isArray(parsed.groups)) {
+			// Khong parse duoc: van tra 200 kem raw de FE hien cho nguoi dung tu doc va
+			// tu chia tay, thay vi bao loi cut ngang (goi AI da ton tien roi).
+			return res.json({
+				success: true,
+				groups: [],
+				parsed: false,
+				raw: aiText,
+				message: "AI tra loi khong dung dinh dang JSON — hien nguyen van de nguoi dung tu doi chieu."
+			});
+		}
+
+		// Chi giu lai lineNo CO THAT trong PR: AI co the bia them dong khong ton tai,
+		// tick san mot dong ma ra thi FE se gui len backend va bi tu choi kho hieu.
+		const knownLines = new Set(compactItems.map(function (it) { return it.lineNo; }));
+		const groups = parsed.groups.map(function (g, idx) {
+			const lines = (Array.isArray(g.lines) ? g.lines : [])
+				.map(String)
+				.filter(function (l) { return knownLines.has(l); });
+			const vendorNos = (Array.isArray(g.vendorCodes) ? g.vendorCodes : [])
+				.map(function (code) { return codeToVendorNo[String(code).trim().toUpperCase()]; })
+				.filter(Boolean);
+			return {
+				name: String(g.name || "Nhóm " + (idx + 1)),
+				lines: lines,
+				vendorNos: vendorNos,
+				reason: String(g.reason || "")
+			};
+		}).filter(function (g) { return g.lines.length > 0; });
+
+		// Doi chieu do phu: dong nao AI bo sot thi bao ro cho nguoi dung tu xep,
+		// khong am tham nuot mat (nguoi mua se tuong da chia het roi).
+		const assigned = new Set();
+		groups.forEach(function (g) { g.lines.forEach(function (l) { assigned.add(l); }); });
+		const missingLines = compactItems
+			.map(function (it) { return it.lineNo; })
+			.filter(function (l) { return !assigned.has(l); });
+
+		console.log(
+			"[AI suggest-rfq-groups] " + new Date().toISOString()
+			+ " soDong=" + compactItems.length + " soNhom=" + groups.length
+			+ " soNCCGuiVaoAI=" + anonymized.length
+			+ (missingLines.length ? " CHUA_XEP=" + missingLines.join(",") : "")
+		);
+
+		return res.json({
+			success: true,
+			parsed: true,
+			groups: groups,
+			missingLines: missingLines,
+			vendorCount: anonymized.length
+		});
+	} catch (error) {
+		const message = extractSapErrorMessage(error);
+		console.error("[POST /api/ai/suggest-rfq-groups] THAT BAI:", message);
+		return res.status(502).json({ success: false, message: "Khong the goi AI: " + message });
+	}
+});
+
 // 6) AI ho tro so sanh bao gia SAU KHI da co gia that (tach khoi /api/ai/recommend-vendor
 // dung TRUOC khi gui RFQ). An danh hoa VendorNo -> V1/V2/... truoc khi gui cho AI,
 // dich nguoc lai truoc khi tra ve FE — khong gui ten/email NCC that ra ngoai.

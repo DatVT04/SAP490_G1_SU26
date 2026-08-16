@@ -104,6 +104,67 @@
 							class="sapUiSmallMargin"
 						/>
 
+						<!-- CARD 1b: CHON DONG VAT TU CHO NHOM RFQ NAY (16/08/2026)
+						     1 PR nhieu dong co the phai mua tu nhieu NCC khac nhau. Mac dinh
+						     tich san MOI dong con trong (PR mua tu 1 NCC thi khong phai lam gi
+						     them, y nhu truoc day). Muon tach thi bo tich bot, gui nhom nay
+						     xong PR van o lai day de tao tiep nhom sau. -->
+						<VBox class="qdContentCard qdCardAccentPurple" visible="{/hasSelectedPR}">
+							<HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
+								<HBox alignItems="Center">
+									<Text text="1b" class="qdStepBadge qdStepBadgePurple"/>
+									<VBox>
+										<Title text="Chọn dòng vật tư đưa vào RFQ này" level="H3" class="qdCardTitle"/>
+										<Text text="Chỉ những dòng được tích mới nằm trong yêu cầu báo giá gửi đi — NCC sẽ không nhìn thấy các dòng khác của PR" class="qdCellHint"/>
+									</VBox>
+								</HBox>
+								<Button
+									text="AI gợi ý chia nhóm"
+									icon="sap-icon://ai"
+									press=".onAiSuggestGroupsPress"
+									busy="{/busyGroupAi}"
+									class="qdActionBtn"
+								/>
+							</HBox>
+
+							<MessageStrip
+								text="{/groupHint}"
+								type="Information"
+								showIcon="true"
+								class="sapUiSmallMarginBottom"
+							/>
+
+							<Table
+								id="prItemTable"
+								items="{/PRItems}"
+								mode="MultiSelect"
+								selectionChange=".onItemSelectionChange"
+							>
+								<columns>
+									<Column width="5rem"><Text text="Dòng"/></Column>
+									<Column><Text text="Vật tư"/></Column>
+									<Column width="8rem" hAlign="End"><Text text="Số lượng"/></Column>
+									<Column width="11rem"><Text text="Trạng thái"/></Column>
+								</columns>
+								<items>
+									<ColumnListItem>
+										<cells>
+											<Text text="{LineNo}"/>
+											<VBox>
+												<Text text="{Description}" class="qdCellStrong"/>
+												<Text text="{MaterialNo}" class="qdCellHint"/>
+											</VBox>
+											<Text text="{Quantity} {UoM}"/>
+											<ObjectStatus
+												text="{StatusText}"
+												state="{= ${_assigned} ? 'Warning' : 'Success' }"
+											/>
+										</cells>
+									</ColumnListItem>
+								</items>
+							</Table>
+						</VBox>
+
 						<!-- CARD 2: CHON NHA CUNG CAP MOI BAO GIA -->
 						<VBox class="qdContentCard qdCardAccentPurple" visible="{/hasSelectedPR}">
 							<MessageStrip
@@ -243,12 +304,20 @@
 										<Text text="Hệ thống sinh mã RFQ, lưu vào SAP và gửi email mời báo giá tới các NCC đã chọn" class="qdCellHint"/>
 									</VBox>
 								</HBox>
-								<ObjectStatus
-									icon="sap-icon://supplier"
-									text="{= ${/selectedVendorCount} + ' NCC đã chọn' }"
-									state="{= ${/selectedVendorCount} === 0 ? 'Error' : (${/selectedVendorCount} === 1 ? 'Warning' : 'Success') }"
-									class="qdRfqVendorCount"
-								/>
+								<HBox alignItems="Center">
+									<ObjectStatus
+										icon="sap-icon://list"
+										text="{= ${/selectedLineCount} + ' dòng đã chọn' }"
+										state="{= ${/selectedLineCount} === 0 ? 'Error' : 'Success' }"
+										class="qdRfqVendorCount sapUiSmallMarginEnd"
+									/>
+									<ObjectStatus
+										icon="sap-icon://supplier"
+										text="{= ${/selectedVendorCount} + ' NCC đã chọn' }"
+										state="{= ${/selectedVendorCount} === 0 ? 'Error' : (${/selectedVendorCount} === 1 ? 'Warning' : 'Success') }"
+										class="qdRfqVendorCount"
+									/>
+								</HBox>
 							</HBox>
 
 							<HBox alignItems="End" wrap="Wrap" class="qdRfqSendRow">
@@ -271,14 +340,14 @@
 									type="Emphasized"
 									icon="sap-icon://email"
 									press=".onCreateAndSendRFQ"
-									enabled="{= ${/selectedVendorCount} > 0 }"
+									enabled="{= ${/selectedVendorCount} > 0 &amp;&amp; ${/selectedLineCount} > 0 }"
 									class="qdPrimarySubmitBtn"
 								/>
 							</HBox>
 
 							<Text
-								text="Chọn ít nhất 1 Nhà cung cấp ở bước 2 để bật nút gửi."
-								visible="{= ${/selectedVendorCount} === 0 }"
+								text="Cần chọn ít nhất 1 dòng vật tư (bước 1b) và 1 Nhà cung cấp (bước 2) để bật nút gửi."
+								visible="{= ${/selectedVendorCount} === 0 || ${/selectedLineCount} === 0 }"
 								class="qdCellHint sapUiTinyMarginTop"
 							/>
 						</VBox>

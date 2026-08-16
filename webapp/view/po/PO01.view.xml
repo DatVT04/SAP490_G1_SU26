@@ -218,6 +218,27 @@
 
 							<!-- Bao cho nguoi mua biet vendor + gia ben duoi lay tu dong tu bao gia da chot
 							     o RFQ-02. Dat NGOAI SimpleForm vi SimpleForm chi nhan Label + field. -->
+							<!-- CHON NHOM (1 nhom = 1 RFQ da chot = 1 don hang). Chi hien khi PR that su
+							     tach nhieu nhom; PR mua tu 1 NCC thi man hinh y nhu truoc. -->
+							<VBox visible="{/hasMultiGroup}" class="sapUiSmallMarginBottom">
+								<Label text="Nhóm nhà cung cấp (mỗi nhóm tạo 1 đơn hàng riêng)"/>
+								<Select
+									id="inRfqGroup"
+									width="100%"
+									selectedKey="{/selectedGroupKey}"
+									items="{/RfqGroups}"
+									change=".onGroupChange"
+								>
+									<core:ListItem key="{key}" text="{Text}"/>
+								</Select>
+							</VBox>
+							<MessageStrip
+								text="{/groupHint}"
+								type="Warning"
+								showIcon="true"
+								visible="{/hasMultiGroup}"
+								class="sapUiSmallMarginBottom"
+							/>
 							<MessageStrip
 								id="msRfqInherited"
 								text=""
@@ -276,11 +297,11 @@
 
 									<core:Title text="Giá mua (Pricing)" class="qdFormSectionTitle qdFormSectionTitlePurple"/>
 
-									<Label text="Đơn giá mua thương lượng (Net Price)" required="true"/>
+									<Label text="Đơn giá dòng đầu (tham khảo)"/>
 									<Input
 										id="inNetPrice"
-										placeholder="Nhập đơn giá mới..."
-										liveChange=".onRecalculateTotal"
+										editable="false"
+										placeholder="Sửa đơn giá ở bảng Chi tiết dòng hàng bên dưới"
 									/>
 
 									<Label text="Loại tiền"/>
@@ -405,7 +426,11 @@
 												<Text text="{Description}"/>
 											</VBox>
 											<Text text="{Quantity} {UoM}"/>
-											<Text text="{path: 'NetPrice', formatter: '.formatCurrency'} {Currency}"/>
+											<Input
+												value="{path: 'NetPrice', formatter: '.formatCurrency'}"
+												change=".onItemPriceChange"
+												textAlign="End"
+											/>
 											<Input value="{Plant}"/>
 											<Input value="{CostCenter}"/>
 										</cells>

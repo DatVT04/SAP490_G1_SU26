@@ -13,7 +13,7 @@ const { extractSapErrorMessage, odataEscape, sapWrite } = require("../lib/sap-cl
 const { sapDateOnly, sapTimestamp, sapTsToIso } = require("../lib/sap-format");
 const { notifyPurchasingNewQuote } = require("../services/notify.service");
 const { verifyRfqPortalToken } = require("../services/rfq-portal.service");
-const { loadRfqContext, prLabelOf, promoteRfqAfterQuotation } = require("../services/rfq.service");
+const { itemsOfRfq, loadRfqContext, prLabelOf, promoteRfqAfterQuotation } = require("../services/rfq.service");
 
 const router = express.Router();
 
@@ -66,7 +66,12 @@ router.get("/api/public/rfq/quote", async (req, res) => {
 			awardedToMe: ctx.rfq.Status === "AWARDED" && String(ctx.rfq.AwardedVendor || "") === vendorNo,
 			vendor: { VendorNo: mine.VendorNo, VendorName: mine.VendorName || "" },
 			// Chi mo ta + so luong. Khong co gia tri uoc tinh.
-			items: ((ctx.pr && ctx.pr.items) || []).map(function (it) {
+			// itemsOfRfq: chi tra ve nhung dong THUOC RFQ NAY (ZG1_RFQ-ITEM_LINES).
+			// 1 PR nhieu dong gio co the tach thanh nhieu RFQ gui cho nhung nhom NCC
+			// khac nhau — NCC ban ban ghe khong duoc nhin thay dong switch Cisco, vua
+			// vi khong lien quan vua vi do la thong tin mua sam cua NCC khac.
+			// ItemLines rong (RFQ tao truoc 16/08/2026) = tra ve tat ca, y nhu cu.
+			items: itemsOfRfq(ctx.rfq, (ctx.pr && ctx.pr.items) || []).map(function (it) {
 				return {
 					LineNo: it.LineNo,
 					Description: it.Description || "",

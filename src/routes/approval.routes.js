@@ -209,6 +209,9 @@ router.get("/api/approval/approved", async (req, res) => {
 		// Loc lai o Node — xem ghi chu cung loai o /api/approval/pending.
 		const data = (await fetchPrDraftList(`Status eq 'APPROVED'`))
 			.filter((pr) => String(pr.Status || "").toUpperCase() === "APPROVED");
+		// Gan them RfqGroups (moi nhom = 1 RFQ da chot = 1 NCC = 1 PO se tao). PO-01
+		// dua vao day de tao dung N don hang thay vi gop het vao 1 PO 1 NCC.
+		await enrichWithRfqAward(data);
 		return res.json({ success: true, data });
 	} catch (error) {
 		const message = extractSapErrorMessage(error);

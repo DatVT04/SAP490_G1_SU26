@@ -114,6 +114,96 @@ async function buildRfqAlerts(role, email) {
 // xem KE_HOACH_RFQ_2_TUAN.md muc B3). Sinh RfqId dang RFQ-<nam>-<4 chu so>.
 // ============================================================================
 
+// ============================================================================
+// TACH RFQ THEO NHOM DONG (16/08/2026)
+//
+// 1 PR nhieu dong vat tu co the phai mua tu NHIEU NCC khac nhau (NCC ban ban ghe
+// khong bao gia duoc switch Cisco). Truoc day 1 PR = 1 RFQ = gui ca ro hang cho
+// moi NCC duoc moi, nen khong tach duoc. Nay moi RFQ gan them ITEM_LINES
+// (ZG1_RFQ, CHAR255) — danh sach so dong PR thuoc ve RFQ do, dang "00001,00003".
+//
+// QUY UOC QUAN TRONG: ItemLines RONG = RFQ bao gom TOAN BO dong cua PR. Cac RFQ
+// tao truoc ngay nay deu rong; nho quy uoc nay chung chay dung y nhu cu, khong
+// phai don du lieu cu.
+// ============================================================================
+
+/** "00001,00003" -> ["00001","00003"]. Chuoi rong tra ve mang rong. */
+function parseItemLines(raw) {
+	return String(raw || "")
+		.split(",")
+		.map(function (s) { return s.trim(); })
+		.filter(Boolean);
+}
+
+/**
+ * Chuan hoa 1 so dong ve dang 5 ky tu dem 0 ("1" -> "00001").
+ * BAT BUOC chuan hoa truoc khi so sanh: FE co the gui "1", PrDraftItemSet tra ve
+ * "00001" — so sanh chuoi tho se lech va coi nhu 2 dong khac nhau.
+ */
+function normalizeLineNo(value) {
+	const s = String(value == null ? "" : value).trim();
+	if (!s) { return ""; }
+	return /^\d+$/.test(s) ? s.padStart(5, "0") : s;
+}
+
+/** Mang so dong -> chuoi luu vao ITEM_LINES (da chuan hoa, bo trung, sap xep). */
+function formatItemLines(lines) {
+	const norm = (lines || []).map(normalizeLineNo).filter(Boolean);
+	return Array.from(new Set(norm)).sort().join(",");
+}
+
+/**
+ * Danh sach RFQ cua 1 PR.
+ *
+ * Doc CA BANG RfqSet roi loc o Node, KHONG dung $filter — RFQSET_GET_ENTITYSET
+ * ben ABAP khong ap select-options nen $filter bi Gateway bo qua hoan toan va
+ * SAP tra ve toan bang (cung cai bay da ghi o fetchPrDraftById/pr.service.js).
+ * Bang ZG1_RFQ nho nen doc het roi doi chieu vua du nhanh vua khong the sai.
+ */
+async function fetchRfqsByPr(pr) {
+	if (!pr) { return []; }
+	const internalId = String(pr.InternalId || "").trim();
+	const prId = String(pr.PRId || "").trim();
+	const sapPrId = String(pr.SapPRId || "").trim();
+
+	const response = await sapRead("RfqSet");
+	const results = (response.data && response.data.d && response.data.d.results) || [];
+	return results.filter(function (rfq) {
+		const rfqPrId = String(rfq.PrId || "").trim();
+		const rfqSapNo = String(rfq.SapPrNumber || "").trim();
+		if (rfqPrId && (rfqPrId === internalId || rfqPrId === prId)) { return true; }
+		if (rfqSapNo && (rfqSapNo === prId || rfqSapNo === sapPrId)) { return true; }
+		return false;
+	});
+}
+
+/**
+ * Tap so dong PR da duoc gan vao mot RFQ nao do — dung de chan tao RFQ trung dong.
+ * RFQ co ItemLines rong duoc coi la phu kin toan bo dong (xem quy uoc o tren).
+ */
+function coveredLineSet(rfqs, prItems) {
+	const all = new Set();
+	(rfqs || []).forEach(function (rfq) {
+		const lines = parseItemLines(rfq.ItemLines);
+		if (lines.length === 0) {
+			(prItems || []).forEach(function (it) { all.add(normalizeLineNo(it.LineNo)); });
+		} else {
+			lines.forEach(function (l) { all.add(normalizeLineNo(l)); });
+		}
+	});
+	return all;
+}
+
+/** Loc cac dong PR thuoc ve 1 RFQ cu the. ItemLines rong = tra ve tat ca. */
+function itemsOfRfq(rfq, prItems) {
+	const lines = parseItemLines(rfq && rfq.ItemLines);
+	if (lines.length === 0) { return prItems || []; }
+	const set = new Set(lines.map(normalizeLineNo));
+	return (prItems || []).filter(function (it) {
+		return set.has(normalizeLineNo(it.LineNo));
+	});
+}
+
 /** Sinh RfqId ke tiep bang cach dem so RFQ da co trong nam hien tai tren SAP. */
 async function generateNextRfqId() {
 	const year = new Date().getFullYear();
@@ -238,8 +328,14 @@ async function promoteRfqAfterQuotation(rfqId, session) {
 module.exports = {
 	backfillQuotationEmails,
 	buildRfqAlerts,
+	coveredLineSet,
+	fetchRfqsByPr,
+	formatItemLines,
 	generateNextRfqId,
+	itemsOfRfq,
 	loadRfqContext,
+	normalizeLineNo,
+	parseItemLines,
 	prLabelOf,
 	promoteRfqAfterQuotation,
 	resolveQuotationEmails,

@@ -24,7 +24,16 @@ sap.ui.define([
 				PurchaseRequisitions: [],
 				poItems: [],
 				Vendors: [],
-				paymentTerms: []
+				paymentTerms: [],
+				// ── PO THEO NHOM RFQ (16/08/2026) ──
+				// 1 PR co the tach thanh nhieu RFQ, moi RFQ chot 1 NCC -> moi RFQ thanh
+				// 1 PO rieng. RfqGroups do backend gan vao PR (xem enrichWithRfqAward).
+				// Man nay lam TUNG NHOM MOT: chon nhom -> bang dong hang chi con dong cua
+				// nhom do, NCC + gia lay theo bao gia da chot cua chinh nhom do.
+				RfqGroups: [],
+				hasMultiGroup: false,
+				selectedGroupKey: "",
+				groupHint: ""
 			}));
 
 			this._loadOrgDefaults();
@@ -207,8 +216,20 @@ sap.ui.define([
 			var fnSelectFirst = function () {
 				var aItems = oTable.getItems();
 				if (aItems.length === 0) { return; }
-				oTable.setSelectedItem(aItems[0], true);
-				this._applyPRSelection(aItems[0]);
+				// Vua tao PO cho 1 nhom cua PR nay ma no con nhom chua co don -> chon lai
+				// DUNG PR do de lam tiep, thay vi nhay ve PR dau danh sach.
+				var oTarget = aItems[0];
+				if (this._reselectPrNumber) {
+					var sWanted = String(this._reselectPrNumber);
+					var oMatch = aItems.filter(function (oItem) {
+						var oRow = oItem.getBindingContext() && oItem.getBindingContext().getObject();
+						return oRow && String(oRow.PrNumber) === sWanted;
+					})[0];
+					if (oMatch) { oTarget = oMatch; }
+					this._reselectPrNumber = null;
+				}
+				oTable.setSelectedItem(oTarget, true);
+				this._applyPRSelection(oTarget);
 			}.bind(this);
 
 			if (oTable.getItems().length > 0) {
@@ -259,71 +280,271 @@ sap.ui.define([
 				oView.byId("inPurchGroup").setValue(oPRData.PurchGroup || oOrg.purchGroup || "");
 				oView.byId("inCurrency").setValue(oPRData.Currency || oOrg.currency || "");
 
-				// 4. Tính đơn giá khởi tạo.
-				// Ưu tiên GIÁ THẬT từ báo giá đã chốt qua RFQ (RfqFinalValue là tổng giá trị
-				// PR theo báo giá thắng, giống cách /api/rfq/:id/award ghi vào approvalStore);
-				// chỉ khi PR không đi qua RFQ mới rơi về giá ước tính lúc lập PR.
-				var fQty = Number(firstItem.Quantity || oPRData.Quantity || 1);
-				var bFromRfq = oPRData.RfqFinalValue != null && Number(oPRData.RfqFinalValue) > 0;
-				var fBaseValue = bFromRfq ? Number(oPRData.RfqFinalValue) : Number(oPRData.EstimatedValue || 0);
-				// VND khong co phan thap phan. Lam tron ngay tai day de tranh dau "."
-				// bi regex \D o onRecalculateTotal/onConfirmCreatePO nuot mat, khien
-				// Net Price bi thoi phong gap boi (vd 333333.33 -> 33333333).
-				var fUnitPrice = fQty > 0 ? Math.round(fBaseValue / fQty) : Math.round(fBaseValue);
-				oView.byId("inNetPrice").setValue(fUnitPrice);
-
-				// 5. Kế thừa nhà cung cấp đã thắng thầu (nếu PR này đi qua RFQ)
-				this._applyRfqAward(oPRData, fBaseValue, bFromRfq);
-
-				// 6. Cập nhật mảng /poItems cho Bảng Card 3
-				var aTableItems = aItems.map(function(it, idx) {
+				// 4. Dung san danh sach NHOM (moi nhom = 1 RFQ da chot = se thanh 1 PO).
+				// PR khong di qua RFQ -> tao 1 nhom gia lap om toan bo dong, gia tri lay tu
+				// du toan, de phan con lai cua man hinh chay y nhu truoc day.
+				var aGroups = (oPRData.RfqGroups || []).filter(function (g) {
+					var sSt = String(g.Status || "").toUpperCase();
+					return sSt === "AWARDED" || sSt === "PO_CREATED";
+				}).map(function (g) {
+					var bDone = String(g.Status || "").toUpperCase() === "PO_CREATED";
 					return {
-						// Danh so 00001, 00002... khop cach CREATE_DEEP_ENTITY danh so dong PR
-						// khi tao tren SAP. Truoc day dung buoc 10 (00010) theo kieu SAP
-						// standard nen tra EBAN khong thay dong nao.
-						LineNo: it.LineNo || String(idx + 1).padStart(5, "0"),
-						PreqNo: oPRData.PrNumber || "",
-						MaterialNo: it.MaterialNo || "",
-						Description: it.Description || "",
-						Quantity: it.Quantity || 0,
-						UoM: it.UoM || "",
-						NetPrice: fUnitPrice,
-						Currency: oPRData.Currency || "",
-						// PrDraftItemSet ben SAP khong co truong Plant (PR luon hardcode
-						// plant='QDPL' phia ABAP, xem create_pr_deep.abap) nen it.Plant
-						// luon rong — dien san QDPL tu ORG_DEFAULTS, van cho sua tay o bang.
-						Plant: it.Plant || oOrg.plant || "QDPL",
-						CostCenter: it.CostCenter || ""
+						key: g.RfqId,
+						RfqId: g.RfqId,
+						ItemLines: g.ItemLines || "",
+						VendorNo: g.AwardedVendor || "",
+						VendorName: g.AwardedVendorName || "",
+						FinalValue: Number(g.FinalValue) || 0,
+						Done: bDone,
+						Text: g.RfqId + " · " + (g.AwardedVendorName || g.AwardedVendor || "?")
+							+ (bDone ? " (đã có PO)" : "")
 					};
 				});
 
-				if (aTableItems.length === 0) {
-					aTableItems.push({
-						LineNo: "00001",
-						PreqNo: oPRData.PrNumber || "",
-						MaterialNo: oPRData.MaterialNo || "",
-						Description: oPRData.Description || "",
-						Quantity: oPRData.Quantity || 0,
-						UoM: oPRData.UoM || "",
-						NetPrice: fUnitPrice,
-						Currency: oPRData.Currency || "",
-						Plant: oPRData.Plant || oOrg.plant || "QDPL",
-						CostCenter: oPRData.CostCenter || ""
-					});
+				if (aGroups.length === 0) {
+					aGroups = [{
+						key: "__ALL__",
+						RfqId: "",
+						ItemLines: "",
+						VendorNo: oPRData.RfqAwardedVendor || "",
+						VendorName: oPRData.RfqAwardedVendorName || "",
+						FinalValue: Number(oPRData.RfqFinalValue) > 0
+							? Number(oPRData.RfqFinalValue)
+							: Number(oPRData.TotalValue || oPRData.EstimatedValue || 0),
+						Done: false,
+						Text: "Toàn bộ PR"
+					}];
 				}
 
-				oModel.setProperty("/poItems", aTableItems);
-				this.onRecalculateTotal();
+				oModel.setProperty("/RfqGroups", aGroups);
+				oModel.setProperty("/hasMultiGroup", aGroups.length > 1);
+
+				// Nhay den nhom DAU TIEN chua co PO — nguoi dung bam lien tuc la lam het
+				// cac nhom ma khong phai tu tim nhom nao con thieu.
+				var oNext = aGroups.filter(function (g) { return !g.Done; })[0] || aGroups[0];
+				oModel.setProperty("/selectedGroupKey", oNext.key);
+				this._applyGroup(oNext);
 
 			} catch (err) {
 				console.error("Lỗi khi chọn dòng PR:", err);
 			}
 		},
 
-		// ── 3b. KẾ THỪA NCC + GIÁ TỪ BÁO GIÁ ĐÃ CHỐT (RFQ-02) ──
-		// Trước đây người mua phải tự nhớ ai thắng thầu rồi chọn lại tay, giá cũng gõ lại —
-		// vừa mất thời gian vừa dễ lệch so với giá đã chốt. Giờ đọc thẳng RfqAwardedVendor /
-		// RfqFinalValue mà /api/rfq/:id/award đã ghi lên chính bản ghi PR này.
+		/** Doi sang 1 nhom khac tren dropdown. */
+		onGroupChange: function (oEvent) {
+			var sKey = oEvent.getSource().getSelectedKey();
+			var aGroups = this.getView().getModel().getProperty("/RfqGroups") || [];
+			var oGroup = aGroups.filter(function (g) { return g.key === sKey; })[0];
+			if (oGroup) { this._applyGroup(oGroup); }
+		},
+
+		/**
+		 * Do du lieu cua 1 NHOM vao man hinh: loc dong hang, dien NCC, phan bo gia.
+		 */
+		_applyGroup: function (oGroup) {
+			var that = this;
+			var oView = this.getView();
+			var oModel = oView.getModel();
+			var oPRData = this._currentPR || {};
+			var oOrg = this._orgDefaults || {};
+			var aItems = oPRData._items || [];
+
+			this._currentGroup = oGroup;
+
+			// Loc dong thuoc nhom. ItemLines rong = nhom om toan bo dong cua PR
+			// (RFQ tao truoc 16/08/2026, hoac PR khong di qua RFQ) — quy uoc chung
+			// voi backend, xem itemsOfRfq() trong src/services/rfq.service.js.
+			var aLines = String(oGroup.ItemLines || "").split(",")
+				.map(function (x) { return that._normalizeLineNo(x); })
+				.filter(Boolean);
+			var aGroupItems = aLines.length === 0
+				? aItems.slice()
+				: aItems.filter(function (it) {
+					return aLines.indexOf(that._normalizeLineNo(it.LineNo)) >= 0;
+				});
+
+			var aTableItems = aGroupItems.map(function (it, idx) {
+				return {
+					// Danh so 00001, 00002... khop cach CREATE_DEEP_ENTITY danh so dong PR
+					// khi tao tren SAP. Truoc day dung buoc 10 (00010) theo kieu SAP
+					// standard nen tra EBAN khong thay dong nao.
+					LineNo: it.LineNo || String(idx + 1).padStart(5, "0"),
+					PreqNo: oPRData.PrNumber || "",
+					MaterialNo: it.MaterialNo || "",
+					Description: it.Description || "",
+					Quantity: Number(it.Quantity) || 0,
+					UoM: it.UoM || "",
+					EstimatedValue: Number(it.EstimatedValue) || 0,
+					NetPrice: 0,
+					Currency: oPRData.Currency || "",
+					// PrDraftItemSet ben SAP khong co truong Plant (PR luon hardcode
+					// plant='QDPL' phia ABAP, xem create_pr_deep.abap) nen it.Plant
+					// luon rong — dien san QDPL tu ORG_DEFAULTS, van cho sua tay o bang.
+					Plant: it.Plant || oOrg.plant || "QDPL",
+					CostCenter: it.CostCenter || ""
+				};
+			});
+
+			if (aTableItems.length === 0) {
+				aTableItems.push({
+					LineNo: "00001",
+					PreqNo: oPRData.PrNumber || "",
+					MaterialNo: oPRData.MaterialNo || "",
+					Description: oPRData.Description || "",
+					Quantity: Number(oPRData.Quantity) || 0,
+					UoM: oPRData.UoM || "",
+					EstimatedValue: Number(oPRData.EstimatedValue) || 0,
+					NetPrice: 0,
+					Currency: oPRData.Currency || "",
+					Plant: oPRData.Plant || oOrg.plant || "QDPL",
+					CostCenter: oPRData.CostCenter || ""
+				});
+			}
+
+			this._allocateGroupPrice(aTableItems, Number(oGroup.FinalValue) || 0);
+			oModel.setProperty("/poItems", aTableItems);
+
+			// Thong tin PR tham chieu doi theo nhom dang xem.
+			var oFirst = aTableItems[0] || {};
+			oView.byId("txtSelectedPR").setText(
+				(oPRData.PrNumber || "") + (oGroup.RfqId ? " · " + oGroup.RfqId : "")
+			);
+			oView.byId("txtMaterialInfo").setText(
+				aTableItems.length === 1
+					? (oFirst.Description || "") + (oFirst.MaterialNo ? " (" + oFirst.MaterialNo + ")" : "")
+					: aTableItems.length + " dòng vật tư trong nhóm này"
+			);
+			oView.byId("txtQuantity").setText(
+				aTableItems.length === 1 ? (oFirst.Quantity + " " + (oFirst.UoM || "")) : "—"
+			);
+
+			// Dien NCC da thang thau CUA CHINH NHOM NAY.
+			this._applyGroupVendor(oGroup);
+
+			var aGroups = oModel.getProperty("/RfqGroups") || [];
+			var iDone = aGroups.filter(function (g) { return g.Done; }).length;
+			var sHint = aGroups.length > 1
+				? ("PR này tách thành " + aGroups.length + " nhóm nhà cung cấp — mỗi nhóm sẽ thành 1 đơn hàng riêng. "
+					+ "Đã tạo PO cho " + iDone + "/" + aGroups.length + " nhóm. Đang lập đơn cho "
+					+ oGroup.Text + ".")
+				: "";
+			if (oGroup.Done) {
+				sHint += " LƯU Ý: nhóm này đã có PO rồi — tạo lại sẽ bị SAP từ chối vì dòng PR đã được chuyển thành PO.";
+			}
+			oModel.setProperty("/groupHint", sHint);
+
+			this.onRecalculateTotal();
+		},
+
+		/** Giong normalizeLineNo() ben src/services/rfq.service.js — sua ben nao nho ben kia. */
+		_normalizeLineNo: function (vValue) {
+			var s = String(vValue === undefined || vValue === null ? "" : vValue).trim();
+			if (!s) { return ""; }
+			return /^\d+$/.test(s) ? ("00000" + s).slice(-5) : s;
+		},
+
+		/**
+		 * PHAN BO gia trung thau cua nhom xuong tung dong hang.
+		 *
+		 * Truoc day man hinh lay (tong gia / so luong DONG DAU TIEN) roi gan don gia do
+		 * cho MOI dong -> tong PO = gia bao x so dong (bug 5,5 ty: NCC bao 1,1 ty, SAP ghi
+		 * PO 5,5 ty vi PR co 5 dong). Nay chia theo TY TRONG DU TOAN cua tung dong nen
+		 * tong PO luon dung bang gia da chot voi NCC.
+		 *
+		 * Han che da biet: portal bao gia hien chi thu 1 con so TONG cho ca nhom, nen day
+		 * van la phan bo uoc luong chu chua phai don gia that tung dong. Nguoi mua SUA TAY
+		 * duoc tren cot "Don gia mua" neu bao gia cua NCC co bang chi tiet.
+		 */
+		_allocateGroupPrice: function (aItems, fTotal) {
+			if (!aItems || aItems.length === 0) { return; }
+
+			var fWeightSum = aItems.reduce(function (sum, it) {
+				return sum + (Number(it.EstimatedValue) || 0);
+			}, 0);
+
+			// Khong co du toan de chia ty trong (PR cu thieu EstimatedValue) -> chia deu.
+			var bEven = fWeightSum <= 0;
+			var fAllocatedAmount = 0;
+
+			aItems.forEach(function (it, idx) {
+				var fQty = Number(it.Quantity) || 0;
+				var fPrice;
+
+				if (idx === aItems.length - 1) {
+					// Dong cuoi om phan con lai tinh theo THANH TIEN da phan bo (khong phai
+					// theo "share" truoc khi chia so luong) — lam vay sai so lam tron cua cac
+					// dong tren duoc bu lai o day thay vi cong don.
+					var fRemain = fTotal - fAllocatedAmount;
+					fPrice = fQty > 0 ? Math.round(fRemain / fQty) : Math.round(fRemain);
+				} else {
+					var fShare = bEven
+						? fTotal / aItems.length
+						: fTotal * ((Number(it.EstimatedValue) || 0) / fWeightSum);
+					// VND khong co phan thap phan. Lam tron ngay tai day de tranh dau "."
+					// bi regex \D o onItemPriceChange nuot mat, khien Net Price bi thoi
+					// phong gap boi (vd 333333.33 -> 33333333).
+					fPrice = fQty > 0 ? Math.round(fShare / fQty) : Math.round(fShare);
+					fAllocatedAmount += fPrice * fQty;
+				}
+
+				it.NetPrice = fPrice;
+			});
+		},
+
+
+		/** Chon san NCC thang thau cua nhom dang lap + hien nhan giai thich. */
+		_applyGroupVendor: function (oGroup) {
+			var oView = this.getView();
+			var oStrip = oView.byId("msRfqInherited");
+			var oVendorBox = oView.byId("inSelectedVendor");
+			var sVendorNo = String(oGroup.VendorNo || "");
+
+			if (!sVendorNo) {
+				oVendorBox.setSelectedKey("");
+				oView.byId("inVendorEmail").setValue("");
+				if (oStrip) { oStrip.setVisible(false); }
+				return;
+			}
+
+			oVendorBox.setSelectedKey(sVendorNo);
+
+			// Email + MST lay tu danh sach /Vendors da tai san, khong bat chon lai tay.
+			var aVendors = oView.getModel().getProperty("/Vendors") || [];
+			var oVendor = aVendors.filter(function (v) {
+				return String(v.VendorNo) === sVendorNo;
+			})[0];
+			if (oVendor) {
+				oView.byId("inVendorEmail").setValue(oVendor.Email || "");
+				this._fillVendorTaxCode(oVendor);
+			}
+
+			// Ke thua dieu khoan thanh toan + ngay giao tu bao gia thang CUA CHINH NHOM
+			// nay (moi nhom 1 NCC, dieu khoan khac nhau) chu khong phai cua ca PR.
+			if (oGroup.RfqId) {
+				this._applyAwardedQuotationTerms({
+					RfqId: oGroup.RfqId,
+					RfqAwardedVendor: sVendorNo
+				});
+			}
+
+			if (oStrip) {
+				oStrip.setText(
+					"Nhà cung cấp và giá bên dưới lấy từ báo giá đã chốt"
+					+ (oGroup.RfqId ? " ở " + oGroup.RfqId : " qua RFQ")
+					+ ": " + (oGroup.VendorName || sVendorNo)
+					+ " — " + this.formatCurrency(oGroup.FinalValue) + " "
+					+ (this._currentPR && this._currentPR.Currency ? this._currentPR.Currency : "")
+					+ ". Đơn giá từng dòng được phân bổ theo tỷ trọng dự toán — sửa lại được nếu báo giá có bảng chi tiết."
+				);
+				oStrip.setVisible(true);
+			}
+		},
+
+		// ── 3b. [KHONG CON DUNG] KE THUA NCC + GIA TU BAO GIA DA CHOT ──
+		// Da thay bang _applyGroupVendor(): ham cu doc RfqAwardedVendor/RfqFinalValue o
+		// CAP PR, chi dung khi 1 PR = 1 RFQ = 1 NCC. Tu 16/08/2026 PR co the tach nhieu
+		// nhom, moi nhom 1 NCC + 1 gia rieng, nen phai doc theo NHOM. Giu lai ham nay de
+		// khong lam vo nhanh nao khac dang goi toi — dung dung cho code moi.
 		_applyRfqAward: function (oPRData, fBaseValue, bFromRfq) {
 			var oView = this.getView();
 			var oStrip = oView.byId("msRfqInherited");
@@ -455,30 +676,51 @@ sap.ui.define([
 		},
 
 		// ── 5. TÍNH TOÁN TIỀN TỰ ĐỘNG ──
+		//
+		// BAN CU (da bo): lay 1 o "Don gia thuong luong" roi GAN DE don gia do cho MOI
+		// dong trong bang, va tinh tong = don gia x so luong dong DAU TIEN. Voi PR nhieu
+		// dong thi tong PO gui len SAP = gia bao gia x so dong — chinh la bug PO 5,5 ty
+		// (NCC bao 1,1 ty, 5 dong -> SAP ghi 5,5 ty).
+		//
+		// BAN NAY: don gia thuoc ve TUNG DONG (phan bo tu gia trung thau cua nhom, xem
+		// _allocateGroupPrice), tong = tong(don gia x so luong) tren toan bang. Sua don
+		// gia 1 dong khong con lam hong cac dong khac.
 		onRecalculateTotal: function () {
 			var oView = this.getView();
-			var sNetPriceRaw = oView.byId("inNetPrice").getValue() || "0";
-			var fNetPrice = Number(sNetPriceRaw.toString().replace(/\D/g, "")) || 0;
+			var oModel = oView.getModel();
+			var aPoItems = oModel.getProperty("/poItems") || [];
+			var sCurrency = oView.byId("inCurrency").getValue()
+				|| (this._currentPR && this._currentPR.Currency) || "";
 
-			var oPR = this._currentPR || {};
-			var aItems = oPR._items || [];
-			var firstItem = aItems[0] || {};
-			var fQty = Number(firstItem.Quantity || oPR.Quantity || 1);
+			var fTotal = aPoItems.reduce(function (sum, it) {
+				return sum + (Number(it.NetPrice) || 0) * (Number(it.Quantity) || 0);
+			}, 0);
 
-			var fTotal = fNetPrice * fQty;
-			var sCurrency = oView.byId("inCurrency").getValue() || oPR.Currency || "";
+			aPoItems.forEach(function (it) { it.Currency = sCurrency; });
+			oModel.setProperty("/poItems", aPoItems);
 
 			oView.byId("numTotalValue").setNumber(this.formatCurrency(fTotal));
 			oView.byId("numTotalValue").setUnit(sCurrency);
 
-			// Cập nhật giá lại trong mảng bảng
-			var oModel = oView.getModel();
-			var aPoItems = oModel.getProperty("/poItems") || [];
-			aPoItems.forEach(function(item) {
-				item.NetPrice = fNetPrice;
-				item.Currency = sCurrency;
-			});
-			oModel.setProperty("/poItems", aPoItems);
+			// O "Don gia" chung o Card 2 gio chi con la thong tin tham khao (don gia
+			// dong dau) — giu lai de khong vo binding cu, nhung KHONG con dieu khien
+			// gia cua cac dong nua.
+			var oNetPriceInput = oView.byId("inNetPrice");
+			if (oNetPriceInput && aPoItems.length) {
+				oNetPriceInput.setValue(String(Number(aPoItems[0].NetPrice) || 0));
+			}
+		},
+
+		/** Nguoi mua sua don gia 1 dong trong bang -> tinh lai tong. */
+		onItemPriceChange: function (oEvent) {
+			var oCtx = oEvent.getSource().getBindingContext();
+			if (oCtx) {
+				var sRaw = String(oEvent.getSource().getValue() || "0");
+				// Cho phep go "1.100.000" — bo het dau phan cach truoc khi doi sang so.
+				var fVal = Number(sRaw.replace(/\D/g, "")) || 0;
+				oCtx.getModel().setProperty(oCtx.getPath() + "/NetPrice", fVal);
+			}
+			this.onRecalculateTotal();
 		},
 
 		// ── 6. PHÁT HÀNH PO VÀ GỬI MAIL ──
@@ -508,8 +750,6 @@ sap.ui.define([
 			var sPaymentMethod = oView.byId("inPaymentMethod").getSelectedKey();
 			var sPaymentTerms = oView.byId("inPaymentTerms").getSelectedKey();
 
-			var sNetPriceRaw = oView.byId("inNetPrice").getValue() || "0";
-			var fNetPrice = Number(sNetPriceRaw.toString().replace(/\D/g, "")) || 0;
 
 			// minDate tren DatePicker chi chan qua thao tac click lich, nguoi dung van go
 			// tay duoc chuoi ngay qua khu (hoac ngay sai dinh dang khien getValue() tra ve
@@ -545,7 +785,18 @@ sap.ui.define([
 			if (!sDeliveryDate) { MessageBox.error("Vui lòng chọn Ngày nhận hàng dự kiến."); return; }
 			if (!sPaymentTerms) { MessageBox.error("Vui lòng chọn Điều khoản thanh toán."); return; }
 			if (!sVendorEmail || !sVendorEmail.trim()) { MessageBox.error("Vui lòng nhập Email Nhà cung cấp."); return; }
-			if (fNetPrice <= 0) { MessageBox.error("Đơn giá thương lượng phải lớn hơn 0."); return; }
+
+			// Truoc day chi kiem tra o "Don gia thuong luong" chung > 0. Nay gia nam o
+			// TUNG DONG nen phai soat tung dong — 1 dong gia 0 lot qua se tao PO sai tien.
+			var aZeroLines = (oModel.getProperty("/poItems") || []).filter(function (it) {
+				return !(Number(it.NetPrice) > 0);
+			});
+			if (aZeroLines.length) {
+				MessageBox.error("Các dòng sau chưa có đơn giá: "
+					+ aZeroLines.map(function (it) { return it.LineNo; }).join(", ")
+					+ ". Nhập đơn giá cho từng dòng trong bảng Chi tiết dòng hàng.");
+				return;
+			}
 
 			var oModel = oView.getModel();
 			var aTableItems = oModel.getProperty("/poItems") || [];
@@ -562,7 +813,9 @@ sap.ui.define([
 					description: it.Description || "",
 					quantity: Number(it.Quantity || 1),
 					uom: it.UoM || "",
-					netPrice: fNetPrice,
+					// Don gia RIENG cua dong nay (da phan bo tu gia trung thau cua nhom,
+					// nguoi mua co the sua tay) — KHONG con dung chung 1 don gia cho ca bang.
+					netPrice: Number(it.NetPrice) || 0,
 					costCenter: it.CostCenter || "",
 					plant: it.Plant || "",
 					assetNo: it.AssetNo || ""
@@ -573,6 +826,9 @@ sap.ui.define([
 				vendorNo: sVendorNo,
 				vendorEmail: sVendorEmail.trim(),
 				prNumber: oPR.PrNumber,
+				// Nhom (RFQ) ma don hang nay thuoc ve — backend danh dau nhom da co PO va
+				// chi ha PR sang PO_CREATED khi MOI nhom deu xong.
+				rfqId: (this._currentGroup && this._currentGroup.RfqId) || "",
 				companyCode: sCompanyCode,
 				purchOrg: sPurchOrg,
 				purchGroup: sPurchGroup,
@@ -604,8 +860,25 @@ sap.ui.define([
 						var sPoNum = res.poNumber || (res.po && res.po.PoNumber) || "PO_SUCCESS";
 						var sMailInfo = res.emailSent ? "\nĐã gửi mail xác nhận đến: " + sVendorEmail.trim() : "";
 
-						MessageBox.success("Tạo Purchase Order thành công!\nMã PO: " + sPoNum + sMailInfo, {
+						// PR tach nhieu nhom: tao xong nhom nay van con nhom khac chua co don
+						// hang. Khong roi man hinh nua ma tai lai danh sach de lam tiep nhom sau —
+						// truoc day luon navTo("dashboard") nen nguoi dung tuong da xong ca PR.
+						var iDone = Number(res.groupsDone) || 0;
+						var iTotal = Number(res.groupsTotal) || 0;
+						var bMoreGroups = iTotal > 1 && iDone < iTotal;
+						var sGroupInfo = iTotal > 1
+							? "\n\nĐã tạo PO cho " + iDone + "/" + iTotal + " nhóm của PR này."
+								+ (bMoreGroups ? " Màn hình sẽ quay lại để bạn tạo đơn cho nhóm còn lại." : "")
+							: "";
+
+						MessageBox.success("Tạo Purchase Order thành công!\nMã PO: " + sPoNum + sMailInfo + sGroupInfo, {
 							onClose: function () {
+								if (bMoreGroups) {
+									var sKeep = this._currentPR && this._currentPR.PrNumber;
+									this._reselectPrNumber = sKeep;
+									this._loadApprovedPRs();
+									return;
+								}
 								this._currentPR = null;
 								this.getOwnerComponent().getRouter().navTo("dashboard");
 							}.bind(this)
