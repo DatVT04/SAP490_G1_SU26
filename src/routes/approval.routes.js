@@ -11,7 +11,7 @@ const { extractSapErrorMessage, odataEscape } = require("../lib/sap-client");
 const { boolToSapX } = require("../lib/sap-format");
 const { buildApprovalFlagsByCostCenter } = require("../services/approval.service");
 const { notifyCeos, notifyPurchasing, notifyRequester } = require("../services/notify.service");
-const { createPRInSAP, createPrDraft, enrichWithRfqAward, fetchPrDraftById, fetchPrDraftList, mapClientItemToSapDeep, updatePrDraft } = require("../services/pr.service");
+const { attachPoNumbers, createPRInSAP, createPrDraft, enrichWithRfqAward, fetchPrDraftById, fetchPrDraftList, mapClientItemToSapDeep, updatePrDraft } = require("../services/pr.service");
 
 const router = express.Router();
 
@@ -327,6 +327,16 @@ router.get("/api/approval/:id", async (req, res) => {
 			});
 		}
 		await enrichWithRfqAward([record]);
+
+		// So PO that cua tung dong (EBAN). Chi lam o route CHI TIET, khong lam o
+		// /history hay /approved: nhung route do tra ve hang chuc PR, moi PR them
+		// 1 vong goi SAP la du lam man hinh do treo.
+		try {
+			await attachPoNumbers(record);
+		} catch (poError) {
+			console.error("[GET /api/approval/:id] Khong gan duoc so PO:", poError.message);
+		}
+
 		return res.json({ success: true, data: record });
 	} catch (error) {
 		const message = extractSapErrorMessage(error);

@@ -447,7 +447,58 @@ async function fetchPRItemsFromSAP(prNumber) {
 function pickRealItemNo(row) {
 	return row.ItemNo || row.PRItem || row.ReqItem || row.PrItem || row.Item || row.LineNo || null;
 }
+/**
+ * Gan so PO THAT (EBAN-EBELN) vao tung dong cua 1 PR da ghi len SAP.
+ *
+ * ZPR_DRAFT khong co field PoNumber va luc tao PO code cung chi ghi
+ * RfqSet-Status = 'PO_CREATED' chu khong luu lai so PO. Nguon duy nhat con lai
+ * la EBAN, doc qua PurchaseRequisitionHisSet (property PONumber + Status
+ * OPEN/CONVERTED) — da kiem chung tren OData that ngay 16/08.
+ *
+ * Gan theo TUNG DONG chu khong phai 1 so cho ca PR: tu khi tach nhom NCC, 1 PR
+ * co the sinh ra NHIEU PO (vd PR 0010004256: dong 1+2 -> 4500006439, dong 3 ->
+ * 4500006438). Gop lai thanh 1 con so la sai ngay voi du lieu dang co.
+ *
+ * Loi doc SAP khong duoc lam hong ca man chi tiet — cung lam la khong co so PO.
+ */
+async function attachPoNumbers(record) {
+	if (!record || !Array.isArray(record.items) || record.items.length === 0) { return record; }
+
+	// Chi PR da duyet moi co so SAP that; PR nhap/dang duyet thi chac chan chua co PO.
+	const sapPrNo = String(record.SapPRId || record.PRId || "").trim();
+	if (!/^\d+$/.test(sapPrNo)) { return record; }
+
+	let rows = [];
+	try {
+		rows = await fetchPRItemsFromSAP(sapPrNo);
+	} catch (error) {
+		console.error("[attachPoNumbers] Doc PurchaseRequisitionHisSet that bai:", error.message);
+		return record;
+	}
+
+	// So dong o 2 ben co the lech so 0 dem dau ("00001" vs "1" vs "00010") — chuan hoa
+	// bang cach bo het so 0 dau truoc khi doi chieu.
+	const poByLine = {};
+	rows.forEach(function (row) {
+		const line = String(pickRealItemNo(row) || "").replace(/^0+/, "");
+		const po = String(row.PONumber || row.PoNumber || "").trim();
+		if (line && po) { poByLine[line] = po; }
+	});
+
+	const distinct = [];
+	record.items.forEach(function (it) {
+		const po = poByLine[String(it.LineNo || "").replace(/^0+/, "")] || "";
+		it.PoNumber = po;
+		if (po && distinct.indexOf(po) === -1) { distinct.push(po); }
+	});
+
+	record.PoNumbers = distinct;
+	record.PoNumberText = distinct.join(", ");
+	return record;
+}
+
 module.exports = {
+	attachPoNumbers,
 	createPRInSAP,
 	createPrDraft,
 	enrichWithRfqAward,

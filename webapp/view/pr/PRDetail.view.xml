@@ -92,6 +92,13 @@
 						<Text text="{/SapPRId}" class="qdInfoValue"/>
 						<Text text="Tra cứu bằng ME53N" class="qdInfoHint"/>
 					</VBox>
+					<!-- 1 PR tach nhieu nhom NCC se sinh ra NHIEU PO, nen o day co the la
+					     danh sach cach nhau dau phay chu khong phai 1 so duy nhat. -->
+					<VBox class="qdInfoCell" visible="{= !!${/PoNumberText} }">
+						<Label text="Mã đơn hàng (PO)" class="qdInfoLabel"/>
+						<Text text="{/PoNumberText}" class="qdInfoValue"/>
+						<Text text="Tra cứu bằng ME23N" class="qdInfoHint"/>
+					</VBox>
 				</HBox>
 
 				<MessageStrip
@@ -169,6 +176,10 @@
 								<VBox class="qdInfoCell" visible="{= ${AcctAssignCat} === 'A' }">
 									<Label text="Asset No" class="qdInfoLabel"/>
 									<Text text="{= ${AssetNo} || '(chưa có)' }" class="qdInfoValue"/>
+								</VBox>
+								<VBox class="qdInfoCell" visible="{= !!${PoNumber} }">
+									<Label text="Mã PO" class="qdInfoLabel"/>
+									<Text text="{PoNumber}" class="qdInfoValue"/>
 								</VBox>
 							</HBox>
 						</VBox>
