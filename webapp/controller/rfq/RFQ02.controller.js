@@ -444,17 +444,30 @@ sap.ui.define([
 			var aMessages = oModel.getProperty("/aiMessages") || [];
 			var that = this;
 
-			var sHtml = aMessages.map(function (m) {
+			// Nhan "AI goi y" / "Ban hoi" CHI hien khi DOI nguoi noi. Truoc day bong bong
+			// nao cung deo nhan, nen 2-3 luot AI tra loi lien tiep la man hinh lap lai chu
+			// "AI GOI Y" may lan lien, nhin nhu bi trung lap (feedback 16/08). Cac luot noi
+			// tiep cua cung mot nguoi gio chi con bong bong, giong moi app chat binh thuong.
+			var sHtml = aMessages.map(function (m, idx) {
 				var bUser = m.role === "user";
-				var sRowClass = "qdAiChatRow " + (bUser ? "qdAiChatRowUser" : "qdAiChatRowAi");
+				var bFollow = idx > 0 && aMessages[idx - 1].role === m.role;
+				var sRowClass = "qdAiChatRow " + (bUser ? "qdAiChatRowUser" : "qdAiChatRowAi")
+					+ (bFollow ? " qdAiChatRowFollow" : "");
 				var sBubbleClass = "qdAiChatBubble " + (bUser ? "qdAiChatBubbleUser" : "qdAiChatBubbleAi");
-				var sLabel = bUser ? "Bạn hỏi" : "AI gợi ý";
 				var sBody = bUser
 					? that._escapeHtml(m.text).replace(/\n/g, "<br/>")
 					: that._formatAiMessageHtml(m.text);
-				return '<div class="' + sRowClass + '"><div class="' + sBubbleClass + '">'
-					+ '<span class="qdAiChatLabel">' + sLabel + '</span>' + sBody
-					+ '</div></div>';
+				var sLabelHtml = bFollow
+					? ""
+					: '<span class="qdAiChatLabel">' + (bUser ? "Bạn hỏi" : "AI gợi ý") + '</span>';
+				// Avatar chi ve o luot dau cua AI; luot noi tiep van giu 1 o AN (Ghost) de
+				// bong bong khong bi thut ra sat le trai, lech voi bong bong phia tren.
+				var sAvatar = bUser
+					? ""
+					: '<span class="qdAiChatAvatar' + (bFollow ? " qdAiChatAvatarGhost" : "") + '">AI</span>';
+				return '<div class="' + sRowClass + '">' + sAvatar
+					+ '<div class="' + sBubbleClass + '">' + sLabelHtml + sBody + '</div>'
+					+ '</div>';
 			}).join("");
 
 			oModel.setProperty("/aiChatHtml", sHtml);

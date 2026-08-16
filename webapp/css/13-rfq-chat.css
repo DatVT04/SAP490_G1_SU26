@@ -20,12 +20,19 @@
 	background: var(--qd-bg);
 	border: 1px solid var(--qd-border);
 	border-radius: var(--qd-radius-md);
-	padding: 0.75rem;
+	padding: 0.9rem 1rem;
 }
 
 .qdAiChatRow {
 	display: flex;
-	margin-bottom: 0.6rem;
+	align-items: flex-start;
+	margin-bottom: 0.9rem;
+}
+
+/* Luot noi TIEP cua cung mot nguoi: sat vao bong bong tren cho thanh mot cum,
+   thay vi cach deu nhau khien 3 cau tra loi AI trong nhu 3 doan roi rac. */
+.qdAiChatRowFollow {
+	margin-top: -0.45rem;
 }
 
 .qdAiChatRow:last-child {
@@ -42,7 +49,7 @@
 
 .qdAiChatBubble {
 	max-width: 82%;
-	padding: 0.55rem 0.85rem;
+	padding: 0.65rem 0.95rem;
 	border-radius: 14px;
 	font-size: 0.85rem;
 	line-height: 1.5;
@@ -74,15 +81,54 @@
 	opacity: 0.7;
 }
 
+/* Avatar tron cua AI — dat truoc bong bong de khung chat nhin ra la doan hoi dap
+   (co nguoi noi), thay vi mot chong hop chu nhat giong nhau. Chi ve o luot dau;
+   luot noi tiep dung ban AN (Ghost) de giu thang hang. */
+.qdAiChatAvatar {
+	flex: 0 0 auto;
+	width: 1.85rem;
+	height: 1.85rem;
+	margin-right: 0.55rem;
+	border-radius: 50%;
+	background: var(--qd-accent-purple);
+	color: #FFFFFF;
+	font-size: 0.62rem;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-shadow: 0 1px 4px rgba(20, 41, 77, 0.12);
+}
+
+.qdAiChatAvatarGhost {
+	visibility: hidden;
+}
+
 /* O nhap cau hoi: to hon Input mac dinh cho de bam/de doc tren mobile
-   (feedback 15/08: "o hoi qua nho"). */
+   (feedback 15/08: "o hoi qua nho"; 16/08: "thanh nhap ben duoi be qua"). */
+.qdAiChatInputRow {
+	gap: 0.5rem;
+}
+
 .qdAiChatInput .sapMInputBaseContentWrapper {
-	min-height: 2.5rem;
-	border-radius: 10px;
+	min-height: 2.85rem;
+	border-radius: 999px;
+	padding-left: 0.35rem;
+	padding-right: 0.35rem;
 }
 
 .qdAiChatInput input {
-	font-size: 0.9rem;
+	font-size: 0.95rem;
+}
+
+/* Nut gui cao bang o nhap cho thang hang — mac dinh Button thap hon Input da
+   duoc keo cao, nhin bi lech day. */
+.qdAiChatSendBtn .sapMBtnInner {
+	min-height: 2.85rem;
+	border-radius: 999px;
+	padding-left: 1.1rem;
+	padding-right: 1.1rem;
 }
 
 /* Ket luan "NCC DE XUAT..." duoc parse rieng tu prompt (xem _formatAiMessageHtml trong

@@ -210,24 +210,35 @@
 							<!-- Hoi dap AI tuong tac: sau khi co goi y ban dau, nguoi dung hoi them
 							     ("NCC nao giao nhanh nhat?", "vi sao khong chon V2?"...) thay vi chi
 							     doc 1 chieu (feedback QDAVY 13/08: "AI van chua chat/tuong tac duoc"). -->
+							<!-- O nhap cau hoi phai CHIEM HET be ngang con lai. Truoc day Input de
+							     width="100%" nhung nam trong HBox (flex) nen 100% tinh theo flex-basis
+							     tu co lai — o nhap bi bop con mot mau, go vao khong doc duoc
+							     (feedback 16/08: "thanh nhap ben duoi be qua"). Dung growFactor de
+							     no gian ra dung theo phan trong con lai. -->
 							<HBox
 								alignItems="Center"
+								width="100%"
 								visible="{= ${/aiMessages}.length > 0 }"
-								class="sapUiSmallMarginBottom"
+								class="qdAiChatInputRow sapUiSmallMarginBottom"
 							>
 								<Input
 									id="inAiQuestion"
 									placeholder="Hỏi thêm AI về các nhà cung cấp này..."
-									width="100%"
 									maxLength="500"
 									submit=".onAiAskPress"
 									class="sapUiTinyMarginEnd qdAiChatInput"
-								/>
+								>
+									<layoutData>
+										<FlexItemData growFactor="1" baseSize="0%"/>
+									</layoutData>
+								</Input>
 								<Button
 									text="Hỏi AI"
 									icon="sap-icon://discussion"
+									type="Emphasized"
 									press=".onAiAskPress"
 									busy="{/busyAi}"
+									class="qdAiChatSendBtn"
 								/>
 							</HBox>
 
