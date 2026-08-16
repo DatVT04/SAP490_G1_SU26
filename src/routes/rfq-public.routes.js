@@ -9,7 +9,7 @@
 const express = require("express");
 const { PAYMENT_TERMS } = require("../config/payment-terms");
 const { daysUntilDeadline, formatDeadlineVi } = require("../lib/html");
-const { extractSapErrorMessage, odataEscape, sapWrite } = require("../lib/sap-client");
+const { extractSapErrorMessage, odataEscape, sapFetchCsrfToken, sapWrite } = require("../lib/sap-client");
 const { sapDateOnly, sapTimestamp, sapTsToIso } = require("../lib/sap-format");
 const { notifyPurchasingNewQuote } = require("../services/notify.service");
 const { verifyRfqPortalToken } = require("../services/rfq-portal.service");
@@ -128,30 +128,61 @@ router.post("/api/public/rfq/quote", async (req, res) => {
 		return res.status(400).json({ success: false, message: "Điều khoản thanh toán không hợp lệ." });
 	}
 
+	// Tach lam 3 giai doan, moi giai doan mot try RIENG. Truoc day ca 3 viec (doc
+	// RFQ, ghi bao gia, cap nhat trang thai + gui mail) nam chung 1 try nen bat cu
+	// loi nao cung tra ve dung 1 cau "Khong luu duoc bao gia" — NCC gui lai lan 2
+	// vo ich, con Purchasing thi khong biet loi that nam o dau (bug 16/08). Nay:
+	//   B1 doc RFQ loi     -> "Khong doc duoc yeu cau bao gia"
+	//   B2 ghi bao gia loi -> "Khong luu duoc bao gia" (dung nghia den)
+	//   B3 loi             -> bao gia DA LUU, tuyet doi khong bao that bai nua
+	// Them &debug=1 vao link portal -> tra kem `detail` = message that tu SAP.
+	// NCC binh thuong khong bao gio thay chuoi ky thuat do.
+	const wantDetail = String(body.debug || req.query.debug || "") === "1";
+	const failStage = function (status, stage, message, error) {
+		const detail = extractSapErrorMessage(error);
+		console.error(`[POST /api/public/rfq/quote] ${stage} THAT BAI (rfq=${rfqId}, vendor=${vendorNo}):`, detail);
+		const payload = { success: false, stage: stage, message: message };
+		if (wantDetail) { payload.detail = detail; }
+		return res.status(status).json(payload);
+	};
+
+	// ── B1: doc RFQ + danh sach NCC duoc moi ────────────────────────────────
+	let session = null;
+	let ctx = null;
 	try {
-		const ctx = await loadRfqContext(rfqId);
-		if (!ctx) {
-			return res.status(404).json({ success: false, message: "Không tìm thấy yêu cầu báo giá này." });
-		}
-		const mine = ctx.quotations.find((q) => String(q.VendorNo) === vendorNo);
-		if (!mine) {
-			return res.status(404).json({ success: false, message: "Quý công ty không nằm trong danh sách được mời báo giá của yêu cầu này." });
-		}
-		if (ctx.rfq.Status === "AWARDED") {
-			return res.status(409).json({ success: false, message: "Yêu cầu báo giá này đã kết thúc (đã chọn được nhà cung cấp)." });
-		}
+		// Lay 1 CSRF token dung chung cho ca request. Truoc day moi lan sapWrite
+		// lai tu di lay token moi (them 1 vong GET len SAP); 1 request portal co
+		// toi 3-4 lan ghi -> that thoat vai giay vo ich tren serverless.
+		session = await sapFetchCsrfToken();
+		ctx = await loadRfqContext(rfqId);
+	} catch (error) {
+		return failStage(502, "B1-DOC-RFQ", "Không đọc được yêu cầu báo giá. Vui lòng thử lại sau ít phút.", error);
+	}
 
-		const daysLeft = daysUntilDeadline(ctx.rfq.Deadline);
-		const late = daysLeft != null && daysLeft < 0;
-		const contactInfo = String(body.contactInfo || "").trim();
+	if (!ctx) {
+		return res.status(404).json({ success: false, message: "Không tìm thấy yêu cầu báo giá này." });
+	}
+	const mine = ctx.quotations.find((q) => String(q.VendorNo) === vendorNo);
+	if (!mine) {
+		return res.status(404).json({ success: false, message: "Quý công ty không nằm trong danh sách được mời báo giá của yêu cầu này." });
+	}
+	if (ctx.rfq.Status === "AWARDED") {
+		return res.status(409).json({ success: false, message: "Yêu cầu báo giá này đã kết thúc (đã chọn được nhà cung cấp)." });
+	}
 
-		// SourceNote/EnteredBy la field CHAR do dai co han tren ZG1_QUOTATION —
-		// cat ngan chu dong o day, vi ABAP cat cut am tham khong bao loi (da dinh
-		// 1 lan voi ZPR_DRAFT-RFQID CHAR10, xem CLAUDE.md).
-		const sourceNote = ("NCC tự gửi qua Portal " + sapDateOnly() + " — " + contactName
-			+ (contactInfo ? " (" + contactInfo + ")" : "")
-			+ (late ? " [NỘP SAU HẠN]" : "")).slice(0, 100);
+	const daysLeft = daysUntilDeadline(ctx.rfq.Deadline);
+	const late = daysLeft != null && daysLeft < 0;
+	const contactInfo = String(body.contactInfo || "").trim();
 
+	// SourceNote/EnteredBy la field CHAR do dai co han tren ZG1_QUOTATION —
+	// cat ngan chu dong o day, vi ABAP cat cut am tham khong bao loi (da dinh
+	// 1 lan voi ZPR_DRAFT-RFQID CHAR10, xem CLAUDE.md).
+	const sourceNote = ("NCC tự gửi qua Portal " + sapDateOnly() + " — " + contactName
+		+ (contactInfo ? " (" + contactInfo + ")" : "")
+		+ (late ? " [NỘP SAU HẠN]" : "")).slice(0, 100);
+
+	// ── B2: ghi bao gia — viec DUY NHAT ma NCC quan tam ─────────────────────
+	try {
 		await sapWrite(
 			"MERGE",
 			`QuotationSet(RfqId='${odataEscape(rfqId)}',VendorNo='${odataEscape(vendorNo)}')`,
@@ -166,27 +197,34 @@ router.post("/api/public/rfq/quote", async (req, res) => {
 				EnteredBy: (contactInfo || contactName).slice(0, 40),
 				EnteredAt: sapTimestamp(),
 				SourceNote: sourceNote
-			}
+			},
+			session
 		);
-
-		await promoteRfqAfterQuotation(rfqId);
-
-		// Khong de loi gui thong bao lam hong ket qua da ghi thanh cong len SAP.
-		try {
-			await notifyPurchasingNewQuote(rfqId, prLabelOf(ctx.rfq, ctx.pr), {
-				VendorNo: vendorNo,
-				VendorName: mine.VendorName,
-				QuotedPrice: price,
-				Currency: ctx.rfq.Currency || "VND"
-			});
-		} catch (notifyError) {
-			console.error("[POST /api/public/rfq/quote] Bao cho Purchasing that bai:", notifyError.message);
-		}
-
-		return res.json({ success: true, late: late });
 	} catch (error) {
-		console.error("[POST /api/public/rfq/quote] THAT BAI:", extractSapErrorMessage(error));
-		return res.status(502).json({ success: false, message: "Không lưu được báo giá. Vui lòng thử lại hoặc gửi email cho Phòng Thu mua." });
+		return failStage(502, "B2-GHI-BAO-GIA", "Không lưu được báo giá. Vui lòng thử lại hoặc gửi email cho Phòng Thu mua.", error);
 	}
+
+	// ── B3: hau ky — TU DAY TRO DI bao gia da nam tren SAP roi ──────────────
+	// Hong o day chi lam trang thai RFQ/PR cham cap nhat (Purchasing sua tay
+	// duoc), khong duoc phep bao NCC la "khong luu duoc" nua.
+	try {
+		await promoteRfqAfterQuotation(rfqId, session);
+	} catch (error) {
+		console.error("[POST /api/public/rfq/quote] B3-CAP-NHAT-TRANG-THAI that bai (bao gia VAN DA LUU):",
+			extractSapErrorMessage(error));
+	}
+
+	try {
+		await notifyPurchasingNewQuote(rfqId, prLabelOf(ctx.rfq, ctx.pr), {
+			VendorNo: vendorNo,
+			VendorName: mine.VendorName,
+			QuotedPrice: price,
+			Currency: ctx.rfq.Currency || "VND"
+		});
+	} catch (notifyError) {
+		console.error("[POST /api/public/rfq/quote] Bao cho Purchasing that bai:", notifyError.message);
+	}
+
+	return res.json({ success: true, late: late });
 });
 module.exports = router;

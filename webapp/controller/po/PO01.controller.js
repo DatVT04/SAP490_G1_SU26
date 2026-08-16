@@ -139,6 +139,17 @@ sap.ui.define([
 								RfqAwardedVendor: pr.RfqAwardedVendor || "",
 								RfqFinalValue: pr.RfqFinalValue != null ? pr.RfqFinalValue : null,
 								EstimatedTotalValue: pr.EstimatedTotalValue != null ? pr.EstimatedTotalValue : null,
+								// Danh sach NHOM NCC (moi nhom = 1 RFQ da chot = 1 PO rieng).
+								// BAT BUOC copy sang day: _applyPRSelection doc oPRData.RfqGroups,
+								// ma object nay la object MOI do map() dung ra chu khong phai `pr`.
+								// Thieu dong nay thi RfqGroups luon undefined -> man hinh roi ve
+								// nhanh du phong "Toan bo PR": khong hien dropdown chon nhom, khong
+								// tu dien NCC (vi PR nhieu nhom co RfqAwardedVendor = rong theo
+								// dung thiet ke), va rai gia ca PR len TAT CA cac dong (bug 16/08).
+								RfqGroups: pr.RfqGroups || [],
+								RfqGroupCount: pr.RfqGroupCount || 0,
+								RfqAllAwarded: !!pr.RfqAllAwarded,
+								RfqAwardedVendorName: pr.RfqAwardedVendorName || "",
 								_items: aItems
 							};
 						});

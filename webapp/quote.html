@@ -276,6 +276,9 @@
 	var RFQ = params.get("rfq") || "";
 	var VENDOR = params.get("v") || "";
 	var TOKEN = params.get("t") || "";
+	// Them &debug=1 vao link de server tra kem message loi that tu SAP. Chi dung
+	// khi nhom dang dinh loi — NCC that khong bao gio duoc dua link co debug.
+	var DEBUG = params.get("debug") === "1";
 	var data = null;
 
 	var $ = function (id) { return document.getElementById(id); };
@@ -442,13 +445,18 @@
 				paymentTerms: $("fTerms").value || "",
 				legalDocsOk: $("fLegal").checked,
 				contactName: contactName,
-				contactInfo: $("fContactInfo").value.trim()
+				contactInfo: $("fContactInfo").value.trim(),
+				debug: DEBUG ? "1" : ""
 			})
 		})
 			.then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
 			.then(function (res) {
 				if (!res.body || !res.body.success) {
-					throw new Error((res.body && res.body.message) || "Gửi báo giá không thành công.");
+					var msg = (res.body && res.body.message) || "Gửi báo giá không thành công.";
+					if (res.body && res.body.detail) {
+						msg += " — [" + (res.body.stage || "?") + "] " + res.body.detail;
+					}
+					throw new Error(msg);
 				}
 				hide("viewMain"); hide("cardItems"); hide("cardForm");
 				text("doneText", "Báo giá cho yêu cầu " + RFQ + " đã được ghi nhận vào hệ thống"
