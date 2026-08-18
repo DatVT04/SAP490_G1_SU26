@@ -427,7 +427,7 @@ sap.ui.define([
 				.then(function (oResult) {
 					oModel.setProperty("/materialsLoading", false);
 					if (!oResult || !oResult.success) {
-						MessageBox.error((oResult && oResult.message) || "Không tải được danh sách vật tư.");
+						MessageBox.error((oResult && oResult.message) || "Không tải được danh sách vật tư / dịch vụ.");
 						return;
 					}
 					oModel.setProperty("/materials", oResult.data || []);
@@ -453,7 +453,7 @@ sap.ui.define([
 			var oModel = this.getView().getModel();
 			var aItems = oModel.getProperty("/items").slice();
 			if (aItems.length <= 1) {
-				MessageToast.show("Phải có ít nhất 1 dòng vật tư.");
+				MessageToast.show("Phải có ít nhất 1 dòng.");
 				return;
 			}
 			aItems.splice(iIndex, 1);
@@ -585,7 +585,7 @@ sap.ui.define([
 			syncAcctAssignCat(aItems);
 
 			if (!aItems || aItems.length === 0) {
-				MessageBox.warning("Vui lòng thêm ít nhất 1 vật tư vào danh sách.");
+				MessageBox.warning("Vui lòng thêm ít nhất 1 dòng vật tư / dịch vụ vào danh sách.");
 				return;
 			}
 
@@ -594,7 +594,7 @@ sap.ui.define([
 				var idx = i + 1;
 
 				if (!item.materialNo) {
-					MessageBox.warning("Dòng " + idx + ": Vui lòng chọn vật tư.");
+					MessageBox.warning("Dòng " + idx + ": Vui lòng chọn vật tư / dịch vụ.");
 					return;
 				}
 				if (!item.description) {

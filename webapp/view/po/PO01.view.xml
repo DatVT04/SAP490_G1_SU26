@@ -41,7 +41,7 @@
 
 							<SearchField
 								id="sfApprovedPRSearch"
-								placeholder="Tìm mã PR, mô tả hoặc mã vật tư..."
+								placeholder="Tìm mã PR, mô tả hoặc mã vật tư / dịch vụ..."
 								liveChange=".onApprovedPRSearch"
 								search=".onApprovedPRSearch"
 								width="100%"
@@ -63,7 +63,7 @@
 							>
 								<columns>
 									<Column width="7rem"><Text text="Mã PR"/></Column>
-									<Column><Text text="Vật tư &amp; Yêu cầu"/></Column>
+									<Column><Text text="Vật tư / Dịch vụ &amp; Yêu cầu"/></Column>
 									<Column hAlign="End" width="8rem"><Text text="Giá trị ước tính"/></Column>
 								</columns>
 								<items>
@@ -109,7 +109,7 @@
 									<Text id="txtRequester" text="--" class="qdInfoValue"/>
 								</VBox>
 								<VBox class="qdInfoCell">
-									<Label text="Tên vật tư / Mô tả" class="qdInfoLabel"/>
+									<Label text="Tên vật tư / dịch vụ" class="qdInfoLabel"/>
 									<Text id="txtMaterialInfo" text="--" class="qdInfoValue"/>
 								</VBox>
 								<VBox class="qdInfoCell">
@@ -410,7 +410,7 @@
 								<columns>
 									<Column width="4rem"><Text text="Item"/></Column>
 									<Column width="8rem"><Text text="Mã PR Nguồn"/></Column>
-									<Column><Text text="Mã &amp; Tên Vật tư"/></Column>
+									<Column><Text text="Mã &amp; Tên vật tư / dịch vụ"/></Column>
 									<Column hAlign="End" width="7rem"><Text text="Số lượng"/></Column>
 									<Column hAlign="End" width="8rem"><Text text="Đơn giá mua"/></Column>
 									<Column width="6rem"><Text text="Nhà máy (Plant)"/></Column>
@@ -424,6 +424,12 @@
 											<VBox>
 												<Text text="{MaterialNo}" class="sapMTextBold"/>
 												<Text text="{Description}"/>
+												<ObjectStatus
+													text="{= ${MaterialType} === 'ZAST' ? 'Vật tư/Tài sản' : (${MaterialType} === 'ZSRV' ? 'Dịch vụ' : ${MaterialType}) }"
+													state="{= ${MaterialType} === 'ZSRV' ? 'Success' : 'Information' }"
+													icon="{= ${MaterialType} === 'ZSRV' ? 'sap-icon://employee-lookup' : 'sap-icon://product' }"
+													visible="{= !!${MaterialType} }"
+												/>
 											</VBox>
 											<Text text="{Quantity} {UoM}"/>
 											<Input

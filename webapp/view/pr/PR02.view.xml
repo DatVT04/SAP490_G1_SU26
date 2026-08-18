@@ -48,7 +48,7 @@
 				<OverflowToolbar class="sapUiSmallMarginBeginEnd sapUiTinyMarginBottom">
 					<SearchField
 						id="sfPendingSearch"
-						placeholder="Tìm theo mã PR, người đề nghị, tên vật tư..."
+						placeholder="Tìm theo mã PR, người đề nghị, tên vật tư / dịch vụ..."
 						liveChange=".onPendingSearch"
 						search=".onPendingSearch"
 						width="100%"
@@ -202,7 +202,7 @@
 							</VBox>
 
 							<VBox class="qdNestedItems">
-								<Text text="Danh sách vật tư:" class="qdInfoLabel sapUiTinyMarginBottom"/>
+								<Text text="Danh sách vật tư / dịch vụ:" class="qdInfoLabel sapUiTinyMarginBottom"/>
 								<List
 									items="{items}"
 									showNoData="false"

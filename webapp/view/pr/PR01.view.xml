@@ -15,7 +15,7 @@
 					<VBox>
 						<Text text="Bước 1 · Đề nghị mua sắm" class="qdPageEyebrow"/>
 						<Title text="{i18n>tilePr01Title}" level="H1" class="qdPageTitle"/>
-						<Text text="Khai báo vật tư cần mua, hệ thống sẽ tạo Purchase Requisition trong SAP" class="qdPageSub"/>
+						<Text text="Khai báo vật tư / dịch vụ cần mua, hệ thống sẽ tạo Purchase Requisition trong SAP" class="qdPageSub"/>
 					</VBox>
 				</HBox>
 				<HBox class="qdFlowSteps">
@@ -45,7 +45,7 @@
 							text="{= ${user>/costCenter} ? ${user>/costCenter} : 'Chưa được gán bộ phận' }"
 							class="qdInfoValue"
 						/>
-						<Text text="Chỉ điền sẵn cho dòng mới — mỗi dòng vật tư chọn bộ phận riêng được" class="qdInfoHint"/>
+						<Text text="Chỉ điền sẵn cho dòng mới — mỗi dòng chọn bộ phận riêng được" class="qdInfoHint"/>
 					</VBox>
 					<VBox class="qdInfoCell">
 						<Label text="{i18n>prCurrencyLabel}" class="qdInfoLabel"/>
@@ -63,7 +63,7 @@
 				<HBox alignItems="Center" justifyContent="SpaceBetween" wrap="Wrap" class="sapUiSmallMarginBottom">
 					<HBox alignItems="Center">
 						<Text text="2" class="qdStepBadge"/>
-						<Title text="Danh sách vật tư ({= ${/items}.length })" level="H3" class="qdCardTitle"/>
+						<Title text="Danh sách vật tư / dịch vụ ({= ${/items}.length })" level="H3" class="qdCardTitle"/>
 					</HBox>
 					<Button
 						text="Thêm dòng"
@@ -91,10 +91,10 @@
 						fixedLayout="false"
 						sticky="ColumnHeaders"
 						class="qdItemsTable"
-						noDataText="Chưa có dòng vật tư — bấm Thêm dòng"
+						noDataText="Chưa có dòng nào — bấm Thêm dòng"
 					>
 						<columns>
-							<Column width="14%"><Text text="Vật tư *"/></Column>
+							<Column width="16%"><Text text="Vật tư / Dịch vụ *"/></Column>
 							<Column width="12%"><Text text="Mô tả *"/></Column>
 							<Column width="4.5rem" hAlign="Center"><Text text="ĐVT"/></Column>
 							<Column width="6rem" hAlign="End"><Text text="Số lượng *"/></Column>
@@ -108,22 +108,30 @@
 						<items>
 							<ColumnListItem>
 								<cells>
-									<!-- Vật tư -->
-									<ComboBox
-										selectedKey="{materialNo}"
-										items="{path: '/materials', templateShareable: false}"
-										selectionChange=".onMaterialChange"
-										placeholder="— Chọn vật tư —"
-										showSecondaryValues="true"
-										filterSecondaryValues="true"
-										width="100%"
-									>
-										<core:ListItem
-											key="{MaterialNo}"
-											text="{MaterialNo}"
-											additionalText="{Description}"
+									<!-- Vật tư / Dịch vụ -->
+									<VBox>
+										<ComboBox
+											selectedKey="{materialNo}"
+											items="{path: '/materials', templateShareable: false}"
+											selectionChange=".onMaterialChange"
+											placeholder="— Chọn vật tư / dịch vụ —"
+											showSecondaryValues="true"
+											filterSecondaryValues="true"
+											width="100%"
+										>
+											<core:ListItem
+												key="{MaterialNo}"
+												text="{MaterialNo}"
+												additionalText="{Description}"
+											/>
+										</ComboBox>
+										<ObjectStatus
+											text="{= ${materialType} === 'ZAST' ? 'Vật tư/Tài sản' : (${materialType} === 'ZSRV' ? 'Dịch vụ' : ${materialType}) }"
+											state="{= ${materialType} === 'ZSRV' ? 'Success' : 'Information' }"
+											icon="{= ${materialType} === 'ZSRV' ? 'sap-icon://employee-lookup' : 'sap-icon://product' }"
+											visible="{= !!${materialType} }"
 										/>
-									</ComboBox>
+									</VBox>
 
 									<!-- Mô tả -->
 									<Input
@@ -227,7 +235,7 @@
 
 				<!-- Hướng dẫn đủ nghiệp vụ -->
 				<Text
-					text="Vật tư và Bộ phận chọn từ danh sách SAP. Bộ phận bắt buộc trên mọi dòng (kể cả tài sản). Cột Ngân sách áp dụng tự hiện Internal Order của phòng — không chọn tay; vượt ngưỡng thì sau CFO cần CEO duyệt. Vật tư loại Tài sản (ZAST): nhập Số lượng xong (Enter/Tab) hệ thống tự hiện đủ số ô Asset tương ứng — mỗi đơn vị số lượng 1 mã Asset riêng (AS01). GL Account hệ thống tự xác định."
+					text="Vật tư / dịch vụ và Bộ phận chọn từ danh sách SAP. Bộ phận bắt buộc trên mọi dòng (kể cả tài sản). Cột Ngân sách áp dụng tự hiện Internal Order của phòng — không chọn tay; vượt ngưỡng thì sau CFO cần CEO duyệt. Dòng loại Tài sản (ZAST): nhập Số lượng xong (Enter/Tab) hệ thống tự hiện đủ số ô Asset tương ứng — mỗi đơn vị số lượng 1 mã Asset riêng (AS01). GL Account hệ thống tự xác định."
 					class="qdInfoHint sapUiTinyMarginTop"
 				/>
 
@@ -240,7 +248,7 @@
 				>
 					<VBox>
 						<Text text="Tổng giá trị đề nghị" class="qdTotalLabel"/>
-						<Text text="{= ${/items}.length } dòng vật tư · Thành tiền = Số lượng × Đơn giá" class="qdInfoHint"/>
+						<Text text="{= ${/items}.length } dòng · Thành tiền = Số lượng × Đơn giá" class="qdInfoHint"/>
 					</VBox>
 					<HBox alignItems="Baseline">
 						<Title text="{/totalText}" level="H2" class="qdTotalValue"/>
@@ -262,7 +270,7 @@
 		<footer>
 			<OverflowToolbar class="qdPageFooter">
 				<Text
-					text="{= ${/items}.length === 0 ? 'Thêm ít nhất 1 vật tư để gửi đề nghị' : 'Sẵn sàng gửi ' + ${/items}.length + ' dòng vật tư' }"
+					text="{= ${/items}.length === 0 ? 'Thêm ít nhất 1 dòng để gửi đề nghị' : 'Sẵn sàng gửi ' + ${/items}.length + ' dòng' }"
 					class="qdFooterHint"
 				/>
 				<ToolbarSpacer/>

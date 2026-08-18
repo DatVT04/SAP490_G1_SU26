@@ -196,7 +196,7 @@ sap.ui.define([
 						var pr = o._pr;
 						var firstItem = o._items[0] || {};
 						var sDesc = o._items.length > 1
-							? (firstItem.Description || "") + " (+ " + (o._items.length - 1) + " vật tư khác)"
+							? (firstItem.Description || "") + " (+ " + (o._items.length - 1) + " dòng khác)"
 							: (firstItem.Description || "");
 						return {
 							PRId: pr.PRId || pr.InternalId || "",
@@ -334,6 +334,7 @@ sap.ui.define([
 					Quantity: it.Quantity || 0,
 					UoM: it.UoM || "",
 					EstimatedValue: it.EstimatedValue || 0,
+					MaterialType: it.MaterialType || "",
 					Currency: oPRData.Currency || "VND",
 					_assigned: !!sRfq,
 					_assignedTo: sRfq || "",
@@ -893,7 +894,7 @@ sap.ui.define([
 				return oItem.getBindingContext().getObject().LineNo;
 			});
 			if (aLines.length === 0) {
-				MessageBox.warning("Hãy chọn ít nhất 1 dòng vật tư để đưa vào RFQ này.");
+				MessageBox.warning("Hãy chọn ít nhất 1 dòng để đưa vào RFQ này.");
 				return;
 			}
 

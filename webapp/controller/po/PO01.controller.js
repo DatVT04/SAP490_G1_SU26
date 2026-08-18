@@ -114,7 +114,7 @@ sap.ui.define([
 							var firstItem = aItems[0] || {};
 
 							var sDesc = aItems.length > 1
-								? (firstItem.Description || "") + " (+ " + (aItems.length - 1) + " vật tư khác)"
+								? (firstItem.Description || "") + " (+ " + (aItems.length - 1) + " dòng khác)"
 								: (firstItem.Description || "");
 
 							return {
@@ -405,6 +405,7 @@ sap.ui.define([
 					Quantity: Number(it.Quantity) || 0,
 					UoM: it.UoM || "",
 					EstimatedValue: Number(it.EstimatedValue) || 0,
+					MaterialType: it.MaterialType || "",
 					NetPrice: 0,
 					Currency: oPRData.Currency || "",
 					// PrDraftItemSet ben SAP khong co truong Plant (PR luon hardcode
@@ -424,6 +425,7 @@ sap.ui.define([
 					Quantity: Number(oPRData.Quantity) || 0,
 					UoM: oPRData.UoM || "",
 					EstimatedValue: Number(oPRData.EstimatedValue) || 0,
+					MaterialType: oPRData.MaterialType || "",
 					NetPrice: 0,
 					Currency: oPRData.Currency || "",
 					Plant: oPRData.Plant || oOrg.plant || "QDPL",
@@ -442,7 +444,7 @@ sap.ui.define([
 			oView.byId("txtMaterialInfo").setText(
 				aTableItems.length === 1
 					? (oFirst.Description || "") + (oFirst.MaterialNo ? " (" + oFirst.MaterialNo + ")" : "")
-					: aTableItems.length + " dòng vật tư trong nhóm này"
+					: aTableItems.length + " dòng trong nhóm này"
 			);
 			oView.byId("txtQuantity").setText(
 				aTableItems.length === 1 ? (oFirst.Quantity + " " + (oFirst.UoM || "")) : "—"

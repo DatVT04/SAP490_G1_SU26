@@ -133,7 +133,7 @@
 			<VBox class="qdContentCard qdCardTight">
 				<HBox alignItems="Center" class="sapUiSmallMargin">
 					<core:Icon src="sap-icon://product" class="qdCardIcon sapUiTinyMarginEnd"/>
-					<Title text="Danh sách vật tư" level="H3" class="qdCardTitle"/>
+					<Title text="Danh sách vật tư / dịch vụ" level="H3" class="qdCardTitle"/>
 				</HBox>
 
 				<List

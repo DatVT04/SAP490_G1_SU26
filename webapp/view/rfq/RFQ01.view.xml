@@ -62,7 +62,7 @@
 							>
 								<columns>
 									<Column width="8rem"><Text text="Mã PR"/></Column>
-									<Column><Text text="Vật tư &amp; Yêu cầu"/></Column>
+									<Column><Text text="Vật tư / Dịch vụ &amp; Yêu cầu"/></Column>
 									<Column hAlign="End" width="8rem"><Text text="Giá trị ước tính"/></Column>
 								</columns>
 								<items>
@@ -114,7 +114,7 @@
 								<HBox alignItems="Center">
 									<Text text="1b" class="qdStepBadge qdStepBadgePurple"/>
 									<VBox>
-										<Title text="Chọn dòng vật tư đưa vào RFQ này" level="H3" class="qdCardTitle"/>
+										<Title text="Chọn dòng vật tư / dịch vụ đưa vào RFQ này" level="H3" class="qdCardTitle"/>
 										<Text text="Chỉ những dòng được tích mới nằm trong yêu cầu báo giá gửi đi — NCC sẽ không nhìn thấy các dòng khác của PR" class="qdCellHint"/>
 									</VBox>
 								</HBox>
@@ -142,7 +142,7 @@
 							>
 								<columns>
 									<Column width="5rem"><Text text="Dòng"/></Column>
-									<Column><Text text="Vật tư"/></Column>
+									<Column><Text text="Vật tư / Dịch vụ"/></Column>
 									<Column width="8rem" hAlign="End"><Text text="Số lượng"/></Column>
 									<Column width="11rem"><Text text="Trạng thái"/></Column>
 								</columns>
@@ -153,6 +153,12 @@
 											<VBox>
 												<Text text="{Description}" class="qdCellStrong"/>
 												<Text text="{MaterialNo}" class="qdCellHint"/>
+												<ObjectStatus
+													text="{= ${MaterialType} === 'ZAST' ? 'Vật tư/Tài sản' : (${MaterialType} === 'ZSRV' ? 'Dịch vụ' : ${MaterialType}) }"
+													state="{= ${MaterialType} === 'ZSRV' ? 'Success' : 'Information' }"
+													icon="{= ${MaterialType} === 'ZSRV' ? 'sap-icon://employee-lookup' : 'sap-icon://product' }"
+													visible="{= !!${MaterialType} }"
+												/>
 											</VBox>
 											<Text text="{Quantity} {UoM}"/>
 											<ObjectStatus
@@ -387,7 +393,7 @@
 							</HBox>
 
 							<Text
-								text="Cần chọn ít nhất 1 dòng vật tư (bước 1b) và 1 Nhà cung cấp (bước 2) để bật nút gửi."
+								text="Cần chọn ít nhất 1 dòng (bước 1b) và 1 Nhà cung cấp (bước 2) để bật nút gửi."
 								visible="{= ${/selectedVendorCount} === 0 || ${/selectedLineCount} === 0 }"
 								class="qdCellHint sapUiTinyMarginTop"
 							/>
