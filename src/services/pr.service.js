@@ -8,7 +8,7 @@
 
 const axios = require("axios");
 const { defaultGLAccount } = require("../config/master-data");
-const { ODATA_SERVICE_PATH } = require("../config/org");
+const { ODATA_SERVICE_PATH, ORG_DEFAULTS } = require("../config/org");
 const { extractSapErrorMessage, odataEscape, sapAuth, sapRead, sapWrite } = require("../lib/sap-client");
 const { abapTsToIso, boolToSapX, sapTsToIso, sapXToBool } = require("../lib/sap-format");
 const { fetchAllVendorsFromSAP } = require("./vendor.service");
@@ -63,7 +63,8 @@ async function createPRInSAP(record) {
 		const sapResponse = await axios.post(
 			`${process.env.SAP_HOST}${ODATA_SERVICE_PATH}/PurchaseRequisitionHeaderSet`,
 			{
-				CompanyCode: record.CompanyCode || "1000",
+				// QD01 that (ORG_DEFAULTS) — fallback "1000" cu la ma IDES khong ton tai o he thong nay.
+				CompanyCode: record.CompanyCode || ORG_DEFAULTS.companyCode,
 				Currency: record.Currency || "VND",
 				Requester: record.RequesterEmail || "",
 				TotalValue: String(record.TotalValue || 0),
@@ -194,6 +195,12 @@ function mapSapPrToClient(sap) {
 		PRId: sap.PRId || sap.InternalId,
 		InternalId: sap.InternalId,
 		SapPRId: sap.SapPRId || null,
+		// Ma HIEN THI (18/08/2026): truoc khi Purchasing duyet, ban ghi chi la de
+		// nghi noi bo -> "DN-<InternalId>" de khong ai nham voi so PR SAP; duyet
+		// xong (co SapPRId) thi hien dung so PR that. FE bind {DisplayId}.
+		DisplayId: (sap.SapPRId && String(sap.SapPRId).trim())
+			? String(sap.SapPRId).trim()
+			: "DN-" + (sap.InternalId || sap.PRId || ""),
 		RequesterEmail: sap.RequesterEmail || "",
 		TotalValue: Number(sap.TotalValue) || 0,
 		Currency: sap.Currency || "VND",

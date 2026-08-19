@@ -609,7 +609,7 @@ sap.ui.define([
 				});
 		},
 
-		// ── 5. CHOT NCC THANG — PR goc chuyen sang PENDING_CFO, gia cap nhat theo bao gia that ──
+		// ── 5. CHOT NCC THANG — PR goc chuyen sang AWARDED (cho tao PO), gia cap nhat theo bao gia that ──
 		onAwardPress: function () {
 			var that = this;
 			var oView = this.getView();
@@ -638,7 +638,7 @@ sap.ui.define([
 
 			MessageBox.confirm(
 				"Chốt NCC " + sVendor + " cho RFQ " + this._currentRfqId
-				+ "? PR gốc sẽ chuyển sang chờ CFO duyệt với giá báo thật.",
+				+ "? Sau khi mọi nhóm chốt xong, Purchasing tạo PO trên màn PO-01 — CFO duyệt PO trước khi gửi NCC.",
 				{
 					title: "Xác nhận chốt Nhà cung cấp",
 					onClose: function (sAction) {
@@ -667,7 +667,7 @@ sap.ui.define([
 								MessageBox.success(
 									"Đã chốt NCC " + oResult.body.awardedVendor + " — giá "
 									+ Number(oResult.body.finalValue).toLocaleString("vi-VN")
-									+ " VND. PR gốc đã chuyển sang chờ CFO duyệt.",
+									+ " VND. Tiếp theo: tạo đơn hàng trên màn PO-01 (CFO sẽ duyệt PO trước khi gửi NCC).",
 									{
 										title: "Chốt RFQ thành công",
 										onClose: function () {

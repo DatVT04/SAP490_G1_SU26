@@ -656,19 +656,21 @@ sap.ui.define([
 						return;
 					}
 					var oApproval = oResult.approval || {};
-					var sPrNumber = oApproval.PRId || "";
+					// Ma hien thi: chua co PR that -> "DN-<InternalId>" (backend tinh san
+					// DisplayId; fallback tu ghep cho ban ghi cu).
+					var sPrNumber = oApproval.DisplayId || ("DN-" + (oApproval.PRId || ""));
 					var iItemCount = (oApproval.items && oApproval.items.length) || 0;
 					var aWarnings = [];
 					if (oApproval.needsProcurementHeadReview) {
-						aWarnings.push("Vượt ngưỡng IO — sau CFO leo CEO.");
+						aWarnings.push("Dự kiến vượt ngưỡng IO — đơn hàng (PO) sẽ cần CEO duyệt.");
 					} else if (oApproval.needsLegalReview) {
-						aWarnings.push("Giá trị lớn — CFO xem xét kỹ.");
+						aWarnings.push("Giá trị lớn — CFO sẽ xem kỹ khi duyệt đơn hàng.");
 					}
 					var sMsg = "✓ Đã gửi đề nghị " + sPrNumber
 						+ (bIsResubmit ? " (bản gửi lại)" : "") + "\n\n"
 						+ "Gồm " + iItemCount + " dòng, tổng "
 						+ nTotalPRValue.toLocaleString("vi-VN") + " " + sCurrency + ".\n"
-						+ "Đang chờ Purchasing xem xét.";
+						+ "Đang chờ Purchasing xem xét — PR trên SAP sẽ được tạo khi Purchasing duyệt.";
 					if (aWarnings.length) {
 						sMsg += "\n\nLưu ý: " + aWarnings.join(" ");
 					}

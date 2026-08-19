@@ -15,7 +15,7 @@
 						<VBox>
 							<Text text="Bước 2 · Phê duyệt" class="qdPageEyebrow"/>
 							<Title text="Phê duyệt đề nghị mua sắm" level="H1" class="qdPageTitle"/>
-							<Text text="Duyệt cuối mới ghi PR lên SAP. Từ chối / leo thang đều thông báo người tạo (và CEO nếu leo thang)." class="qdPageSub"/>
+							<Text text="Duyệt = tạo PR thật trên SAP (ME51N) rồi chuyển sang bước hỏi giá. Từ chối = kết thúc kèm lý do, người tạo lập đề nghị mới." class="qdPageSub"/>
 						</VBox>
 					</HBox>
 					<Button
@@ -29,9 +29,9 @@
 				<HBox class="qdFlowSteps">
 					<Text text="PR-01 Tạo đề nghị" class="qdFlowStep"/>
 					<core:Icon src="sap-icon://navigation-right-arrow" class="qdFlowArrow"/>
-					<Text text="PR-02 Phê duyệt" class="qdFlowStep qdFlowStepActive"/>
+					<Text text="PR-02 Duyệt &amp; tạo PR SAP" class="qdFlowStep qdFlowStepActive"/>
 					<core:Icon src="sap-icon://navigation-right-arrow" class="qdFlowArrow"/>
-					<Text text="PO-01 Tạo đơn hàng" class="qdFlowStep"/>
+					<Text text="RFQ Hỏi giá NCC" class="qdFlowStep"/>
 				</HBox>
 			</VBox>
 
@@ -92,10 +92,10 @@
 								<HBox alignItems="Center">
 									<core:Icon src="sap-icon://request" class="qdPRIcon sapUiTinyMarginEnd"/>
 									<VBox>
-										<ObjectIdentifier title="{PRId}" text="Người đề nghị: {RequesterEmail}"/>
+										<ObjectIdentifier title="{DisplayId}" text="Người đề nghị: {RequesterEmail}"/>
 										<Text text="Gửi lúc: {path: 'CreatedAt', formatter: '.formatDateTime'}" class="qdCellHint sapUiTinyMarginTop"/>
 										<Text
-											text="{= ${SapPRId} ? ('SAP: ' + ${SapPRId}) : 'Chưa ghi SAP (sau khi duyệt cuối)' }"
+											text="{= ${SapPRId} ? ('SAP: ' + ${SapPRId}) : 'Chưa phải chứng từ SAP — PR thật sẽ được tạo ngay khi bạn duyệt' }"
 											class="qdCellHint"
 										/>
 									</VBox>
@@ -103,7 +103,7 @@
 
 								<HBox wrap="Wrap" alignItems="Center">
 									<ObjectStatus
-										text="Cần CEO phê duyệt"
+										text="Dự kiến vượt ngưỡng IO — PO sẽ cần CEO duyệt"
 										state="Error"
 										visible="{needsProcurementHeadReview}"
 										icon="sap-icon://alert"

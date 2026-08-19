@@ -10,9 +10,10 @@ const express = require("express");
 const axios = require("axios");
 const { sapPoAmount } = require("../config/master-data");
 const { ODATA_SERVICE_PATH, ORG_DEFAULTS } = require("../config/org");
-const { extractSapErrorMessage, odataEscape, sapAuth, sapWrite } = require("../lib/sap-client");
-const { sendPOEmailToVendor } = require("../services/po-mail.service");
-const { fetchPRItemsFromSAP, fetchPrDraftById, pickRealItemNo, updatePrDraft } = require("../services/pr.service");
+const { extractSapErrorMessage, odataEscape, sapAuth, sapFetchCsrfToken, sapWrite } = require("../lib/sap-client");
+const { notifyCeos, notifyCfo, notifyPurchasing, notifyRequester } = require("../services/notify.service");
+const { getPendingRelease, poNumberForGroup, releaseGroup, releaseKey, savePendingRelease } = require("../services/po-approval.service");
+const { attachPoNumbers, enrichWithRfqAward, fetchPRItemsFromSAP, fetchPrDraftById, fetchPrDraftList, pickRealItemNo, updatePrDraft } = require("../services/pr.service");
 const { fetchRfqsByPr } = require("../services/rfq.service");
 
 const router = express.Router();
@@ -175,19 +176,17 @@ router.post("/api/po/create", async (req, res) => {
 		const createdPo = sapResponse.data && sapResponse.data.d;
 		const realPoNum = createdPo ? createdPo.PoNumber : "PO_SUCCESS";
 
-		// ZPR_DRAFT khong co field PoNumber/PoCreatedAt rieng (khac approvalStore
-		// truoc day) — chi can Status="PO_CREATED" la du de /api/approval/approved
-		// loai PR nay khoi danh sach "cho tao PO". So PO that (realPoNum) da tra ve
-		// thang trong response API nay (PO01.controller.js doc res.poNumber), khong
-		// can luu lai tren ban ghi PR.
+		// ── CUA DUYET 2 (18/08/2026): PO tao xong CHUA gui cho NCC ──────────────
+		// Mail chi duoc gui o PATCH /api/po/:prId/approval sau khi CFO/CEO duyet
+		// (mo phong PO Release ME29N). Payload mail nguoi mua vua nhap (dia chi
+		// giao hang, nguoi nhan...) luu lai theo nhom de buoc duyet dung lai —
+		// xem po-approval.service.js (co fallback tu SAP neu store mat).
 		//
-		// TU 16/08/2026: 1 PR co the tach nhieu nhom (nhieu RFQ) -> nhieu PO. Dat PR
-		// sang PO_CREATED ngay sau PO DAU TIEN se lam PR bien mat khoi man PO-01 trong
-		// khi cac nhom con lai chua he co don hang. Nay: danh dau nhom vua tao xong
-		// (RfqSet.Status='PO_CREATED') truoc, chi khi MOI nhom deu xong moi ha PR.
-		// Khong can them field moi ben SAP — dung lai chinh field Status san co.
+		// Trang thai: danh dau nhom nay PO_CREATED tren RfqSet; khi MOI nhom cua
+		// PR deu da co PO thi chuyen PR sang PENDING_CFO (cho duyet don hang).
 		let poGroupsDone = 0;
 		let poGroupsTotal = 0;
+		let prPromoted = false;
 		try {
 			const approval = await fetchPrDraftById(prNumber);
 			if (!approval) {
@@ -196,6 +195,31 @@ router.post("/api/po/create", async (req, res) => {
 				if (rfqId) {
 					await sapWrite("MERGE", `RfqSet('${odataEscape(String(rfqId))}')`, { Status: "PO_CREATED" });
 				}
+
+				savePendingRelease(releaseKey(rfqId, prNumber), {
+					prNumber: String(prNumber || ""),
+					internalId: approval.InternalId || "",
+					rfqId: rfqId || "",
+					poNumber: String(realPoNum || ""),
+					vendorNo: String(vendorNo || ""),
+					vendorEmail: String(vendorEmail || "").trim(),
+					totalValue: totalValue,
+					currency: currency || ORG_DEFAULTS.currency,
+					mail: {
+						items: items,
+						currency: currency || ORG_DEFAULTS.currency,
+						docDate: docDate || "",
+						companyCode: companyCode || ORG_DEFAULTS.companyCode,
+						buyerName: buyerName || "",
+						buyerPhone: buyerPhone || "",
+						deliveryAddress: deliveryAddress || "",
+						receiverName: receiverName || "",
+						receiverPhone: receiverPhone || "",
+						deliveryDate: deliveryDate || "",
+						paymentMethod: paymentMethod || "",
+						paymentTerms: paymentTerms || ""
+					}
+				});
 
 				// Doc lai sau khi da MERGE de dem dung so nhom con lai.
 				let groups = [];
@@ -206,49 +230,42 @@ router.post("/api/po/create", async (req, res) => {
 				}
 				poGroupsTotal = groups.length;
 				poGroupsDone = groups.filter(function (g) {
-					return String(g.Status || "").toUpperCase() === "PO_CREATED";
+					const st = String(g.Status || "").toUpperCase();
+					return st === "PO_CREATED" || st === "PO_RELEASED" || st === "PO_REJECTED";
 				}).length;
 
-				// PR khong di qua RFQ (groups rong) van giu hanh vi cu: tao PO xong la het.
+				// PR khong di qua RFQ (groups rong): tao PO xong cung chuyen thang cho CFO.
 				const allDone = poGroupsTotal === 0 || poGroupsDone >= poGroupsTotal;
 				if (allDone) {
-					await updatePrDraft(approval.InternalId, { Status: "PO_CREATED" });
+					await updatePrDraft(approval.InternalId, { Status: "PENDING_CFO" });
+					prPromoted = true;
+					notifyRequester(
+						approval,
+						"Đơn hàng cho đề nghị " + approval.PRId + " đã được tạo (PO " + realPoNum
+						+ "), đang chờ CFO duyệt trước khi gửi nhà cung cấp."
+					);
+					await notifyCfo(
+						approval.PRId,
+						"PO " + realPoNum + " (PR " + approval.PRId + ") đang chờ duyệt trên màn PO-02."
+						+ (approval.needsProcurementHeadReview ? " Lưu ý: vượt ngưỡng IO — sau CFO sẽ cần CEO duyệt." : "")
+					);
 				} else {
 					console.log(`[POST /api/po/create] PR ${prNumber}: da tao PO cho ${poGroupsDone}/${poGroupsTotal} nhom `
-						+ `— giu PR o trang thai APPROVED de tao not cac nhom con lai.`);
+						+ `— giu PR o trang thai AWARDED de tao not cac nhom con lai.`);
 				}
 			}
 		} catch (mergeError) {
 			console.error("[POST /api/po/create] Cap nhat trang thai sau khi tao PO THAT BAI:", extractSapErrorMessage(mergeError));
 		}
-		console.log("=== BEFORE SEND EMAIL ===");
-
-		const isMailSent = await sendPOEmailToVendor(
-			vendorEmail,
-			realPoNum,
-			{
-				items,
-				currency,
-				docDate,
-				companyCode,
-				buyerName,
-				buyerPhone,
-				deliveryAddress,
-				receiverName,
-				receiverPhone,
-				deliveryDate,
-				paymentMethod,
-				paymentTerms
-			}
-		);
-		console.log("=== EMAIL SENT ===");
 
 
 		return res.status(201).json({
 			success: true,
 			sapIntegration: "created",
 			poNumber: realPoNum,
-			emailSent: isMailSent,
+			// 18/08/2026: KHONG gui mail o day nua — PO cho CFO/CEO duyet (PO-02).
+			pendingRelease: true,
+			prPromoted: prPromoted,
 			po: createdPo,
 			// FE dua vao 2 so nay de biet con nhom nao phai tao PO nua khong.
 			groupsDone: poGroupsDone,
@@ -301,5 +318,255 @@ router.post("/api/po/create", async (req, res) => {
 // cung voi man POReport (man do chua bao gio chay dung: view va controller lech phien ban).
 // Trong route cu co logic merge moc thoi gian duyet PR (PrDraftSet) vao PO — neu can tai
 // dung thi xem git: git show ce9d5ae~1:src/routes/po.routes.js
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// CUA DUYET 2 — CFO/CEO DUYET DON HANG (18/08/2026, mo phong ME29N)
+// "PR duyet nhu cau, PO duyet tien": PO da tao that tren SAP nhung chua gui
+// NCC; CFO xem gia chot so voi du toan roi moi release. Vuot nguong IO thi
+// CFO chuyen tiep len CEO (giu nguyen co che leo thang cu, chi doi doi tuong
+// tu PR sang PO). Tu choi -> PO_REJECTED: PO van nam trong EKKO (chua co
+// method ABAP huy PO — han che da biet, noi thang khi bao ve), he thong khong
+// gui mail va Purchasing chon lai NCC / tao PO moi.
+// ════════════════════════════════════════════════════════════════════════════
+
+// Danh sach PO cho duyet theo role (CFO: PENDING_CFO, CEO: PENDING_CEO).
+router.get("/api/po/pending-approval", async (req, res) => {
+	if (!process.env.SAP_HOST) {
+		return res.status(503).json({ success: false, message: "He thong SAP chua duoc cau hinh (thieu SAP_HOST)." });
+	}
+	const role = String(req.query.role || "CFO").toUpperCase();
+	if (role !== "CFO" && role !== "CEO") {
+		return res.status(400).json({ success: false, message: "role chi nhan CFO hoac CEO." });
+	}
+	const statusFilter = role === "CEO" ? "PENDING_CEO" : "PENDING_CFO";
+
+	try {
+		// Loc lai o Node — PRDRAFTSET_GET_ENTITYSET co the bo qua $filter (xem
+		// ghi chu o /api/approval/pending).
+		const data = (await fetchPrDraftList(`Status eq '${odataEscape(statusFilter)}'`))
+			.filter((pr) => String(pr.Status || "").toUpperCase() === statusFilter);
+		// RfqGroups (ten NCC, ly do chot, gia tung nhom) de man PO-02 hien du ngu canh.
+		await enrichWithRfqAward(data);
+
+		for (const pr of data) {
+			// So PO that tung dong tu EBAN — nguon su that, khong phu thuoc store file.
+			try { await attachPoNumbers(pr); } catch (e) {
+				console.error("[GET /api/po/pending-approval] attachPoNumbers:", e.message);
+			}
+			const aGroups = (pr.RfqGroups || []).filter(function (g) {
+				const st = String(g.Status || "").toUpperCase();
+				return st === "PO_CREATED" || st === "PO_RELEASED" || st === "PO_REJECTED";
+			});
+			if (aGroups.length > 0) {
+				pr.PoGroups = aGroups.map(function (g) {
+					const pending = getPendingRelease(releaseKey(g.RfqId, pr.PRId));
+					return Object.assign({}, g, {
+						PoNumber: (pending && pending.poNumber) || poNumberForGroup(pr, g.ItemLines) || ""
+					});
+				});
+			} else {
+				// PR khong di qua RFQ: dung 1 "nhom" gia lap tu store/EBAN.
+				const pending = getPendingRelease(releaseKey("", pr.PRId));
+				pr.PoGroups = [{
+					RfqId: "",
+					Status: "PO_CREATED",
+					AwardedVendor: (pending && pending.vendorNo) || "",
+					AwardedVendorName: "",
+					AwardReason: "",
+					ItemLines: "",
+					FinalValue: (pending && pending.totalValue) || pr.TotalValue,
+					Currency: pr.Currency,
+					PoNumber: (pending && pending.poNumber) || pr.PoNumberText || ""
+				}];
+			}
+		}
+
+		return res.json({ success: true, data });
+	} catch (error) {
+		const message = extractSapErrorMessage(error);
+		console.error("[GET /api/po/pending-approval] THAT BAI:", message);
+		return res.status(502).json({ success: false, message });
+	}
+});
+
+// CFO/CEO quyet dinh: APPROVED -> release moi nhom (PO_RELEASED + gui mail NCC);
+// CFO + vuot nguong IO -> chuyen CEO; REJECTED (bat buoc ly do) -> PO_REJECTED.
+router.patch("/api/po/:prId/approval", async (req, res) => {
+	const { prId } = req.params;
+	const { action, comment, decidedByEmail, decidedByRole } = req.body || {};
+
+	if (!process.env.SAP_HOST) {
+		return res.status(503).json({ success: false, message: "He thong SAP chua duoc cau hinh (thieu SAP_HOST)." });
+	}
+	const sRole = String(decidedByRole || "").toUpperCase();
+	const sAction = String(action || "").toUpperCase();
+	if (sRole !== "CFO" && sRole !== "CEO") {
+		return res.status(403).json({ success: false, message: "Chỉ CFO hoặc CEO được duyệt đơn hàng." });
+	}
+	if (sAction !== "APPROVED" && sAction !== "REJECTED") {
+		return res.status(400).json({ success: false, message: "action chỉ nhận APPROVED/REJECTED." });
+	}
+
+	let record;
+	try {
+		record = await fetchPrDraftById(prId);
+	} catch (error) {
+		const message = extractSapErrorMessage(error);
+		console.error("[PATCH /api/po/:prId/approval] Doc PrDraft THAT BAI:", message);
+		return res.status(502).json({ success: false, message });
+	}
+	if (!record) {
+		return res.status(404).json({ success: false, message: "Không tìm thấy đề nghị/PR " + prId + "." });
+	}
+	if (sRole === "CFO" && record.Status !== "PENDING_CFO") {
+		return res.status(400).json({ success: false, message: "PR " + prId + " không ở trạng thái chờ CFO duyệt đơn hàng." });
+	}
+	if (sRole === "CEO" && record.Status !== "PENDING_CEO") {
+		return res.status(400).json({ success: false, message: "PR " + prId + " không ở trạng thái chờ CEO duyệt đơn hàng." });
+	}
+
+	const nowIso = new Date().toISOString();
+	let groups = [];
+	try {
+		groups = await fetchRfqsByPr(record);
+	} catch (error) {
+		console.error("[PATCH /api/po/:prId/approval] Doc RFQ cua PR that bai:", extractSapErrorMessage(error));
+		groups = [];
+	}
+	const createdGroups = groups.filter(function (g) {
+		return String(g.Status || "").toUpperCase() === "PO_CREATED";
+	});
+
+	// ── TU CHOI ──────────────────────────────────────────────────────────────
+	if (sAction === "REJECTED") {
+		if (!comment || !String(comment).trim()) {
+			return res.status(400).json({ success: false, message: "Bắt buộc nhập lý do từ chối đơn hàng." });
+		}
+		try {
+			const session = await sapFetchCsrfToken();
+			for (const g of createdGroups) {
+				await sapWrite("MERGE", `RfqSet('${odataEscape(String(g.RfqId))}')`, { Status: "PO_REJECTED" }, session);
+			}
+			const sapFields = {
+				Status: "PO_REJECTED",
+				Comment: comment,
+				DecidedByEmail: decidedByEmail || "",
+				DecidedByRole: sRole
+			};
+			if (sRole === "CFO") {
+				sapFields.CfoProcessedBy = decidedByEmail || "";
+				sapFields.CfoAction = "REJECTED";
+				record.CfoAt = nowIso;
+			} else {
+				sapFields.CeoProcessedBy = decidedByEmail || "";
+				sapFields.CeoAction = "REJECTED";
+				record.CeoAt = nowIso;
+			}
+			Object.assign(record, sapFields, { UpdatedAt: nowIso });
+			await updatePrDraft(record.InternalId, sapFields);
+		} catch (error) {
+			const message = extractSapErrorMessage(error);
+			console.error("[PATCH /api/po/:prId/approval] MERGE (PO_REJECTED) THAT BAI:", message);
+			return res.status(502).json({ success: false, message });
+		}
+
+		notifyRequester(record, "Đơn hàng của đề nghị " + record.PRId + " bị " + sRole + " TỪ CHỐI. Lý do: " + comment);
+		await notifyPurchasing(
+			record.PRId,
+			"PO của PR " + record.PRId + " bị " + sRole + " từ chối: " + comment
+			+ " — chọn lại NCC hoặc điều chỉnh rồi tạo PO mới. (PO cũ chưa gửi NCC.)"
+		);
+		return res.json({ success: true, approval: record });
+	}
+
+	// ── DUYET ────────────────────────────────────────────────────────────────
+	// CFO + vuot nguong IO (tinh lai tren GIA THAT luc award — xem
+	// buildApprovalFlagsByCostCenter o /api/rfq/:id/award): chuyen CEO, PO van
+	// o PO_CREATED, CHUA release gi ca.
+	if (sRole === "CFO" && record.needsProcurementHeadReview) {
+		const t = record.ioThreshold;
+		const io = record.escalationIO || "";
+		const sapFields = {
+			Status: "PENDING_CEO",
+			EscalationReason: "Vượt ngưỡng Internal Order " + io + " ("
+				+ Number(t).toLocaleString("vi-VN") + " VND) — cần CEO duyệt đơn hàng.",
+			Comment: comment || record.Comment,
+			CfoProcessedBy: decidedByEmail || "",
+			CfoAction: "ESCALATED"
+		};
+		try {
+			await updatePrDraft(record.InternalId, sapFields);
+		} catch (error) {
+			const message = extractSapErrorMessage(error);
+			console.error("[PATCH /api/po/:prId/approval] MERGE (escalate CEO) THAT BAI:", message);
+			return res.status(502).json({ success: false, message });
+		}
+		Object.assign(record, sapFields, { CfoAt: nowIso, UpdatedAt: nowIso });
+
+		notifyRequester(record, "Đơn hàng của đề nghị " + record.PRId + " đã được CFO chuyển lên CEO (vượt ngưỡng IO).");
+		await notifyCeos(
+			record.PRId,
+			"PO của PR " + record.PRId + " leo thang lên CEO. " + record.EscalationReason
+			+ " Giá trị: " + Number(record.TotalValue).toLocaleString("vi-VN") + " " + record.Currency
+			+ ". Duyệt trên màn PO-02."
+		);
+		return res.json({ success: true, approval: record, escalated: true, reason: record.EscalationReason });
+	}
+
+	// Release: moi nhom PO_CREATED -> PO_RELEASED + gui mail cho NCC cua nhom do.
+	const released = [];
+	try {
+		const session = await sapFetchCsrfToken();
+		if (createdGroups.length > 0) {
+			for (const g of createdGroups) {
+				released.push(await releaseGroup(record, g, session));
+			}
+		} else {
+			released.push(await releaseGroup(record, null, session));
+		}
+
+		const sapFields = {
+			Status: "PO_RELEASED",
+			Comment: comment || record.Comment,
+			DecidedByEmail: decidedByEmail || "",
+			DecidedByRole: sRole
+		};
+		if (sRole === "CFO") {
+			sapFields.CfoProcessedBy = decidedByEmail || "";
+			sapFields.CfoAction = "APPROVED";
+			record.CfoAt = nowIso;
+		} else {
+			sapFields.CeoProcessedBy = decidedByEmail || "";
+			sapFields.CeoAction = "APPROVED";
+			record.CeoAt = nowIso;
+		}
+		Object.assign(record, sapFields, { UpdatedAt: nowIso });
+		await updatePrDraft(record.InternalId, sapFields);
+	} catch (error) {
+		const message = extractSapErrorMessage(error);
+		console.error("[PATCH /api/po/:prId/approval] Release THAT BAI:", message);
+		return res.status(502).json({ success: false, message, released });
+	}
+
+	const aPoNums = released.map(function (r) { return r.poNumber; }).filter(Boolean);
+	notifyRequester(
+		record,
+		"Đơn hàng của đề nghị " + record.PRId + " đã được " + sRole + " DUYỆT"
+		+ (aPoNums.length ? " (PO " + aPoNums.join(", ") + ")" : "")
+		+ " và gửi tới nhà cung cấp."
+	);
+	await notifyPurchasing(
+		record.PRId,
+		"PO của PR " + record.PRId + " đã được " + sRole + " duyệt — hệ thống đã gửi đơn hàng cho NCC."
+	);
+
+	return res.json({
+		success: true,
+		approval: record,
+		released: released,
+		emailsSent: released.filter(function (r) { return r.emailSent; }).length
+	});
+});
 
 module.exports = router;

@@ -27,8 +27,10 @@ sap.ui.define([
 	var BACKEND = Config.BACKEND;
 	var REQUEST_TIMEOUT_MS = 15000;
 
+	// 18/08/2026: man nay CHI con Purchasing (cua duyet 1 — duyet la tao PR that
+	// tren SAP). CFO/CEO duyet DON HANG tren man PO-02 sau khi da co gia bao that.
 	function isApproverRole(sRole) {
-		return sRole === "PURCHASING" || sRole === "CFO" || sRole === "CEO";
+		return sRole === "PURCHASING";
 	}
 
 	return Controller.extend("com.qdavy.procurement.controller.pr.PR02", {
@@ -46,8 +48,13 @@ sap.ui.define([
 
 		_onRouteMatched: function () {
 			var sRole = String(this.getOwnerComponent().getModel("user").getProperty("/role") || "").toUpperCase();
+			if (sRole === "CFO" || sRole === "CEO") {
+				// CFO/CEO gio duyet o cap DON HANG — dua thang sang PO-02.
+				this.getOwnerComponent().getRouter().navTo("po02");
+				return;
+			}
 			if (!isApproverRole(sRole)) {
-				MessageBox.error("Bạn không có quyền truy cập màn phê duyệt. Chỉ Purchasing, CFO hoặc CEO.");
+				MessageBox.error("Bạn không có quyền truy cập màn này. Chỉ Bộ phận mua sắm (Purchasing).");
 				this.getOwnerComponent().getRouter().navTo("dashboard");
 				return;
 			}
@@ -297,29 +304,18 @@ sap.ui.define([
 		_openDecisionDialog: function (sPRId, nTotalValue, sCurrency, sStatus) {
 			var that = this;
 			var bIsApprove = sStatus === "APPROVED";
-			var sRole = String(this.getOwnerComponent().getModel("user").getProperty("/role") || "").toUpperCase();
-			// Purchasing từ chối = TRẢ LẠI cho người tạo sửa & gửi lại (không phải kết thúc
-			// hẳn như CFO/CEO) — đổi toàn bộ wording cho khớp quy trình.
-			var bIsReturn = !bIsApprove && sRole === "PURCHASING";
 
-			var sRoleHint = "";
-			if (bIsApprove && sRole === "PURCHASING") {
-				sRoleHint = "\n\nSau khi bạn duyệt, đề nghị chuyển sang bước hỏi giá nhà cung cấp (tạo RFQ trên màn RFQ-01).";
-			} else if (bIsApprove && sRole === "CFO") {
-				sRoleHint = "\n\n≤ ngưỡng Internal Order: ghi SAP ngay. Vượt ngưỡng IO: chuyển CEO.";
-			} else if (bIsApprove && sRole === "CEO") {
-				sRoleHint = "\n\nDuyệt cuối → hệ thống ghi PR lên SAP và cấp số PR thật.";
-			} else if (bIsReturn) {
-				sRoleHint = "\n\nĐề nghị sẽ bị TRẢ LẠI — người tạo nhận thông báo kèm lý do, có thể sửa và gửi lại.";
-			}
+			var sRoleHint = bIsApprove
+				? "\n\nSau khi duyệt, hệ thống TẠO PR THẬT trên SAP (tra được ở ME53N) và chuyển sang bước hỏi giá (RFQ-01)."
+				: "\n\nTừ chối là KẾT THÚC đề nghị này — người tạo nhận lý do và có thể lập đề nghị mới (dữ liệu được điền sẵn).";
 
-			var sAction = bIsApprove ? "PHÊ DUYỆT" : (bIsReturn ? "TRẢ LẠI" : "TỪ CHỐI");
-			var sSummary = "PR: " + sPRId
+			var sAction = bIsApprove ? "PHÊ DUYỆT" : "TỪ CHỐI";
+			var sSummary = "Đề nghị: " + sPRId
 				+ "\nGiá trị: " + Number(nTotalValue).toLocaleString("vi-VN") + " " + (sCurrency || "VND")
 				+ "\nHành động: " + sAction
 				+ sRoleHint;
 
-			var sReasonLabel = bIsReturn ? "Lý do trả lại (bắt buộc)" : "Lý do từ chối (bắt buộc)";
+			var sReasonLabel = "Lý do từ chối (bắt buộc)";
 			var oTextArea = new TextArea({
 				width: "100%",
 				rows: 3,
@@ -331,7 +327,7 @@ sap.ui.define([
 
 			var oDialog = new Dialog({
 				type: DialogType.Message,
-				title: bIsApprove ? "Xác nhận phê duyệt" : (bIsReturn ? "Xác nhận trả lại" : "Xác nhận từ chối"),
+				title: bIsApprove ? "Xác nhận phê duyệt" : "Xác nhận từ chối",
 				content: [
 					new VBox({
 						items: [
@@ -345,13 +341,13 @@ sap.ui.define([
 					})
 				],
 				beginButton: new Button({
-					text: bIsApprove ? "Phê duyệt" : (bIsReturn ? "Trả lại" : "Từ chối"),
+					text: bIsApprove ? "Phê duyệt" : "Từ chối",
 					type: bIsApprove ? ButtonType.Accept : ButtonType.Reject,
 					press: function () {
 						var sComment = oTextArea.getValue().trim();
 						if (!bIsApprove && !sComment) {
 							oTextArea.setValueState("Error");
-							oTextArea.setValueStateText(bIsReturn ? "Vui lòng nhập lý do trả lại." : "Vui lòng nhập lý do từ chối.");
+							oTextArea.setValueStateText("Vui lòng nhập lý do từ chối.");
 							return;
 						}
 						oDialog.close();
@@ -400,37 +396,19 @@ sap.ui.define([
 					}
 
 					var sMsg;
-					if (oResult.forwarded === "RFQ") {
-						sMsg = sPRId + " đã duyệt hợp lệ.\nTiếp theo: tạo RFQ hỏi giá nhà cung cấp trên màn RFQ-01. Chưa ghi SAP.";
-						MessageBox.information(sMsg, { title: "Đã duyệt — chuyển bước RFQ" });
-					} else if (oResult.returned) {
-						sMsg = sPRId + " đã bị trả lại.\nNgười tạo đã được thông báo kèm lý do, có thể sửa và gửi lại.";
-						MessageBox.warning(sMsg, { title: "Đã trả lại" });
-					} else if (oResult.forwarded === "CFO") {
-						sMsg = sPRId + " đã chuyển sang CFO.\nNgười tạo và CFO đã được thông báo. Chưa ghi SAP.";
-						MessageBox.information(sMsg, { title: "Đã chuyển CFO" });
-					} else if (oResult.escalated) {
-						sMsg = sPRId + " đã chuyển lên CEO.\n"
-							+ (oResult.reason || "Vượt ngưỡng — cần CEO.")
-							+ "\nNgười tạo và CEO đã được thông báo. Chưa ghi SAP.";
-						MessageBox.information(sMsg, { title: "Leo thang CEO" });
+					if (sStatus === "APPROVED" && oResult.sapPrNumber) {
+						// Duyet = da TAO PR THAT tren SAP ngay tai buoc nay (ME51N).
+						sMsg = "Đã duyệt " + sPRId + ".\n"
+							+ "Đã tạo PR trên SAP — số PR: " + oResult.sapPrNumber + " (tra cứu ME53N).\n"
+							+ "Tiếp theo: tạo RFQ hỏi giá nhà cung cấp trên màn RFQ-01.";
+						MessageBox.success(sMsg, { title: "Đã duyệt — PR " + oResult.sapPrNumber });
 					} else if (sStatus === "APPROVED") {
-						if (oResult.sapIntegration === "created" && oResult.sapPrNumber) {
-							sMsg = "Đã phê duyệt " + sPRId + ".\n"
-								+ "Đã ghi SAP — số PR: " + oResult.sapPrNumber + " (ME53N).\n"
-								+ "Người tạo đã được thông báo.";
-							MessageBox.success(sMsg, { title: "Phê duyệt thành công" });
-						} else if (oResult.sapPrNumber) {
-							MessageBox.success("Đã phê duyệt. Số PR SAP: " + oResult.sapPrNumber + " (ME53N).", {
-								title: "Phê duyệt thành công"
-							});
-						} else {
-							MessageToast.show("Đã phê duyệt " + sPRId + ".", { duration: 4000 });
-						}
+						MessageToast.show("Đã phê duyệt " + sPRId + ".", { duration: 4000 });
 					} else {
-						MessageBox.warning("Đã từ chối " + sPRId + ".\nNgười tạo đã được thông báo.", {
-							title: "Đã từ chối"
-						});
+						MessageBox.warning(
+							"Đã từ chối " + sPRId + ".\nNgười tạo đã được thông báo kèm lý do, có thể lập đề nghị mới.",
+							{ title: "Đã từ chối" }
+						);
 					}
 
 					var fnKeep = function (pr) {

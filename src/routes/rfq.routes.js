@@ -11,7 +11,7 @@ const { describePaymentTerms } = require("../config/payment-terms");
 const { extractSapErrorMessage, odataEscape, sapFetchCsrfToken, sapRead, sapWrite } = require("../lib/sap-client");
 const { boolToSapX, normalizeSapDeadline, rfqTimesToIso, sapDateOnly, sapTimestamp } = require("../lib/sap-format");
 const { buildApprovalFlagsByCostCenter } = require("../services/approval.service");
-const { notifyCfo, notifyRequester } = require("../services/notify.service");
+const { notifyPurchasing, notifyRequester } = require("../services/notify.service");
 const { fetchPrDraftById, fetchPrDraftByRfq, updatePrDraft } = require("../services/pr.service");
 const { sendRfqInviteEmails } = require("../services/rfq-mail.service");
 const { appBaseUrl, rfqQuoteLink } = require("../services/rfq-portal.service");
@@ -509,7 +509,8 @@ router.get("/api/rfq/:id/compare", async (req, res) => {
 	}
 });
 
-// 5) Chot NCC thang — bat buoc >=2 bao gia RECEIVED + ly do, chuyen PR goc sang PENDING_CFO
+// 5) Chot NCC thang — bat buoc >=2 bao gia RECEIVED + ly do. Moi nhom chot xong
+// -> PR sang AWARDED de PO-01 tao don hang; CFO chi duyet SAU khi PO da tao.
 router.post("/api/rfq/:id/award", async (req, res) => {
 	const { id } = req.params;
 	const { vendorNo, awardReason, awardedBy, soleSourceReason } = req.body || {};
@@ -569,15 +570,16 @@ router.post("/api/rfq/:id/award", async (req, res) => {
 			session
 		);
 
-		// Cap nhat trang thai PR goc sang PENDING_CFO tren PrDraftSet.
+		// Cap nhat trang thai PR goc sang AWARDED tren PrDraftSet (18/08/2026 —
+		// truoc day la PENDING_CFO; nay CFO duyet o cap PO, sau khi PO da tao).
 		const rfqResp = await sapRead(`RfqSet('${odataEscape(id)}')`);
 		const rfq = rfqResp.data && rfqResp.data.d;
 		const prRecord = rfq && await fetchPrDraftByRfq(rfq);
 
 		// ── CHO DU MOI NHOM ROI MOI DAY PR LEN CFO ──────────────────────────────
 		// 1 PR gio co the co N RFQ (moi nhom dong 1 NCC). Chot xong nhom nay ma cac
-		// nhom con lai chua co bao gia thi CHUA duoc chuyen PR sang PENDING_CFO —
-		// CFO se duyet tren mot con so thieu. Doc lai TAT CA RFQ cua PR (ban vua
+		// nhom con lai chua co bao gia thi CHUA duoc chuyen PR sang AWARDED —
+		// gia tong cua PR se thieu. Doc lai TAT CA RFQ cua PR (ban vua
 		// MERGE o tren da nam trong ket qua doc lai nay) roi moi quyet dinh.
 		let siblingRfqs = [];
 		if (prRecord) {
@@ -630,7 +632,7 @@ router.post("/api/rfq/:id/award", async (req, res) => {
 			prRecord.ioThreshold = recalculatedFlags.ioThreshold;
 			prRecord.escalationIO = recalculatedFlags.escalationIO;
 
-			prRecord.Status = "PENDING_CFO";
+			prRecord.Status = "AWARDED";
 			prRecord.UpdatedAt = new Date().toISOString();
 			prRecord.RfqId = id;
 			// PR nhieu nhom = nhieu NCC thang thau khac nhau -> 1 field RfqAwardedVendor
@@ -650,7 +652,7 @@ router.post("/api/rfq/:id/award", async (req, res) => {
 				NeedsLegalReview: boolToSapX(recalculatedFlags.needsLegalReview),
 				IoThreshold: recalculatedFlags.ioThreshold != null ? String(recalculatedFlags.ioThreshold) : "0",
 				EscalationIO: recalculatedFlags.escalationIO || "",
-				Status: "PENDING_CFO",
+				Status: "AWARDED",
 				RfqId: id,
 				RfqAwardedVendor: isMultiGroup ? "" : String(vendorNo),
 				RfqFinalValue: String(prFinalValue)
@@ -662,12 +664,14 @@ router.post("/api/rfq/:id/award", async (req, res) => {
 
 			notifyRequester(
 				prRecord,
-				"RFQ " + id + " da chon nha cung cap " + vendorNo + ". De nghi " + prRecord.PRId + " chuyen sang cho CFO xem xet" + groupNote + "."
+				"RFQ " + id + " đã chọn nhà cung cấp " + vendorNo + ". Đề nghị " + prRecord.PRId
+				+ " chuyển sang bước tạo đơn hàng (PO)" + groupNote + " — CFO sẽ duyệt đơn hàng trước khi gửi NCC."
 			);
-			await notifyCfo(
+			await notifyPurchasing(
 				prRecord.PRId,
-				"RFQ " + id + " da chon NCC " + vendorNo + " — gia tri bao gia "
-				+ Number(prFinalValue).toLocaleString("vi-VN") + " " + finalCurrency + groupNote + ". Cho CFO duyet."
+				"RFQ " + id + " đã chốt NCC " + vendorNo + " — giá "
+				+ Number(prFinalValue).toLocaleString("vi-VN") + " " + finalCurrency + groupNote
+				+ ". Vào màn PO-01 tạo đơn hàng; CFO duyệt PO trước khi gửi NCC."
 			);
 		} else {
 			console.error(`[POST /api/rfq/${id}/award] Khong tim thay PR tuong ung tren SAP de cap nhat trang thai.`);

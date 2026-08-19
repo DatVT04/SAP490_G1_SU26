@@ -1,0 +1,179 @@
+<mvc:View
+	controllerName="com.qdavy.procurement.controller.po.PO02"
+	xmlns="sap.m"
+	xmlns:mvc="sap.ui.core.mvc"
+	xmlns:core="sap.ui.core"
+	displayBlock="true"
+>
+	<Page showHeader="false" class="qdInnerPage">
+		<content>
+
+			<VBox class="qdPageHero qdPageHeroPurple">
+				<HBox alignItems="Center" justifyContent="SpaceBetween" wrap="Wrap">
+					<HBox alignItems="Center">
+						<Button icon="sap-icon://nav-back" press=".onNavBack" class="qdHeroBackBtn"/>
+						<VBox>
+							<Text text="{/pageEyebrow}" class="qdPageEyebrow"/>
+							<Title text="Duyệt đơn hàng (PO)" level="H1" class="qdPageTitle"/>
+							<Text text="PO đã tạo trên SAP nhưng CHƯA gửi nhà cung cấp. Duyệt xong hệ thống mới gửi email đơn hàng." class="qdPageSub"/>
+						</VBox>
+					</HBox>
+					<Button
+						icon="sap-icon://refresh"
+						text="Tải lại"
+						press=".onRefreshPress"
+						class="qdHeroBtn"
+					/>
+				</HBox>
+
+				<HBox class="qdFlowSteps">
+					<Text text="RFQ Chốt NCC" class="qdFlowStep"/>
+					<core:Icon src="sap-icon://navigation-right-arrow" class="qdFlowArrow"/>
+					<Text text="PO-01 Tạo đơn hàng" class="qdFlowStep"/>
+					<core:Icon src="sap-icon://navigation-right-arrow" class="qdFlowArrow"/>
+					<Text text="PO-02 Duyệt &amp; gửi NCC" class="qdFlowStep qdFlowStepActive"/>
+				</HBox>
+			</VBox>
+
+			<VBox class="qdContentCard qdCardTight">
+				<HBox alignItems="Center" class="sapUiSmallMargin">
+					<core:Icon src="sap-icon://order-status" class="qdCardIcon sapUiTinyMarginEnd"/>
+					<Title text="Đơn hàng đang chờ duyệt ({= ${/pending}.length })" level="H3" class="qdCardTitle"/>
+				</HBox>
+
+				<VBox
+					class="qdEmptyState"
+					alignItems="Center"
+					visible="{= ${/pending}.length === 0 }"
+				>
+					<core:Icon src="sap-icon://complete" class="qdEmptyIcon"/>
+					<Title text="Không có đơn hàng nào đang chờ" level="H3" class="qdEmptyTitle"/>
+					<Text text="Tất cả PO đã được xử lý. Bấm Tải lại để cập nhật." class="qdEmptyText" textAlign="Center"/>
+				</VBox>
+
+				<ScrollContainer
+					height="calc(100vh - 18rem)"
+					width="100%"
+					vertical="true"
+					horizontal="false"
+					focusable="false"
+					visible="{= ${/pending}.length > 0 }"
+				>
+				<List
+					id="poPendingList"
+					items="{/pending}"
+					mode="None"
+					showSeparators="None"
+					growing="true"
+					growingThreshold="5"
+					growingScrollToLoad="true"
+					class="qdApprovalList"
+				>
+					<CustomListItem>
+						<VBox class="qdApprovalCard">
+
+							<HBox justifyContent="SpaceBetween" alignItems="Center" wrap="Wrap" class="qdApprovalCardHeader">
+								<HBox alignItems="Center">
+									<core:Icon src="sap-icon://sales-order" class="qdPRIcon sapUiTinyMarginEnd"/>
+									<VBox>
+										<ObjectIdentifier title="PR {DisplayId}" text="Người đề nghị: {RequesterEmail}"/>
+										<Text text="Chốt NCC lúc: {path: 'UpdatedAt', formatter: '.formatDateTime'}" class="qdCellHint sapUiTinyMarginTop"/>
+									</VBox>
+								</HBox>
+
+								<HBox wrap="Wrap" alignItems="Center">
+									<ObjectStatus
+										text="Vượt ngưỡng IO — cần CEO"
+										state="Error"
+										visible="{needsProcurementHeadReview}"
+										icon="sap-icon://alert"
+										class="qdBadgeDanger sapUiTinyMarginEnd"
+									/>
+									<ObjectStatus
+										text="Giá trị lớn — xem kỹ"
+										state="Warning"
+										visible="{= ${needsLegalReview} &amp;&amp; !${needsProcurementHeadReview} }"
+										icon="sap-icon://warning"
+										class="qdBadgeWarning sapUiTinyMarginEnd"
+									/>
+									<ObjectStatus
+										text="Trong ngưỡng thường"
+										state="Success"
+										visible="{= !${needsLegalReview} &amp;&amp; !${needsProcurementHeadReview} }"
+										icon="sap-icon://accept"
+										class="qdBadgeOk"
+									/>
+								</HBox>
+							</HBox>
+
+							<!-- GIA UOC TINH vs GIA CHOT — day chinh la thu CFO can de biet NCC
+							     co "het gia" hay khong. EstimatedTotalValue = snapshot luc lap
+							     de nghi; TotalValue = tong gia trung thau sau RFQ. -->
+							<HBox wrap="Wrap" class="qdInfoRow sapUiTinyMarginTopBottom">
+								<VBox class="qdInfoCell">
+									<Text text="Giá ước tính ban đầu" class="qdInfoLabel"/>
+									<Text text="{parts: ['EstimatedTotalValue','Currency'], formatter: '.formatValue'}" class="qdInfoValue"/>
+								</VBox>
+								<VBox class="qdInfoCell">
+									<Text text="Giá chốt sau báo giá" class="qdInfoLabel"/>
+									<Title text="{parts: ['TotalValue','Currency'], formatter: '.formatValue'}" level="H3" class="qdRowAmount"/>
+								</VBox>
+								<VBox class="qdInfoCell">
+									<Text text="Chênh lệch" class="qdInfoLabel"/>
+									<ObjectStatus
+										text="{parts: ['EstimatedTotalValue','TotalValue'], formatter: '.formatDiff'}"
+										state="{parts: ['EstimatedTotalValue','TotalValue'], formatter: '.formatDiffState'}"
+									/>
+								</VBox>
+							</HBox>
+
+							<!-- Tung PO trong PR (moi nhom NCC 1 PO) -->
+							<VBox class="qdAwardBox sapUiTinyMarginTopBottom">
+								<HBox alignItems="Center" class="sapUiTinyMarginBottom">
+									<core:Icon src="sap-icon://supplier" class="qdAwardIcon sapUiTinyMarginEnd"/>
+									<Text text="Đơn hàng chờ duyệt trong đề nghị này" class="qdInfoLabel"/>
+								</HBox>
+								<List items="{PoGroups}" showSeparators="Inner">
+									<StandardListItem
+										title="{= 'PO ' + (${PoNumber} || '(chưa đọc được số)') + ' — ' + (${AwardedVendorName} || ${AwardedVendor} || 'NCC ?') }"
+										description="{= (${RfqId} ? ${RfqId} + ' · ' : '') + (${ItemLines} ? ('dòng ' + ${ItemLines}) : 'toàn bộ dòng') + ' · Lý do chọn: ' + (${AwardReason} || '(chưa ghi)') }"
+										info="{parts: ['FinalValue','Currency'], formatter: '.formatValue'}"
+										infoState="{= ${Status} === 'PO_RELEASED' ? 'Success' : (${Status} === 'PO_REJECTED' ? 'Error' : 'Warning') }"
+										icon="sap-icon://sales-order-item"
+										wrapping="true"
+									/>
+								</List>
+							</VBox>
+
+							<HBox justifyContent="End" alignItems="Center" class="qdRowActions sapUiSmallMarginTop">
+								<Button
+									text="Chi tiết đề nghị"
+									type="Transparent"
+									icon="sap-icon://detail-view"
+									press=".onDetailPress"
+									class="sapUiSmallMarginEnd"
+								/>
+								<Button
+									text="Từ chối"
+									type="Reject"
+									icon="sap-icon://decline"
+									press=".onRejectPress"
+									class="sapUiSmallMarginEnd"
+								/>
+								<Button
+									text="Duyệt &amp; gửi NCC"
+									type="Accept"
+									icon="sap-icon://accept"
+									press=".onApprovePress"
+								/>
+							</HBox>
+
+						</VBox>
+					</CustomListItem>
+				</List>
+				</ScrollContainer>
+			</VBox>
+
+		</content>
+	</Page>
+</mvc:View>

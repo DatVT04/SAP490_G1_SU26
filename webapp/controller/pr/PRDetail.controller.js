@@ -15,13 +15,17 @@ sap.ui.define([
 		PENDING_RFQ: "Đã duyệt hợp lệ — đang ở bước hỏi giá (RFQ)",
 		RFQ_SENT: "Đã gửi RFQ tới nhà cung cấp, chờ báo giá",
 		QUOTATIONS_RECEIVED: "Đã nhận báo giá, chờ Purchasing chốt nhà cung cấp",
-		PENDING_CFO: "Đang chờ CFO duyệt",
-		PENDING_CEO: "Đang chờ CEO duyệt (đã leo thang)",
+		AWARDED: "Đã chốt NCC — chờ tạo đơn hàng (PO)",
+		PENDING_CFO: "PO đã tạo — chờ CFO duyệt đơn hàng",
+		PENDING_CEO: "PO vượt ngưỡng IO — chờ CEO duyệt đơn hàng",
 		APPROVED: "Đã phê duyệt",
-		REJECTED: "Đã từ chối",
-		RETURNED: "Bị Purchasing trả lại — có thể sửa và gửi lại",
-		CANCELLED: "Đã hủy (đã được gửi lại bằng đề nghị mới)",
+		REJECTED: "Bị Purchasing từ chối — có thể lập đề nghị mới",
+		// 2 trang thai cu (truoc 18/08/2026) — chi de hien ban ghi cu, khong sinh moi.
+		RETURNED: "Bị trả lại (luồng cũ)",
+		CANCELLED: "Đã hủy (luồng cũ)",
 		PO_CREATED: "Đã tạo Purchase Order",
+		PO_RELEASED: "PO đã duyệt và gửi nhà cung cấp",
+		PO_REJECTED: "PO bị từ chối — chưa gửi nhà cung cấp",
 		OPENED: "Đã mở",
 		OPEN: "Đã mở"
 	};
@@ -31,6 +35,7 @@ sap.ui.define([
 		PENDING_RFQ: "Warning",
 		RFQ_SENT: "Warning",
 		QUOTATIONS_RECEIVED: "Warning",
+		AWARDED: "Warning",
 		PENDING_CFO: "Warning",
 		PENDING_CEO: "Warning",
 		APPROVED: "Success",
@@ -38,6 +43,8 @@ sap.ui.define([
 		RETURNED: "Error",
 		CANCELLED: "None",
 		PO_CREATED: "Success",
+		PO_RELEASED: "Success",
+		PO_REJECTED: "Error",
 		OPENED: "Success",
 		OPEN: "Success"
 	};
@@ -83,9 +90,7 @@ sap.ui.define([
 		if (pr.PurchasingAction === "APPROVED") {
 			purchasingSub = "Đã duyệt" + (pr.PurchasingApprovedBy ? " · " + pr.PurchasingApprovedBy : "");
 		} else if (pr.PurchasingAction === "REJECTED") {
-			// Purchasing từ chối = TRẢ LẠI để sửa (khác CFO/CEO từ chối là kết thúc hẳn)
-			purchasingSub = (String(pr.Status || "").toUpperCase() === "RETURNED" ? "Trả lại để sửa" : "Từ chối")
-				+ (pr.PurchasingApprovedBy ? " · " + pr.PurchasingApprovedBy : "");
+			purchasingSub = "Từ chối" + (pr.PurchasingApprovedBy ? " · " + pr.PurchasingApprovedBy : "");
 		} else if (purchasingActive) {
 			purchasingSub = "Đang chờ";
 		}
@@ -103,7 +108,7 @@ sap.ui.define([
 
 		// 3. RFQ — chỉ hiện với PR thực sự đi qua luồng hỏi giá (không phải PR nào cũng cần).
 		// Nhận biết bằng RfqId đã gắn, hoặc PR đang đứng ở 1 trong 3 trạng thái RFQ.
-		var RFQ_STATUSES = ["PENDING_RFQ", "RFQ_SENT", "QUOTATIONS_RECEIVED"];
+		var RFQ_STATUSES = ["PENDING_RFQ", "RFQ_SENT", "QUOTATIONS_RECEIVED", "AWARDED"];
 		var rfqActive = RFQ_STATUSES.indexOf(status) !== -1;
 		var hasRfq = !!pr.RfqId || rfqActive || !!pr.RfqAwardedVendor;
 
@@ -119,6 +124,8 @@ sap.ui.define([
 				rfqSub = "Đã gửi NCC, chờ báo giá";
 			} else if (status === "QUOTATIONS_RECEIVED") {
 				rfqSub = "Đã nhận báo giá, chờ chốt NCC";
+			} else if (status === "AWARDED") {
+				rfqSub = "Đã chốt NCC, chờ tạo đơn hàng (PO)";
 			}
 
 			// Các route RFQ chỉ cập nhật UpdatedAt chứ chưa ghi mốc thời gian riêng cho
@@ -152,7 +159,7 @@ sap.ui.define([
 			}
 
 			steps.push({
-				title: "CFO",
+				title: "CFO duyệt PO",
 				icon: pr.CfoAction === "REJECTED"
 					? "sap-icon://decline"
 					: (pr.CfoAction === "ESCALATED" ? "sap-icon://arrow-top" : "sap-icon://customer-financial-fact-sheet"),
@@ -186,7 +193,7 @@ sap.ui.define([
 			}
 
 			steps.push({
-				title: "CEO",
+				title: "CEO duyệt PO",
 				icon: pr.CeoAction === "REJECTED" ? "sap-icon://decline" : "sap-icon://manager",
 				timeText: formatViTime(ceoTime),
 				sub: ceoSub,
@@ -202,15 +209,24 @@ sap.ui.define([
 		// lai cang hien "Chua hoan tat" (feedback 14/08). Voi pham vi do an
 		// (GR/Invoice khong code), PO_CREATED chinh la trang thai ket thuc.
 		var isApproved = status === "APPROVED" || status === "OPENED" || status === "OPEN";
-		var isPoCreated = status === "PO_CREATED";
-		var isRejected = status === "REJECTED";
-		var finalDone = isApproved || isPoCreated || isRejected;
+		var isPoCreated = status === "PO_CREATED" || status === "PO_RELEASED";
+		var isPoRejected = status === "PO_REJECTED";
+		var isRejected = status === "REJECTED" || status === "RETURNED";
+		var finalDone = isApproved || isPoCreated || isRejected || isPoRejected;
 		var finalTime = finalDone ? (pr.UpdatedAt || pr.CeoAt || pr.CfoAt || pr.PurchasingAt || "") : "";
 		var finalTitle = "Hoàn tất";
 		var finalSub = "Chưa hoàn tất";
 		var finalIcon = "sap-icon://complete";
 
-		if (isPoCreated) {
+		if (status === "PO_RELEASED") {
+			finalTitle = "Hoàn tất — PO đã duyệt & gửi NCC";
+			finalSub = pr.SapPRId ? ("PR SAP: " + pr.SapPRId) : "Đơn hàng đã gửi nhà cung cấp";
+			finalIcon = "sap-icon://sales-order";
+		} else if (isPoRejected) {
+			finalTitle = "PO bị từ chối";
+			finalSub = pr.Comment || "Purchasing cần chọn lại NCC / tạo PO mới";
+			finalIcon = "sap-icon://decline";
+		} else if (isPoCreated) {
 			finalTitle = "Hoàn tất — Đã tạo PO";
 			finalSub = pr.SapPRId ? ("PR SAP: " + pr.SapPRId) : "Đã tạo Purchase Order";
 			finalIcon = "sap-icon://sales-order";
@@ -250,11 +266,14 @@ sap.ui.define([
 		if (st === "QUOTATIONS_RECEIVED") {
 			return { text: "Đã nhận được báo giá, đang chờ Purchasing chốt nhà cung cấp.", type: "Warning" };
 		}
+		if (st === "AWARDED") {
+			return { text: "Đã chốt nhà cung cấp — Purchasing đang tạo đơn hàng (PO).", type: "Warning" };
+		}
 		if (st === "PENDING_CFO") {
-			return { text: "Đã qua Purchasing — đang chờ CFO phê duyệt.", type: "Warning" };
+			return { text: "Đơn hàng (PO) đã tạo trên SAP — đang chờ CFO duyệt trước khi gửi nhà cung cấp.", type: "Warning" };
 		}
 		if (st === "PENDING_CEO") {
-			return { text: "Giá trị cao — đang chờ CEO phê duyệt.", type: "Warning" };
+			return { text: "Đơn hàng vượt ngưỡng ngân sách IO — đang chờ CEO duyệt.", type: "Warning" };
 		}
 		if (st === "APPROVED" || st === "OPENED" || st === "OPEN") {
 			return {
@@ -264,16 +283,10 @@ sap.ui.define([
 				type: "Success"
 			};
 		}
-		if (st === "REJECTED") {
+		if (st === "REJECTED" || st === "RETURNED") {
 			return {
-				text: "Đề nghị đã bị từ chối" + (pr.Comment ? (": " + pr.Comment) : "."),
-				type: "Error"
-			};
-		}
-		if (st === "RETURNED") {
-			return {
-				text: "Đề nghị bị Purchasing trả lại" + (pr.Comment ? (": " + pr.Comment) : ".")
-					+ " Bạn có thể sửa và gửi lại bằng nút bên dưới.",
+				text: "Đề nghị bị Purchasing từ chối" + (pr.Comment ? (": " + pr.Comment) : ".")
+					+ " Bạn có thể lập đề nghị mới (dữ liệu điền sẵn) bằng nút bên dưới.",
 				type: "Error"
 			};
 		}
@@ -288,6 +301,16 @@ sap.ui.define([
 				text: "Đã tạo Purchase Order từ đề nghị này"
 					+ (pr.SapPRId ? (" (PR SAP: " + pr.SapPRId + ")") : "") + ".",
 				type: "Success"
+			};
+		}
+		if (st === "PO_RELEASED") {
+			return { text: "Đơn hàng đã được duyệt và gửi tới nhà cung cấp.", type: "Success" };
+		}
+		if (st === "PO_REJECTED") {
+			return {
+				text: "Đơn hàng bị từ chối" + (pr.Comment ? (": " + pr.Comment) : ".")
+					+ " Chưa gửi gì cho nhà cung cấp — Purchasing sẽ chọn lại NCC hoặc tạo PO mới.",
+				type: "Error"
 			};
 		}
 		return { text: "", type: "Information" };
@@ -339,11 +362,12 @@ sap.ui.define([
 					pr.statusHint = hint.text;
 					pr.statusStripType = hint.type;
 
-					// Chỉ chính người tạo mới được sửa & gửi lại, và chỉ khi PR đang RETURNED
+					// Chỉ chính người tạo mới được lập lại, và chỉ khi đề nghị đã bị từ chối
+					// (REJECTED — luồng mới; RETURNED chỉ còn ở bản ghi cũ, hiển thị thôi).
 					var sUserEmail = String(
 						this.getOwnerComponent().getModel("user").getProperty("/email") || ""
 					).toLowerCase();
-					pr.canResubmit = String(pr.Status || "").toUpperCase() === "RETURNED"
+					pr.canResubmit = String(pr.Status || "").toUpperCase() === "REJECTED"
 						&& String(pr.RequesterEmail || "").toLowerCase() === sUserEmail;
 
 					oModel.setData(pr);

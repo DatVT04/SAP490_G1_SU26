@@ -108,11 +108,11 @@ sap.ui.define([
 				oModel.setProperty("/historyTitle", "Đã xử lý (Purchasing)");
 			} else if (sRole === "CFO") {
 				oModel.setProperty("/pageTitle", "CFO — Pending & History");
-				oModel.setProperty("/pendingTitle", "Chờ CFO duyệt");
+				oModel.setProperty("/pendingTitle", "Đơn hàng (PO) chờ CFO duyệt");
 				oModel.setProperty("/historyTitle", "Đã xử lý (CFO)");
 			} else if (sRole === "CEO") {
 				oModel.setProperty("/pageTitle", "CEO — Pending & History");
-				oModel.setProperty("/pendingTitle", "Chờ CEO duyệt");
+				oModel.setProperty("/pendingTitle", "Đơn hàng (PO) chờ CEO duyệt");
 				oModel.setProperty("/historyTitle", "Đã xử lý (CEO)");
 			} else {
 				oModel.setProperty("/pageTitle", "Lịch sử đề nghị");
@@ -268,13 +268,16 @@ sap.ui.define([
 				PENDING_RFQ: "Đã duyệt hợp lệ — chờ hỏi giá (RFQ)",
 				RFQ_SENT: "Đã gửi RFQ, chờ báo giá",
 				QUOTATIONS_RECEIVED: "Đã có báo giá",
-				PENDING_CFO: "Chờ CFO",
-				PENDING_CEO: "Chờ CEO",
+				AWARDED: "Đã chốt NCC — chờ tạo PO",
+				PENDING_CFO: "Chờ CFO duyệt PO",
+				PENDING_CEO: "Chờ CEO duyệt PO",
 				APPROVED: "Đã duyệt",
-				REJECTED: "Từ chối",
-				RETURNED: "Bị trả lại — cần sửa & gửi lại",
-				CANCELLED: "Đã hủy (đã gửi lại bản mới)",
-				PO_CREATED: "Đã tạo PO",
+				REJECTED: "Từ chối — có thể lập lại",
+				RETURNED: "Bị trả lại (luồng cũ)",
+				CANCELLED: "Đã hủy (luồng cũ)",
+				PO_CREATED: "Đã tạo PO — chờ duyệt",
+				PO_RELEASED: "PO đã duyệt & gửi NCC",
+				PO_REJECTED: "PO bị từ chối",
 				OPENED: "Đã mở",
 				OPEN: "Mở"
 			};
@@ -283,10 +286,10 @@ sap.ui.define([
 
 		formatStatusState: function (s) {
 			s = String(s || "").toUpperCase();
-			if (s === "APPROVED" || s === "OPENED" || s === "OPEN" || s === "PO_CREATED") { return "Success"; }
-			if (s === "REJECTED" || s === "RETURNED") { return "Error"; }
+			if (s === "APPROVED" || s === "OPENED" || s === "OPEN" || s === "PO_CREATED" || s === "PO_RELEASED") { return "Success"; }
+			if (s === "REJECTED" || s === "RETURNED" || s === "PO_REJECTED") { return "Error"; }
 			if (s === "CANCELLED") { return "None"; }
-			if (s === "RFQ_SENT" || s === "QUOTATIONS_RECEIVED") { return "Warning"; }
+			if (s === "RFQ_SENT" || s === "QUOTATIONS_RECEIVED" || s === "AWARDED") { return "Warning"; }
 			if (s.indexOf("PENDING") === 0) { return "Warning"; }
 			return "None";
 		},

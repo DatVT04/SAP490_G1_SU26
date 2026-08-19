@@ -15,7 +15,7 @@
 					<VBox>
 						<Text text="Bước 1 · Đề nghị mua sắm" class="qdPageEyebrow"/>
 						<Title text="{i18n>tilePr01Title}" level="H1" class="qdPageTitle"/>
-						<Text text="Khai báo vật tư / dịch vụ cần mua, hệ thống sẽ tạo Purchase Requisition trong SAP" class="qdPageSub"/>
+						<Text text="Khai báo vật tư / dịch vụ cần mua — Purchasing duyệt xong hệ thống mới tạo Purchase Requisition trên SAP" class="qdPageSub"/>
 					</VBox>
 				</HBox>
 				<HBox class="qdFlowSteps">

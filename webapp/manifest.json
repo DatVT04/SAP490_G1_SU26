@@ -154,6 +154,11 @@
           "target": "po01"
         },
         {
+          "name": "po02",
+          "pattern": "approve-po",
+          "target": "po02"
+        },
+        {
           "name": "rfq01",
           "pattern": "create-rfq",
           "target": "rfq01"
@@ -199,6 +204,11 @@
           "viewName": "pr.PRDetail",
           "viewId": "prdetail",
           "viewLevel": 3
+        },
+        "po02": {
+          "viewName": "po.PO02",
+          "viewId": "po02",
+          "viewLevel": 2
         },
         "history": {
           "viewName": "common.History",

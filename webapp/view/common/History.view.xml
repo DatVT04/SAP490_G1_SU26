@@ -63,7 +63,7 @@
 						<items>
 							<ColumnListItem type="Active" press=".onItemPress">
 								<cells>
-									<ObjectIdentifier title="{hist>PRId}" text="{hist>SapPRId}"/>
+									<ObjectIdentifier title="{hist>DisplayId}" text="{= ${hist>SapPRId} ? '' : 'Đề nghị nội bộ — chưa phải chứng từ SAP' }"/>
 									<ObjectStatus
 										text="{path: 'hist>Status', formatter: '.formatStatus'}"
 										state="{path: 'hist>Status', formatter: '.formatStatusState'}"
@@ -124,7 +124,7 @@
 							<items>
 								<ColumnListItem type="Active" press=".onItemPress">
 									<cells>
-										<ObjectIdentifier title="{hist>PRId}" text="{hist>SapPRId}"/>
+										<ObjectIdentifier title="{hist>DisplayId}" text="{= ${hist>SapPRId} ? '' : 'Đề nghị nội bộ — chưa phải chứng từ SAP' }"/>
 										<ObjectStatus
 											text="{path: 'hist>Status', formatter: '.formatStatus'}"
 											state="{path: 'hist>Status', formatter: '.formatStatusState'}"

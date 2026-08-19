@@ -11,7 +11,7 @@ const { findActiveEmployeeByEmail } = require("../services/employee.service");
 const { extractSapErrorMessage, odataEscape } = require("../lib/sap-client");
 const { boolToSapX } = require("../lib/sap-format");
 const { buildApprovalFlagsByCostCenter } = require("../services/approval.service");
-const { notifyCeos, notifyPurchasing, notifyRequester } = require("../services/notify.service");
+const { notifyPurchasing, notifyRequester } = require("../services/notify.service");
 const { attachPoNumbers, createPRInSAP, createPrDraft, enrichWithRfqAward, fetchPrDraftById, fetchPrDraftList, mapClientItemToSapDeep, updatePrDraft } = require("../services/pr.service");
 
 const router = express.Router();
@@ -147,11 +147,11 @@ router.post("/api/approval/submit", async (req, res) => {
 		if (!oldRecord) {
 			return res.status(404).json({ success: false, message: "Khong tim thay de nghi cu " + resubmitOf + " de gui lai." });
 		}
-		if (oldRecord.Status !== "RETURNED") {
+		if (oldRecord.Status !== "REJECTED") {
 			return res.status(400).json({
 				success: false,
 				message: "De nghi " + resubmitOf + " dang o trang thai " + oldRecord.Status
-					+ " — chi de nghi bi tra lai (RETURNED) moi duoc sua va gui lai."
+					+ " — chi de nghi da bi tu choi (REJECTED) moi duoc lap lai."
 			});
 		}
 		if (String(oldRecord.RequesterEmail || "").toLowerCase() !== String(requesterEmail || "").toLowerCase()) {
@@ -171,26 +171,13 @@ router.post("/api/approval/submit", async (req, res) => {
 		return res.status(502).json({ success: false, message: "Khong tao duoc PR nhap tren SAP: " + message });
 	}
 
-	// Ban moi tao xong -> dong ban cu lai (CANCELLED) de khong con xuat hien o bat ky
-	// danh sach cho xu ly nao. Loi o buoc nay khong duoc lam fail ca request (ban moi
-	// da ton tai hop le roi) — chi log de xu ly tay neu can.
-	if (oldRecord) {
-		try {
-			await updatePrDraft(oldRecord.InternalId, {
-				Status: "CANCELLED",
-				Comment: "Da duoc gui lai bang de nghi moi " + record.PRId + "."
-			});
-		} catch (error) {
-			console.error(
-				"[POST /api/approval/submit] Huy ban cu " + oldRecord.InternalId + " THAT BAI (ban moi "
-				+ record.PRId + " van hop le):", extractSapErrorMessage(error)
-			);
-		}
-	}
+	// 18/08/2026: KHONG con dong ban cu thanh CANCELLED nua. REJECTED da la trang
+	// thai ket thuc (khong nam trong danh sach cho nao), va khoi cu con ghi de
+	// Comment -> xoa mat chinh ly do tu choi. Ban cu giu nguyen REJECTED + ly do.
 
 	notifyRequester(
 		record,
-		"Đề nghị " + record.PRId + " đã được gửi, đang chờ Bộ phận mua sắm (Purchasing) xem xét. Số PR SAP sẽ có sau khi phê duyệt cuối."
+		"Đề nghị " + record.PRId + " đã được gửi, đang chờ Bộ phận mua sắm (Purchasing) xem xét. PR trên SAP sẽ được tạo khi Purchasing duyệt."
 	);
 	await notifyPurchasing(
 		record.PRId,
@@ -244,12 +231,11 @@ router.get("/api/approval/approved", async (req, res) => {
 		return res.status(503).json({ success: false, message: "He thong SAP chua duoc cau hinh (thieu SAP_HOST)." });
 	}
 	try {
-		// Khong con check !item.PoNumber — ZPR_DRAFT khong co field PoNumber (xem
-		// ghi chu tren /api/po/create). Status da tu chuyen sang PO_CREATED ngay
-		// sau khi tao PO nen filter Status='APPROVED' la du de loai PR da co PO.
-		// Loc lai o Node — xem ghi chu cung loai o /api/approval/pending.
-		const data = (await fetchPrDraftList(`Status eq 'APPROVED'`))
-			.filter((pr) => String(pr.Status || "").toUpperCase() === "APPROVED");
+		// 18/08/2026: PO-01 tao don hang tu PR da CHOT NCC (Status=AWARDED) — khong
+		// con trang thai APPROVED trong luong moi (CFO/CEO duyet o cap PO, sau khi
+		// PO da tao). Loc lai o Node — xem ghi chu cung loai o /api/approval/pending.
+		const data = (await fetchPrDraftList(`Status eq 'AWARDED'`))
+			.filter((pr) => String(pr.Status || "").toUpperCase() === "AWARDED");
 		// Gan them RfqGroups (moi nhom = 1 RFQ da chot = 1 NCC = 1 PO se tao). PO-01
 		// dua vao day de tao dung N don hang thay vi gop het vao 1 PO 1 NCC.
 		await enrichWithRfqAward(data);
@@ -409,241 +395,132 @@ router.patch("/api/approval/:id", async (req, res) => {
 	const sRole = String(decidedByRole || "").toUpperCase();
 	const nowIso = new Date().toISOString();
 
-	if (sRole === "PURCHASING" && record.Status !== "PENDING_PURCHASING") {
+	// 18/08/2026 — CUA DUYET 1 chi con Purchasing. CFO/CEO khong dong vao PR nua:
+	// ho duyet DON HANG sau khi co gia that (PATCH /api/po/:prId/approval).
+	if (sRole !== "PURCHASING") {
+		return res.status(403).json({
+			success: false,
+			message: "Chỉ Bộ phận mua sắm (Purchasing) duyệt đề nghị ở bước này. CFO/CEO duyệt đơn hàng trên màn PO-02."
+		});
+	}
+	if (record.Status !== "PENDING_PURCHASING") {
 		return res.status(400).json({ success: false, message: "Đề nghị này không ở trạng thái chờ Purchasing duyệt." });
-	}
-	if (sRole === "CFO" && record.Status !== "PENDING_CFO") {
-		return res.status(400).json({ success: false, message: "Đề nghị này không ở trạng thái chờ CFO duyệt." });
-	}
-	if (sRole === "CEO" && record.Status !== "PENDING_CEO") {
-		return res.status(400).json({ success: false, message: "Đề nghị này không ở trạng thái chờ CEO duyệt." });
-	}
-	if (sRole !== "PURCHASING" && sRole !== "CFO" && sRole !== "CEO") {
-		return res.status(403).json({ success: false, message: "Role không được phê duyệt." });
 	}
 
 	if (status === "REJECTED") {
-		// Phan biet 2 loai tu choi theo dung quy trinh TO-BE:
-		// - PURCHASING tu choi (buoc "Valid?" dau luong) -> RETURNED: PR bi tra lai,
-		//   requester duoc sua va gui lai (PR01 se prefill tu ban nay, ban cu se bi
-		//   CANCELLED khi ban moi duoc gui). Bat buoc co ly do de requester biet sua gi.
-		// - CFO/CEO tu choi -> REJECTED: ket thuc han, khong co vong sua lai.
-		const isReturn = sRole === "PURCHASING";
-		if (isReturn && (!comment || !String(comment).trim())) {
+		// 18/08/2026: TU CHOI = KET THUC. Khong con RETURNED (tra lai sua) lan
+		// CANCELLED — dang nao requester cung phai lam lai, nen gop ve mot trang
+		// thai dong kem LY DO BAT BUOC. Requester doc ly do roi LAP DE NGHI MOI
+		// (man chi tiet co nut prefill du lieu cu); ban nay giu nguyen REJECTED
+		// de ly do khong bao gio bi ghi de — audit trail day du.
+		if (!comment || !String(comment).trim()) {
 			return res.status(400).json({
 				success: false,
-				message: "Bắt buộc nhập lý do khi trả lại PR để người đề nghị biết cần sửa gì."
+				message: "Bắt buộc nhập lý do từ chối để người đề nghị biết cần điều chỉnh gì."
 			});
 		}
 
-		const finalStatus = isReturn ? "RETURNED" : "REJECTED";
-		record.Status = finalStatus;
-		record.Comment = comment || record.Comment;
+		record.Status = "REJECTED";
+		record.Comment = comment;
 		record.DecidedByEmail = decidedByEmail;
 		record.DecidedByRole = sRole;
+		record.PurchasingApprovedBy = decidedByEmail;
+		record.PurchasingAction = "REJECTED";
+		record.PurchasingAt = nowIso;
 		record.UpdatedAt = nowIso;
 
-		const sapFields = {
-			Status: finalStatus,
-			Comment: record.Comment,
-			DecidedByEmail: decidedByEmail,
-			DecidedByRole: sRole
-		};
-		if (sRole === "PURCHASING") {
-			record.PurchasingApprovedBy = decidedByEmail;
-			record.PurchasingAction = "REJECTED";
-			record.PurchasingAt = nowIso;
-			sapFields.PurchasingApprovedBy = decidedByEmail;
-			sapFields.PurchasingAction = "REJECTED";
-		} else if (sRole === "CFO") {
-			record.CfoProcessedBy = decidedByEmail;
-			record.CfoAction = "REJECTED";
-			record.CfoAt = nowIso;
-			sapFields.CfoProcessedBy = decidedByEmail;
-			sapFields.CfoAction = "REJECTED";
-		} else if (sRole === "CEO") {
-			record.CeoProcessedBy = decidedByEmail;
-			record.CeoAction = "REJECTED";
-			record.CeoAt = nowIso;
-			sapFields.CeoProcessedBy = decidedByEmail;
-			sapFields.CeoAction = "REJECTED";
-		}
-
 		try {
-			await updatePrDraft(record.InternalId, sapFields);
+			await updatePrDraft(record.InternalId, {
+				Status: "REJECTED",
+				Comment: record.Comment,
+				DecidedByEmail: decidedByEmail,
+				DecidedByRole: sRole,
+				PurchasingApprovedBy: decidedByEmail,
+				PurchasingAction: "REJECTED"
+			});
 		} catch (error) {
 			const message = extractSapErrorMessage(error);
 			console.error("[PATCH /api/approval/:id] MERGE (REJECTED) THAT BAI:", message);
 			return res.status(502).json({ success: false, message });
 		}
 
-		if (isReturn) {
-			notifyRequester(
-				record,
-				"Đề nghị " + record.PRId + " bị Bộ phận mua sắm TRẢ LẠI. Lý do: " + comment
-				+ " — Bạn có thể sửa lại và gửi lại đề nghị (màn Tạo đề nghị sẽ điền sẵn dữ liệu cũ)."
-			);
-			return res.json({ success: true, approval: record, returned: true });
-		}
 		notifyRequester(
 			record,
-			"Đề nghị " + record.PRId + " đã bị TỪ CHỐI bởi " + sRole + "."
-			+ (comment ? " Lý do: " + comment : "")
+			"Đề nghị " + record.PRId + " bị Bộ phận mua sắm TỪ CHỐI. Lý do: " + comment
+			+ " — Bạn có thể lập đề nghị mới (màn chi tiết có nút điền sẵn dữ liệu cũ)."
 		);
 		return res.json({ success: true, approval: record });
 	}
 
 	if (status === "APPROVED") {
-		// 1) Purchasing duyet ("Valid? = Yes" trong so do TO-BE) → PENDING_RFQ.
-		// Theo quy trinh chot: Purchasing PHAI duyet truoc roi moi duoc tao RFQ,
-		// va RFQ la buoc bat buoc — khong con duong duyet thang len CFO nua.
-		// (Duong len CFO gio chi di qua award RFQ o /api/rfq/:id/award.)
-		if (sRole === "PURCHASING") {
-			record.Status = "PENDING_RFQ";
-			record.Comment = comment || record.Comment;
-			record.PurchasingApprovedBy = decidedByEmail;
-			record.PurchasingAction = "APPROVED";
-			record.PurchasingAt = nowIso;
-			record.UpdatedAt = nowIso;
+		// ── CUA DUYET 1 (18/08/2026): Purchasing duyet nhu cau = NHAP PR THAT vao
+		// SAP (tuong duong ME51N). Truoc day PR that chi sinh SAU khi CFO/CEO duyet
+		// cuoi -> suot giai doan RFQ, EBAN rong, RFQ khong tham chieu duoc so PR
+		// nao (bi hoi dong bat o review lan 2 ngay 17/08). Nay: duyet la co so PR,
+		// moi RFQ tao sau do deu tham chieu so that.
+		//
+		// CFO/CEO KHONG con duyet o day — ho duyet DON HANG (PO) tren gia bao that
+		// tai PATCH /api/po/:prId/approval, sau khi PO da duoc tao (tuong duong
+		// ME29N). "PR duyet nhu cau, PO duyet tien."
+		const sapResult = await createPRInSAP(record);
 
-			try {
-				await updatePrDraft(record.InternalId, {
-					Status: "PENDING_RFQ",
-					Comment: record.Comment,
-					PurchasingApprovedBy: decidedByEmail,
-					PurchasingAction: "APPROVED"
-				});
-			} catch (error) {
-				const message = extractSapErrorMessage(error);
-				console.error("[PATCH /api/approval/:id] MERGE (Purchasing->RFQ) THAT BAI:", message);
-				return res.status(502).json({ success: false, message });
-			}
-
-			notifyRequester(
-				record,
-				"Đề nghị " + record.PRId + " đã được Bộ phận mua sắm chấp nhận, chuyển sang bước hỏi giá nhà cung cấp (RFQ)."
-			);
-			await notifyPurchasing(
-				record.PRId,
-				"PR " + record.PRId + " đã duyệt hợp lệ — tiếp tục tạo RFQ trên màn RFQ-01 để hỏi giá nhà cung cấp."
-			);
-
-			return res.json({ success: true, approval: record, forwarded: "RFQ" });
-		}
-
-		// 2) CFO + vượt ngưỡng IO → CEO
-		if (sRole === "CFO" && record.needsProcurementHeadReview) {
-			const t = record.ioThreshold;
-			const io = record.escalationIO || "";
-			record.Status = "PENDING_CEO";
-			record.EscalationReason = "Vượt ngưỡng Internal Order "
-				+ io + " (" + Number(t).toLocaleString("vi-VN") + " VND) — cần CEO phê duyệt.";
-			record.Comment = comment || record.Comment;
-			record.CfoProcessedBy = decidedByEmail;
-			record.CfoAction = "ESCALATED";
-			record.CfoAt = nowIso;
-			record.UpdatedAt = nowIso;
-
-			try {
-				await updatePrDraft(record.InternalId, {
-					Status: "PENDING_CEO",
-					EscalationReason: record.EscalationReason,
-					Comment: record.Comment,
-					CfoProcessedBy: decidedByEmail,
-					CfoAction: "ESCALATED"
-				});
-			} catch (error) {
-				const message = extractSapErrorMessage(error);
-				console.error("[PATCH /api/approval/:id] MERGE (CFO->CEO escalate) THAT BAI:", message);
-				return res.status(502).json({ success: false, message });
-			}
-
-			notifyRequester(
-				record,
-				"Đề nghị " + record.PRId + " đã được CFO chuyển lên CEO (vượt ngưỡng IO). Bạn sẽ nhận thông báo khi CEO quyết định."
-			);
-			await notifyCeos(
-				record.PRId,
-				"PR " + record.PRId + " từ " + record.RequesterEmail
-				+ " leo thang lên CEO. " + record.EscalationReason
-				+ " Giá trị: " + Number(record.TotalValue).toLocaleString("vi-VN") + " " + record.Currency
-			);
-
-			return res.json({
-				success: true,
-				approval: record,
-				escalated: true,
-				reason: record.EscalationReason
+		if (sapResult.sapIntegration !== "created" || !sapResult.sapPrNumber) {
+			// KHONG doi Status: de nghi van nam o PENDING_PURCHASING, sua loi
+			// (mang/SAP/master data) xong bam duyet lai la duoc — khong can rollback.
+			return res.status(502).json({
+				success: false,
+				message: "Không tạo được PR trên SAP: " + (sapResult.sapErrorMessage || "không có PRNumber")
+					+ " — đề nghị vẫn ở trạng thái chờ, có thể bấm duyệt lại sau khi xử lý lỗi.",
+				sapErrorMessage: sapResult.sapErrorMessage
 			});
 		}
 
-		// 3) CFO (không vượt) hoặc CEO → SAP
-		if (sRole === "CFO" || sRole === "CEO") {
-			const sapResult = await createPRInSAP(record);
+		const oldId = record.PRId;
+		record.SapPRId = sapResult.sapPrNumber;
+		record.PRId = sapResult.sapPrNumber;
+		record.Status = "PENDING_RFQ";
+		record.Comment = comment || record.Comment;
+		record.PurchasingApprovedBy = decidedByEmail;
+		record.PurchasingAction = "APPROVED";
+		record.PurchasingAt = nowIso;
+		record.UpdatedAt = nowIso;
 
-			if (sapResult.sapIntegration === "failed" || !sapResult.sapPrNumber) {
-				return res.status(502).json({
-					success: false,
-					message: "Không ghi được PR lên SAP: " + (sapResult.sapErrorMessage || "không có PRNumber"),
-					sapErrorMessage: sapResult.sapErrorMessage
-				});
-			}
-
-			const oldId = record.PRId;
-			record.InternalId = record.InternalId || oldId;
-			record.SapPRId = sapResult.sapPrNumber;
-			record.PRId = sapResult.sapPrNumber;
-			record.Status = "APPROVED";
-			record.Comment = comment || record.Comment;
-			record.DecidedByEmail = decidedByEmail;
-			record.DecidedByRole = sRole;
-			record.UpdatedAt = nowIso;
-
-			const sapFields = {
+		try {
+			await updatePrDraft(record.InternalId, {
 				// Gui SapPRId -> ABAP PRDRAFTSET_UPDATE_ENTITY tu dong gan lai ca
 				// SAPPRID lan PRID trong bang ZPR_DRAFT (xem code method).
 				SapPRId: sapResult.sapPrNumber,
-				Status: "APPROVED",
+				Status: "PENDING_RFQ",
 				Comment: record.Comment,
-				DecidedByEmail: decidedByEmail,
-				DecidedByRole: sRole
-			};
-
-			if (sRole === "CFO") {
-				record.CfoProcessedBy = decidedByEmail;
-				record.CfoAction = "APPROVED";
-				record.CfoAt = nowIso;
-				sapFields.CfoProcessedBy = decidedByEmail;
-				sapFields.CfoAction = "APPROVED";
-			} else {
-				record.CeoProcessedBy = decidedByEmail;
-				record.CeoAction = "APPROVED";
-				record.CeoAt = nowIso;
-				sapFields.CeoProcessedBy = decidedByEmail;
-				sapFields.CeoAction = "APPROVED";
-			}
-
-			try {
-				await updatePrDraft(record.InternalId, sapFields);
-			} catch (error) {
-				const message = extractSapErrorMessage(error);
-				console.error("[PATCH /api/approval/:id] MERGE (final APPROVED) THAT BAI:", message);
-				return res.status(502).json({ success: false, message });
-			}
-
-			notifyRequester(
-				record,
-				"Đề nghị " + oldId + " đã được PHÊ DUYỆT bởi " + sRole
-				+ ". Số PR trên SAP: " + record.SapPRId + " (ME53N)."
-			);
-
-			return res.json({
-				success: true,
-				approval: record,
-				sapIntegration: "created",
-				sapPrNumber: sapResult.sapPrNumber
+				PurchasingApprovedBy: decidedByEmail,
+				PurchasingAction: "APPROVED"
 			});
+		} catch (error) {
+			const message = extractSapErrorMessage(error);
+			// PR that DA ton tai tren EBAN — chi buoc ghi nguoc trang thai fail.
+			// Tra ca so PR de nguoi dung biet chung tu da co, xu ly tay neu can.
+			console.error("[PATCH /api/approval/:id] MERGE (Purchasing APPROVED) THAT BAI (PR SAP "
+				+ sapResult.sapPrNumber + " da ton tai):", message);
+			return res.status(502).json({ success: false, message, sapPrNumber: sapResult.sapPrNumber });
 		}
+
+		notifyRequester(
+			record,
+			"Đề nghị " + oldId + " đã được Bộ phận mua sắm duyệt. Số PR trên SAP: "
+			+ record.SapPRId + " (tra cứu ME53N). Tiếp theo: hỏi giá nhà cung cấp (RFQ)."
+		);
+		await notifyPurchasing(
+			record.PRId,
+			"PR " + record.PRId + " đã tạo trên SAP — tiếp tục tạo RFQ trên màn RFQ-01 để hỏi giá nhà cung cấp."
+		);
+
+		return res.json({
+			success: true,
+			approval: record,
+			forwarded: "RFQ",
+			sapIntegration: "created",
+			sapPrNumber: sapResult.sapPrNumber
+		});
 	}
 
 	return res.status(400).json({ success: false, message: "Status không hợp lệ (chỉ nhận APPROVED/REJECTED)." });

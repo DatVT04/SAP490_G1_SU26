@@ -120,7 +120,7 @@
 
 				<!-- PR bị Purchasing trả lại → người tạo sửa & gửi lại (PR-01 điền sẵn dữ liệu) -->
 				<Button
-					text="Sửa &amp; gửi lại đề nghị"
+					text="Lập lại đề nghị mới"
 					type="Emphasized"
 					icon="sap-icon://edit"
 					press="onResubmitPress"

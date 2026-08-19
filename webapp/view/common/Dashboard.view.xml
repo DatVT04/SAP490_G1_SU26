@@ -134,10 +134,10 @@
 						/>
 					</VBox>
 
-					<!-- PR-02 -->
+					<!-- PR-02 (18/08/2026: chi Purchasing — CFO/CEO duyet don hang o PO-02) -->
 					<VBox
 						class="qdActionCard qdAccentAmber"
-						visible="{= ['CEO','CFO','PURCHASING'].indexOf(${user>/role}) !== -1 }"
+						visible="{= ${user>/role} === 'PURCHASING' }"
 					>
 						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
 							<VBox class="qdActionIconBox">
@@ -218,6 +218,28 @@
 							icon="sap-icon://arrow-right"
 							iconFirst="false"
 							press=".onNavToPO01"
+							class="qdActionBtn"
+						/>
+					</VBox>
+
+					<!-- PO-02: CFO/CEO duyet don hang truoc khi gui NCC (18/08/2026) -->
+					<VBox
+						class="qdActionCard qdAccentPurple"
+						visible="{= ['CFO','CEO'].indexOf(${user>/role}) !== -1 }"
+					>
+						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
+							<VBox class="qdActionIconBox">
+								<core:Icon src="sap-icon://order-status" class="qdActionIcon"/>
+							</VBox>
+							<Text text="PO-02" class="qdActionCode"/>
+						</HBox>
+						<Title text="Duyệt đơn hàng (PO)" level="H3" class="qdActionTitle"/>
+						<Text text="Xem giá chốt so với dự toán, duyệt PO trước khi hệ thống gửi nhà cung cấp." class="qdActionDesc"/>
+						<Button
+							text="{i18n>dashTileOpen}"
+							icon="sap-icon://arrow-right"
+							iconFirst="false"
+							press=".onNavToPO02"
 							class="qdActionBtn"
 						/>
 					</VBox>

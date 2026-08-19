@@ -445,10 +445,14 @@
 							</Table>
 							
 							<HBox justifyContent="End" alignItems="Center" class="sapUiMediumMarginTop">
+								<Text
+									text="PO tạo xong sẽ chờ CFO duyệt (PO-02) — hệ thống chỉ gửi email cho NCC sau khi duyệt."
+									class="qdInfoHint sapUiSmallMarginEnd"
+								/>
 								<Button
-									text="Tạo PO "
+									text="Tạo PO (chờ CFO duyệt)"
 									type="Emphasized"
-									icon="sap-icon://email"
+									icon="sap-icon://sales-order"
 									press=".onConfirmCreatePO"
 									class="qdPrimarySubmitBtn"
 								/>

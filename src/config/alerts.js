@@ -17,12 +17,14 @@ const AGING_ALERT_DAYS = Number(process.env.AGING_ALERT_DAYS || 2);
 const AGING_STATUS_BY_ROLE = {
 	PURCHASING: {
 		PENDING_PURCHASING: "chờ Purchasing duyệt",
-		PENDING_RFQ: "đã duyệt nhưng chưa tạo RFQ",
+		PENDING_RFQ: "đã có PR SAP nhưng chưa tạo RFQ",
 		RFQ_SENT: "đã gửi RFQ, chờ nhập báo giá",
-		QUOTATIONS_RECEIVED: "đã có báo giá, chờ chốt NCC"
+		QUOTATIONS_RECEIVED: "đã có báo giá, chờ chốt NCC",
+		AWARDED: "đã chốt NCC, chưa tạo đơn hàng (PO)"
 	},
-	CFO: { PENDING_CFO: "chờ CFO duyệt" },
-	CEO: { PENDING_CEO: "chờ CEO duyệt" }
+	// 18/08/2026: PENDING_CFO/CEO gio nghia la "PO da tao, cho duyet don hang".
+	CFO: { PENDING_CFO: "chờ CFO duyệt đơn hàng (PO)" },
+	CEO: { PENDING_CEO: "chờ CEO duyệt đơn hàng (PO)" }
 };
 
 // So ngay truoc han nop bao gia thi bat dau canh bao "sap het han".

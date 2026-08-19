@@ -15,11 +15,12 @@ sap.ui.define([
 	// dung model, 8 handler view goi khong ton tai trong controller) nen man do chua bao gio
 	// chay dung. Tien trinh cua PR xem o "Lich su de nghi" (History + timeline PRDetail).
 	// Can lay lai thi checkout tu git truoc commit nay.
+	// 18/08/2026: CFO/CEO khong duyet PR nua — ho duyet DON HANG o PO-02.
 	var TILES_BY_ROLE = {
 		REQUESTER:  ["pr01", "history"],
 		PURCHASING: ["materialCreate", "pr02", "rfq01", "rfq02", "po01", "history"],
-		CFO:        ["pr02", "history"],
-		CEO:        ["pr02", "config", "history"],
+		CFO:        ["po02", "history"],
+		CEO:        ["po02", "config", "history"],
 		ACC:        ["history"]
 	};
 
@@ -92,6 +93,11 @@ sap.ui.define([
 				oRouter.navTo(sRole === "PURCHASING" ? "po01" : "history");
 				return;
 			}
+			if (sRole === "CFO" || sRole === "CEO") {
+				// Hang cho cua CFO/CEO gio la DON HANG cho duyet (PO-02).
+				oRouter.navTo("po02");
+				return;
+			}
 			oRouter.navTo(bApprover ? "pr02" : "history");
 		},
 
@@ -107,10 +113,10 @@ sap.ui.define([
 			var sUpper = String(sRole || "").toUpperCase();
 			if (sUpper === "PURCHASING") {
 				oModel.setProperty("/kpiPendingLabel", "PR chờ tôi duyệt");
-				oModel.setProperty("/kpiApprovedLabel", "PR đã duyệt — chờ tạo PO");
+				oModel.setProperty("/kpiApprovedLabel", "PR đã chốt NCC — chờ tạo PO");
 				oModel.setProperty("/kpiValueLabel", "Giá trị chờ duyệt");
 			} else if (sUpper === "CFO" || sUpper === "CEO") {
-				oModel.setProperty("/kpiPendingLabel", "PR chờ tôi duyệt");
+				oModel.setProperty("/kpiPendingLabel", "Đơn hàng (PO) chờ tôi duyệt");
 				oModel.setProperty("/kpiApprovedLabel", "PR tôi đã xử lý");
 				oModel.setProperty("/kpiValueLabel", "Giá trị chờ duyệt");
 			} else {
@@ -369,6 +375,10 @@ sap.ui.define([
 
 		onNavToPO01: function () {
 			this.getOwnerComponent().getRouter().navTo("po01");
+		},
+
+		onNavToPO02: function () {
+			this.getOwnerComponent().getRouter().navTo("po02");
 		},
 
 		onNavToRFQ01: function () {

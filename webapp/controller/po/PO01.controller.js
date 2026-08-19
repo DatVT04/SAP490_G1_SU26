@@ -906,7 +906,8 @@ sap.ui.define([
 					oView.setBusy(false);
 					if (res && res.success) {
 						var sPoNum = res.poNumber || (res.po && res.po.PoNumber) || "PO_SUCCESS";
-						var sMailInfo = res.emailSent ? "\nĐã gửi mail xác nhận đến: " + sVendorEmail.trim() : "";
+						// 18/08/2026: PO tao xong CHUA gui NCC — cho CFO/CEO duyet (PO-02).
+						var sMailInfo = "\nChưa gửi cho NCC — đơn hàng chờ CFO duyệt trên màn PO-02, duyệt xong hệ thống mới gửi mail.";
 
 						// PR tach nhieu nhom: tao xong nhom nay van con nhom khac chua co don
 						// hang. Khong roi man hinh nua ma tai lai danh sach de lam tiep nhom sau —
