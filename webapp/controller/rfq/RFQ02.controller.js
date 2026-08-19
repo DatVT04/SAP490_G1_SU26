@@ -37,6 +37,13 @@ sap.ui.define([
 				pendingVendors: [],
 				vendorChoices: [],
 				paymentTerms: [],
+				// allVendors: toan bo NCC tu master (VendorSet) — de dropdown nhap bao
+				// gia chon duoc ca NCC NGOAI danh sach moi ban dau (them bao gia moi).
+				allVendors: [],
+				// quoteModeText/State: MessageStrip ngu canh tren form nhap bao gia —
+				// dang SUA bao gia da co (Warning) hay THEM NCC ngoai danh sach (Information).
+				quoteModeText: "",
+				quoteModeState: "Information",
 				// aiMessages: mang {role:"user"|"ai", text} — nguon du lieu that cua khung chat.
 				// aiChatHtml: HTML da render san tu aiMessages (xem _renderAiChat), view chi
 				// bind vao day (giong RFQ-01 — feedback 15/08: "khung chat be ti, hoi xong
@@ -47,6 +54,7 @@ sap.ui.define([
 			}));
 
 			this._loadPaymentTerms();
+			this._loadAllVendors();
 
 			// Khong de UI5 tre 1 giay moi ve spinner: trong 1 giay do man hinh trong
 			// nhu binh thuong nhung da bi khoa, nguoi dung bam gi cung khong an
@@ -193,11 +201,15 @@ sap.ui.define([
 			this._currentRfqId = oRfq.RfqId;
 			this.getView().getModel().setProperty("/aiMessages", []);
 			this.getView().getModel().setProperty("/aiChatHtml", "");
+			// Doi sang RFQ khac: xoa sach form nhap bao gia, khong de prefill/canh
+			// bao ghi de cua RFQ truoc dinh lai.
+			this._clearQuotationForm();
 			this._loadCompare();
 		},
 
 		// ── 2. BANG SO SANH (rfq + quotations + NCC con thieu) ──
 		_loadCompare: function () {
+			var that = this;
 			var oView = this.getView();
 			var oModel = oView.getModel();
 			var sRfqId = this._currentRfqId;
@@ -220,26 +232,10 @@ sap.ui.define([
 					oModel.setProperty("/quotations", res.quotations || []);
 					oModel.setProperty("/pendingVendors", res.pendingVendors || []);
 
-					// NCC duoc phep nhap bao gia: ca NCC chua nop (PENDING) lan NCC da nop
-					// (de sua lai bao gia nhap nham). Truoc day 2 nhom nay tron lan nhau
-					// khong phan biet gi, nhin vao tuong he thong cho nhap trung -> gan
-					// nhan ro rang va xep NCC chua nop len truoc.
-					var aChoices = (res.pendingVendors || []).map(function (v) {
-						return {
-							VendorNo: v.VendorNo,
-							VendorName: v.VendorName,
-							ChoiceLabel: v.VendorNo + " — " + (v.VendorName || "") + "  ·  chưa nộp báo giá"
-						};
-					}).concat(
-						(res.quotations || []).map(function (q) {
-							return {
-								VendorNo: q.VendorNo,
-								VendorName: q.VendorName,
-								ChoiceLabel: q.VendorNo + " — " + (q.VendorName || "") + "  ·  đã nhập, chọn để sửa lại"
-							};
-						})
-					);
-					oModel.setProperty("/vendorChoices", aChoices);
+					// Dropdown NCC gop tu 3 nguon (chua nop / da nop — sua lai / ngoai
+					// danh sach moi — them moi); logic nam o _buildVendorChoices de goi
+					// lai duoc khi /api/vendors ve cham hon /compare.
+					that._buildVendorChoices();
 
 					oWorkArea.setVisible(true);
 				})
@@ -322,6 +318,114 @@ sap.ui.define([
 			}
 		},
 
+		// ── 2c. NGUON NCC CHO FORM NHAP BAO GIA ──
+		// Tai toan bo NCC tu master dung 1 lan luc mo man hinh — nhom "ngoai danh
+		// sach moi" trong dropdown lay tu day.
+		_loadAllVendors: function () {
+			var oModel = this.getView().getModel();
+			var that = this;
+
+			fetch(BACKEND + "/api/vendors")
+				.then(function (r) { return r.json(); })
+				.then(function (res) {
+					oModel.setProperty("/allVendors", (res && res.data) || []);
+					// /compare co the da ve truoc — dung lai dropdown de nhom "ngoai
+					// danh sach moi" khong bi thieu.
+					that._buildVendorChoices();
+				})
+				.catch(function () {
+					// Khong chan man hinh: thieu master thi van nhap/sua duoc bao gia
+					// cua NCC da moi, chi khong them duoc NCC ngoai danh sach.
+				});
+		},
+
+		// Gop 3 nhom NCC vao 1 dropdown, thu tu: chua nop -> da nop (chon de sua,
+		// NCC bao lai gia lan 2) -> ngoai danh sach moi (them bao gia moi). Nhan
+		// ghi ro tung nhom de nguoi nhap khong ghi de nham.
+		_buildVendorChoices: function () {
+			var oModel = this.getView().getModel();
+			if (!this._currentRfqId) { return; }
+
+			var aPending = oModel.getProperty("/pendingVendors") || [];
+			var aQuots = oModel.getProperty("/quotations") || [];
+			var aAll = oModel.getProperty("/allVendors") || [];
+
+			var oInRfq = {};
+			aPending.forEach(function (v) { oInRfq[String(v.VendorNo)] = true; });
+			aQuots.forEach(function (q) { oInRfq[String(q.VendorNo)] = true; });
+
+			var aChoices = aPending.map(function (v) {
+				return {
+					VendorNo: v.VendorNo,
+					VendorName: v.VendorName,
+					ChoiceLabel: v.VendorNo + " — " + (v.VendorName || "") + "  ·  chưa nộp báo giá"
+				};
+			}).concat(
+				aQuots.map(function (q) {
+					return {
+						VendorNo: q.VendorNo,
+						VendorName: q.VendorName,
+						ChoiceLabel: q.VendorNo + " — " + (q.VendorName || "") + "  ·  đã nhập — chọn để sửa (báo lại giá)"
+					};
+				})
+			).concat(
+				aAll.filter(function (v) { return !oInRfq[String(v.VendorNo)]; })
+					.map(function (v) {
+						return {
+							VendorNo: v.VendorNo,
+							VendorName: v.VendorName,
+							ChoiceLabel: v.VendorNo + " — " + (v.VendorName || "") + "  ·  ngoài danh sách mời — thêm mới"
+						};
+					})
+			);
+			oModel.setProperty("/vendorChoices", aChoices);
+		},
+
+		// Chon NCC trong dropdown: NCC DA co bao gia -> dien san so lieu cu de sua
+		// (bao lai gia lan 2) + canh bao ghi de; NCC ngoai danh sach moi -> bao ro
+		// se duoc them vao RFQ nay. SourceNote KHONG dien lai: can cu cua lan bao
+		// gia moi bat buoc nhap moi (audit trail).
+		onQuoteVendorChange: function () {
+			var oView = this.getView();
+			var oModel = oView.getModel();
+			var sVendor = oView.byId("selQuoteVendor").getSelectedKey();
+
+			var aQuots = oModel.getProperty("/quotations") || [];
+			var oQuote = null;
+			aQuots.forEach(function (q) {
+				if (String(q.VendorNo) === String(sVendor)) { oQuote = q; }
+			});
+
+			if (oQuote) {
+				oView.byId("inQuotePrice").setValue(Number(oQuote.QuotedPrice) ? String(Number(oQuote.QuotedPrice)) : "");
+				oView.byId("inQuoteLeadTime").setValue(oQuote.LeadTimeDays ? String(oQuote.LeadTimeDays) : "");
+				oView.byId("inQuotePayment").setSelectedKey(oQuote.PaymentTerms || "");
+				oView.byId("inQuoteWarranty").setValue(oQuote.WarrantyMonths ? String(oQuote.WarrantyMonths) : "");
+				oView.byId("cbQuoteLegal").setSelected(oQuote.LegalDocsOk === "X" || oQuote.LegalDocsOk === true);
+				oView.byId("inQuoteSource").setValue("");
+				oModel.setProperty("/quoteModeText",
+					"Đang SỬA báo giá đã có của " + (oQuote.VendorName || sVendor)
+					+ " (giá cũ " + this.formatCurrency(oQuote.QuotedPrice) + " VND) — lưu sẽ GHI ĐÈ, không giữ lại giá cũ.");
+				oModel.setProperty("/quoteModeState", "Warning");
+				return;
+			}
+
+			var bInvited = (oModel.getProperty("/pendingVendors") || []).some(function (v) {
+				return String(v.VendorNo) === String(sVendor);
+			});
+			if (sVendor && !bInvited) {
+				var sName = sVendor;
+				(oModel.getProperty("/allVendors") || []).forEach(function (v) {
+					if (String(v.VendorNo) === String(sVendor) && v.VendorName) { sName = v.VendorName; }
+				});
+				oModel.setProperty("/quoteModeText",
+					"NCC " + sName + " KHÔNG nằm trong danh sách mời ban đầu — lưu sẽ thêm báo giá mới của NCC này vào RFQ.");
+				oModel.setProperty("/quoteModeState", "Information");
+			} else {
+				oModel.setProperty("/quoteModeText", "");
+			}
+		},
+
 		// ── 3. LUU 1 BAO GIA (audit trail: enteredBy tu user model, sourceNote bat buoc) ──
 		onSaveQuotation: function () {
 			var that = this;
@@ -345,22 +449,52 @@ sap.ui.define([
 				return;
 			}
 
+			var oPayload = {
+				vendorNo: sVendor,
+				quotedPrice: Number(sPrice),
+				currency: "VND",
+				leadTimeDays: Number(oView.byId("inQuoteLeadTime").getValue()) || 0,
+				paymentTerms: oView.byId("inQuotePayment").getSelectedKey() || "",
+				warrantyMonths: Number(oView.byId("inQuoteWarranty").getValue()) || 0,
+				legalDocsOk: oView.byId("cbQuoteLegal").getSelected(),
+				sourceNote: sSource.trim(),
+				enteredBy: oUser.email || ""
+			};
+
+			// NCC da co bao gia -> day la GHI DE (bao lai gia lan 2): bat xac nhan
+			// vi gia cu KHONG duoc giu lai (ZG1_QUOTATION 1 dong / NCC / RFQ).
+			var oExisting = null;
+			(oView.getModel().getProperty("/quotations") || []).forEach(function (q) {
+				if (String(q.VendorNo) === String(sVendor)) { oExisting = q; }
+			});
+			if (oExisting) {
+				MessageBox.confirm(
+					"NCC " + (oExisting.VendorName || sVendor) + " đã có báo giá "
+						+ this.formatCurrency(oExisting.QuotedPrice) + " VND.\n\nGhi đè bằng giá mới "
+						+ this.formatCurrency(oPayload.quotedPrice) + " VND? Giá cũ sẽ không được giữ lại.",
+					{
+						title: "Sửa báo giá (báo lại giá lần 2)",
+						onClose: function (sAction) {
+							if (sAction !== MessageBox.Action.OK) { return; }
+							that._postQuotation(oPayload);
+						}
+					}
+				);
+				return;
+			}
+
+			this._postQuotation(oPayload);
+		},
+
+		_postQuotation: function (oPayload) {
+			var that = this;
+			var oView = this.getView();
 			oView.setBusy(true);
 
 			fetch(BACKEND + "/api/rfq/" + encodeURIComponent(this._currentRfqId) + "/quotation", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					vendorNo: sVendor,
-					quotedPrice: Number(sPrice),
-					currency: "VND",
-					leadTimeDays: Number(oView.byId("inQuoteLeadTime").getValue()) || 0,
-					paymentTerms: oView.byId("inQuotePayment").getSelectedKey() || "",
-					warrantyMonths: Number(oView.byId("inQuoteWarranty").getValue()) || 0,
-					legalDocsOk: oView.byId("cbQuoteLegal").getSelected(),
-					sourceNote: sSource.trim(),
-					enteredBy: oUser.email || ""
-				})
+				body: JSON.stringify(oPayload)
 			})
 				.then(function (r) {
 					return r.json().then(function (body) { return { status: r.status, body: body }; });
@@ -371,7 +505,9 @@ sap.ui.define([
 						MessageBox.error((oResult.body && oResult.body.message) || "Lưu báo giá thất bại.");
 						return;
 					}
-					MessageToast.show("Đã lưu báo giá của NCC " + sVendor + ".");
+					MessageToast.show(oResult.body.mode === "created"
+						? "Đã thêm báo giá mới của NCC " + oPayload.vendorNo + " vào RFQ."
+						: "Đã cập nhật báo giá của NCC " + oPayload.vendorNo + ".");
 					that._clearQuotationForm();
 					that._loadCompare();
 					that._loadRfqList();
@@ -394,6 +530,10 @@ sap.ui.define([
 			oView.byId("inQuoteWarranty").setValue("");
 			oView.byId("cbQuoteLegal").setSelected(false);
 			oView.byId("inQuoteSource").setValue("");
+			// ComboBox: setSelectedKey("") khong xoa chu nguoi dung da go — xoa not,
+			// va tat MessageStrip sua/them ngu canh.
+			oView.byId("selQuoteVendor").setValue("");
+			oView.getModel().setProperty("/quoteModeText", "");
 		},
 
 		// ── 4. AI SO SANH BAO GIA (chi bat khi >=2 bao gia; server tu an danh hoa) ──
