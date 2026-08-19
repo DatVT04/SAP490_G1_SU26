@@ -44,12 +44,18 @@ sap.ui.define([
 	// Tai san (ZAST): moi don vi so luong can 1 ma Asset rieng (khong gop chung
 	// 1 ma cho ca dong nhieu so luong) — moi ma se thanh 1 dong PR rieng (Quantity=1)
 	// khi gui len SAP, xem _expandItemsForSubmit.
-	function buildAssetNumbers(sMaterialType, nQuantity, sFirstAssetNo) {
+	//
+	// aMapped = cac ma tai san da khai san cho vat tu nay (danh muc anh xa, xem
+	// /api/asset-map). Dien lan luot vao cac o; o nao vuot qua so ma da khai thi
+	// de trong cho nguoi de nghi nhap tay.
+	function buildAssetNumbers(sMaterialType, nQuantity, sFirstAssetNo, aMapped) {
 		if (sMaterialType !== "ZAST") { return []; }
 		var n = Math.max(1, Math.floor(Number(nQuantity) || 0));
+		var aMap = aMapped || [];
 		var aResult = [];
 		for (var i = 0; i < n; i++) {
-			aResult.push({ value: i === 0 ? (sFirstAssetNo || "") : "" });
+			var sValue = (i === 0 && sFirstAssetNo) ? sFirstAssetNo : (aMap[i] || "");
+			aResult.push({ value: sValue });
 		}
 		return aResult;
 	}
@@ -94,9 +100,12 @@ sap.ui.define([
 			this._userCC = "";
 			this._resubmitOf = null;
 
+			this._assetMap = {};
+
 			this._loadMaterials();
 			this._loadAccountingLists();
 			this._loadThresholds();
+			this._loadAssetMap();
 
 			this.getOwnerComponent().getRouter()
 				.getRoute("pr01")
@@ -500,8 +509,18 @@ sap.ui.define([
 			}
 			var oItem = oModel.getProperty(sPath);
 			this._refreshIOListOfItem(oItem);
+			// Doi sang vat tu khac: xoa cac ma tai san cua vat tu CU truoc, neu
+			// khong _syncAssetNumbers se coi chung la "nguoi dung tu nhap" va giu
+			// lai — dong PR se mang ma tai san cua mat hang khac.
+			oItem.assetNumbers = [];
 			this._syncAssetNumbers(oItem);
 			oModel.setProperty(sPath, oItem);
+
+			var aMapped = this._assetsOfMaterial(oItem.materialNo);
+			if (bAsset && aMapped.length === 0) {
+				MessageToast.show("Vật tư " + oItem.materialNo
+					+ " chưa khai mã tài sản trong Cấu hình — nhập tay mã tài sản (AS01).");
+			}
 
 			this._recalcTotal();
 		},
@@ -519,8 +538,39 @@ sap.ui.define([
 			this._recalcTotal();
 		},
 
+		// ── DANH MUC ANH XA VAT TU -> MA TAI SAN ──
+		// SAP khong co lien ket san Material <-> Asset (MM va FI-AA la 2 module
+		// khac nhau), nen quan he nay do Ke toan khai o man Cau hinh. Tai 1 lan
+		// luc mo man de moi lan chon vat tu khong phai goi lai server.
+		_loadAssetMap: function () {
+			var that = this;
+			fetch(BACKEND + "/api/asset-map")
+				.then(function (r) { return r.json(); })
+				.then(function (res) {
+					that._assetMap = (res && res.byMaterial) || {};
+				})
+				.catch(function () {
+					// Khong chan man hinh: thieu danh muc thi o Asset de trong,
+					// nguoi de nghi van nhap tay duoc nhu truoc day.
+					that._assetMap = {};
+				});
+		},
+
+		// Chuan hoa khoa giong normalizeMaterialKey ben src/lib/store.js — SAP tra
+		// ma vat tu luc co so 0 dem dau luc khong.
+		_assetsOfMaterial: function (sMaterialNo) {
+			var s = String(sMaterialNo || "").trim().toUpperCase();
+			if (!s) { return []; }
+			var sKey = /^\d+$/.test(s) ? (s.replace(/^0+/, "") || "0") : s;
+			var raw = (this._assetMap || {})[sKey];
+			if (raw == null || raw === "") { return []; }
+			var aList = Array.isArray(raw) ? raw : String(raw).split(",");
+			return aList.map(function (x) { return String(x || "").trim(); }).filter(Boolean);
+		},
+
 		// Giu lai gia tri Asset da nhap theo dung vi tri khi resize mang assetNumbers
-		// (khong xoa sach roi nhap lai khi nguoi dung sua so luong).
+		// (khong xoa sach roi nhap lai khi nguoi dung sua so luong). O nao con
+		// trong thi dien tiep tu danh muc anh xa.
 		_syncAssetNumbers: function (item) {
 			if (item.materialType !== "ZAST") {
 				item.assetNumbers = [];
@@ -528,9 +578,13 @@ sap.ui.define([
 			}
 			var n = Math.max(1, Math.floor(Number(item.quantity) || 0));
 			var aOld = item.assetNumbers || [];
+			var aMapped = this._assetsOfMaterial(item.materialNo);
 			var aNew = [];
 			for (var i = 0; i < n; i++) {
-				aNew.push(aOld[i] || { value: "" });
+				var sOld = (aOld[i] && String(aOld[i].value || "").trim()) || "";
+				// Nguoi dung da sua tay thi TON TRONG gia tri do, khong ghi de bang
+				// danh muc — danh muc chi dien vao o dang trong.
+				aNew.push({ value: sOld || (aMapped[i] || "") });
 			}
 			item.assetNumbers = aNew;
 		},

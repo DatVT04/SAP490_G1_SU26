@@ -34,6 +34,12 @@ router.post("/api/approval/submit", async (req, res) => {
 		if (!it.quantity || Number(it.quantity) <= 0) {
 			return res.status(400).json({ success: false, message: "Dong " + (i + 1) + ": So luong khong hop le." });
 		}
+		// Don gia BAT BUOC (yeu cau hoi dong review 19/08). Giao dien PR-01 da chan,
+		// nhung day moi la chot chan that: goi thang API bang Postman/DevTools van
+		// gui duoc gia 0 -> PR len SAP gia tri 0, RFQ va nguong ngan sach deu sai.
+		if (it.estimatedValue == null || it.estimatedValue === "" || Number(it.estimatedValue) <= 0) {
+			return res.status(400).json({ success: false, message: "Dong " + (i + 1) + ": Bat buoc nhap don gia (lon hon 0)." });
+		}
 		// Account assignment chi con 2 loai: ZAST -> bat buoc AssetNo (Cat 'A');
 		// con lai bat buoc Cost Center (Cat 'K'). Internal Order khong phai input
 		// cua nguoi dung nua nen khong validate.

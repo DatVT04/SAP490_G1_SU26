@@ -212,7 +212,7 @@
 										>
 											<Input
 												value="{value}"
-												tooltip="Vật tư Tài sản (ZAST): bắt buộc mã tài sản do Kế toán tạo trên SAP (AS01), mỗi đơn vị số lượng 1 mã riêng."
+												tooltip="Mã tài sản do Kế toán tạo trên SAP (AS01), mỗi đơn vị số lượng 1 mã riêng. Vật tư đã khai trong Cấu hình sẽ được điền sẵn — vẫn sửa được."
 												placeholder="Mã tài sản *"
 												width="100%"
 												class="sapUiTinyMarginBottom"

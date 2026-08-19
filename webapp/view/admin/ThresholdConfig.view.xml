@@ -14,8 +14,8 @@
                         <Button icon="sap-icon://nav-back" press=".onNavBack" class="qdHeroBackBtn"/>
                         <VBox>
                             <Text text="Quản trị hệ thống · CEO" class="qdPageEyebrow"/>
-                            <Title text="Cấu hình ngưỡng phê duyệt" level="H1" class="qdPageTitle"/>
-                            <Text text="Đặt ngân sách cho từng Internal Order — PR vượt ngưỡng của IO nào thì sau CFO sẽ leo thang lên CEO" class="qdPageSub"/>
+                            <Title text="Cấu hình hệ thống" level="H1" class="qdPageTitle"/>
+                            <Text text="Ngưỡng ngân sách theo Internal Order và ánh xạ vật tư tài sản với mã tài sản trên SAP" class="qdPageSub"/>
                         </VBox>
                     </HBox>
                     <Button icon="sap-icon://refresh" text="Tải lại" press=".onRefreshPress" class="qdHeroBtn"/>
@@ -76,7 +76,66 @@
                     </Table>
                 </VBox>
 
-                <!-- GIẢI THÍCH QUY TẮC -->
+                <!-- ÁNH XẠ VẬT TƯ (ZAST) SANG MÃ TÀI SẢN -->
+            <!-- SAP không có liên kết sẵn giữa Material (MM) và Asset (FI-AA):
+                 quan hệ "vật tư này chính là tài sản nào" phải do Kế toán khai,
+                 đúng ý nghĩa với Info Record khai vật tư và nhà cung cấp. Khai ở
+                 đây xong thì PR-01 tự điền ô Mã tài sản. -->
+            <VBox class="qdContentCard qdCardTight">
+                <HBox alignItems="Center" class="sapUiSmallMargin">
+                    <core:Icon src="sap-icon://add-product" class="qdCardIcon sapUiTinyMarginEnd"/>
+                    <Title text="Mã tài sản của vật tư tài sản ({= ${assetModel&gt;/rows}.length })" level="H3" class="qdCardTitle"/>
+                </HBox>
+
+                <MessageStrip
+                    text="Chỉ liệt kê vật tư loại Tài sản (ZAST). Mã tài sản phải được Kế toán tạo trước trên SAP bằng AS01. Mua nhiều đơn vị thì khai nhiều mã, cách nhau bằng dấu phẩy — PR-01 điền lần lượt cho từng đơn vị số lượng."
+                    type="Information"
+                    showIcon="true"
+                    class="sapUiSmallMarginBeginEnd sapUiSmallMarginBottom"
+                />
+
+                <Table
+                    id="assetMapTable"
+                    items="{assetModel&gt;/rows}"
+                    mode="None"
+                    noDataText="Không có vật tư loại Tài sản (ZAST) nào trong danh mục SAP."
+                >
+                    <columns>
+                        <Column width="10rem"><Text text="Mã vật tư"/></Column>
+                        <Column><Text text="Tên vật tư"/></Column>
+                        <Column width="20rem"><Text text="Mã tài sản (AS01)"/></Column>
+                        <Column width="6rem" hAlign="Center"><Text text="Xoá"/></Column>
+                    </columns>
+                    <items>
+                        <ColumnListItem>
+                            <cells>
+                                <ObjectIdentifier title="{assetModel&gt;materialNo}"/>
+                                <Text text="{assetModel&gt;description}"/>
+                                <Input
+                                    value="{assetModel&gt;assets}"
+                                    placeholder="VD: 100000 hoặc 100000, 100001"
+                                    width="100%"
+                                />
+                                <Button
+                                    icon="sap-icon://decline"
+                                    type="Transparent"
+                                    tooltip="Xoá mã tài sản đã khai cho vật tư này"
+                                    press=".onClearAssetRow"
+                                />
+                            </cells>
+                        </ColumnListItem>
+                    </items>
+                </Table>
+
+                <HBox justifyContent="End" class="sapUiSmallMargin">
+                    <Button text="Lưu ánh xạ tài sản"
+                            type="Emphasized"
+                            icon="sap-icon://save"
+                            press=".onSaveAssetMap" />
+                </HBox>
+            </VBox>
+
+            <!-- GIẢI THÍCH QUY TẮC -->
                 <VBox class="qdContentCard">
                     <HBox alignItems="Center" class="sapUiSmallMarginBottom">
                         <core:Icon src="sap-icon://hint" class="qdCardIcon sapUiTinyMarginEnd"/>

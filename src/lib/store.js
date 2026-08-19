@@ -28,6 +28,7 @@ const DATA_DIR = IS_SERVERLESS
 	: path.join(APP_ROOT, "data");
 const NOTIF_FILE = path.join(DATA_DIR, "notifications.json");
 const THRESHOLD_FILE = path.join(DATA_DIR, "thresholds.json");
+const ASSET_MAP_FILE = path.join(DATA_DIR, "asset-map.json");
 
 function ensureDataDir() {
 	try {
@@ -107,6 +108,73 @@ function saveThresholds() {
 	fs.writeFileSync(THRESHOLD_FILE, JSON.stringify(thresholdStore, null, 2), "utf8");
 }
 
+// ============================================================================
+// ANH XA VAT TU (ZAST) -> MA TAI SAN
+// SAP khong co lien ket san giua Material va Asset (2 module khac nhau: MM va
+// FI-AA), nen quan he "vat tu nay chinh la tai san nao" phai do Ke toan khai —
+// dung y nghia voi Info Record khai "vat tu nay mua cua NCC nao". Danh muc nay
+// la nguon de PR-01 tu dien o Asset.
+//
+// 1 vat tu co the ung nhieu ma tai san (mua 3 man hinh = 3 the tai san rieng),
+// nen gia tri luu duoi dang MANG. Nhan ca chuoi don cho de sua tay file.
+// ============================================================================
+
+function loadAssetMap() {
+	ensureDataDir();
+	if (!fs.existsSync(ASSET_MAP_FILE)) {
+		// Cung ly do voi thresholds: tren Vercel DATA_DIR nam trong /tmp va mat
+		// khi cold start -> phai co ban seed commit trong repo, neu khong PR-01
+		// se khong tu dien duoc ma nao tren production.
+		const seedFile = path.join(APP_ROOT, "data", "asset-map.json");
+		if (seedFile !== ASSET_MAP_FILE && fs.existsSync(seedFile)) {
+			try {
+				const seed = JSON.parse(fs.readFileSync(seedFile, "utf8"));
+				const byMaterial = seed.byMaterial && typeof seed.byMaterial === "object" ? seed.byMaterial : {};
+				console.log("[DATA] Nap anh xa vat tu-tai san tu repo (seed):", Object.keys(byMaterial).length);
+				return { byMaterial: byMaterial };
+			} catch (e) {
+				console.error("⚠️ Doc seed asset-map THAT BAI:", e.message);
+			}
+		}
+		return { byMaterial: {} };
+	}
+	try {
+		const raw = JSON.parse(fs.readFileSync(ASSET_MAP_FILE, "utf8"));
+		return { byMaterial: raw.byMaterial && typeof raw.byMaterial === "object" ? raw.byMaterial : {} };
+	} catch (e) {
+		console.error("⚠️ Load asset-map THAT BAI:", e.message);
+		return { byMaterial: {} };
+	}
+}
+
+function saveAssetMap() {
+	ensureDataDir();
+	fs.writeFileSync(ASSET_MAP_FILE, JSON.stringify(assetMapStore, null, 2), "utf8");
+}
+
+/**
+ * Khoa tra cuu vat tu. SAP tra ma vat tu khi thi co so 0 dem dau khi thi khong
+ * (da dinh 1 lan o isMaterialSelectable) — chuan hoa ve chu HOA, bo 0 dem dau
+ * cho ma toan so, de "0000000MON-001" va "MON-001" van la 1.
+ */
+function normalizeMaterialKey(materialNo) {
+	const s = String(materialNo || "").trim().toUpperCase();
+	if (!s) { return ""; }
+	return /^\d+$/.test(s) ? (s.replace(/^0+/, "") || "0") : s;
+}
+
+/** Mang ma tai san cua 1 vat tu ([] neu chua khai). */
+function assetsForMaterial(materialNo) {
+	const key = normalizeMaterialKey(materialNo);
+	if (!key) { return []; }
+	const raw = assetMapStore.byMaterial[key];
+	if (raw == null || raw === "") { return []; }
+	const list = Array.isArray(raw) ? raw : String(raw).split(",");
+	return list
+		.map(function (x) { return String(x || "").trim(); })
+		.filter(Boolean);
+}
+
 function normalizeOrderNo(orderNo) {
 	orderNo = String(orderNo || "").trim();
 	if (!orderNo) { return ""; }
@@ -129,9 +197,11 @@ const notificationStore = _loadedNotifs.items;
 let nextNotificationId = _loadedNotifs.nextId;
 
 const thresholdStore = loadThresholds();
+const assetMapStore = loadAssetMap();
 
 console.log("[DATA] Loaded notif:", notificationStore.length);
 console.log("[DATA] IO thresholds:", Object.keys(thresholdStore.byIO).length);
+console.log("[DATA] Vat tu co ma tai san:", Object.keys(assetMapStore.byMaterial).length);
 
 function pushNotification(toEmail, prId, message) {
 	if (!toEmail) { return; }
@@ -147,10 +217,14 @@ function pushNotification(toEmail, prId, message) {
 }
 module.exports = {
 	DATA_DIR,
+	assetMapStore,
+	assetsForMaterial,
 	getThresholdForIO,
+	normalizeMaterialKey,
 	normalizeOrderNo,
 	notificationStore,
 	pushNotification,
+	saveAssetMap,
 	saveNotifications,
 	saveThresholds,
 	thresholdStore,

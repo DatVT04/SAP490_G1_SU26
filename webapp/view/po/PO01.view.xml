@@ -414,7 +414,7 @@
 									<Column hAlign="End" width="7rem"><Text text="Số lượng"/></Column>
 									<Column hAlign="End" width="8rem"><Text text="Đơn giá mua"/></Column>
 									<Column width="6rem"><Text text="Nhà máy (Plant)"/></Column>
-									<Column width="7rem"><Text text="Cost Center"/></Column>
+									<Column width="11rem"><Text text="Hạch toán"/></Column>
 								</columns>
 								<items>
 									<ColumnListItem>
@@ -438,7 +438,26 @@
 												textAlign="End"
 											/>
 											<Input value="{Plant}"/>
-											<Input value="{CostCenter}"/>
+											<!-- Cot hach toan: dong Cost Center (Cat K) cho nhap tay, dong
+											     Tai san (Cat A) / Internal Order (Cat F) chi hien ma lay tu
+											     PR. Truoc day cot nay luon la o Cost Center nen dong tai san
+											     hien o TRONG, nhin nhu he thong thieu du lieu hach toan. -->
+											<VBox>
+												<Text
+													text="{parts: ['AcctAssignCat','AssetNo','InternalOrder'], formatter: '.formatAcctCatLabel'}"
+													class="qdCellHint"
+												/>
+												<Input
+													value="{CostCenter}"
+													placeholder="Nhập Cost Center"
+													visible="{parts: ['AcctAssignCat','AssetNo','InternalOrder'], formatter: '.isAcctCostCenter'}"
+												/>
+												<ObjectStatus
+													text="{parts: ['AcctAssignCat','AssetNo','InternalOrder'], formatter: '.formatAcctObject'}"
+													state="{parts: ['AcctAssignCat','AssetNo','InternalOrder'], formatter: '.formatAcctObjectState'}"
+													visible="{parts: ['AcctAssignCat','AssetNo','InternalOrder'], formatter: '.isAcctNotCostCenter'}"
+												/>
+											</VBox>
 										</cells>
 									</ColumnListItem>
 								</items>

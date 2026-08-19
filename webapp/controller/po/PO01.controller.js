@@ -132,6 +132,12 @@ sap.ui.define([
 								CostCenter: firstItem.CostCenter || "",
 								Plant: firstItem.Plant || "",
 								AssetNo: firstItem.AssetNo || "",
+								// Loai hach toan di kem doi tuong tuong ung: K = Cost Center,
+								// A = Tai san, F = Internal Order. Thieu 2 truong nay thi bang
+								// dong hang khong biet dong nao la tai san -> hien o Cost Center
+								// trong tron (dong Cat A khong bao gio co cost center).
+								AcctAssignCat: firstItem.AcctAssignCat || "",
+								InternalOrder: firstItem.InternalOrder || "",
 								// Ket qua chot NCC tu luong RFQ (do /api/rfq/:id/award ghi lai
 								// tren chinh ban ghi approval nay) — dung de tu dien vendor + gia,
 								// khong bat nguoi mua go tay lai gia da thuong luong.
@@ -187,6 +193,59 @@ sap.ui.define([
 		formatCurrency: function (fValue) {
 			if (fValue === undefined || fValue === null || fValue === "") { return "0"; }
 			return Number(fValue).toLocaleString("vi-VN");
+		},
+
+		// ── HACH TOAN TUNG DONG ──
+		// K = Cost Center (chi phi phong ban) · A = Asset (tai san co dinh) ·
+		// F = Internal Order. Cat suy ra tu du lieu neu PR cu chua luu AcctAssignCat:
+		// co AssetNo -> A, co InternalOrder -> F, con lai -> K. Cung quy tac voi
+		// deriveAcctAssignCat() ben src/services/pr.service.js — sua 1 ben phai sua ca 2.
+		_acctCat: function (sCat, sAsset, sIo) {
+			var s = String(sCat || "").trim().toUpperCase();
+			if (s) { return s; }
+			if (sAsset) { return "A"; }
+			if (sIo) { return "F"; }
+			return "K";
+		},
+
+		formatAcctCatLabel: function (sCat, sAsset, sIo) {
+			switch (this._acctCat(sCat, sAsset, sIo)) {
+				case "A": return "A · Tài sản";
+				case "F": return "F · Internal Order";
+				default: return "K · Cost Center";
+			}
+		},
+
+		// Dong hach toan vao Cost Center thi cho sua tay (nguoi mua co the doi phong
+		// ban chiu chi phi); Tai san / Internal Order thi CHI HIEN — ma tai san do
+		// ke toan cap trong AS01, go tay o day la sai nguon su that.
+		isAcctCostCenter: function (sCat, sAsset, sIo) {
+			return this._acctCat(sCat, sAsset, sIo) === "K";
+		},
+
+		// Ban phu dinh: dung cho visible cua o chi-hien. KHONG viet
+		// "{= !${parts:...formatter:...} }" trong XML — UI5 khong bao dam ho tro
+		// formatter trong binding long trong expression binding.
+		isAcctNotCostCenter: function (sCat, sAsset, sIo) {
+			return this._acctCat(sCat, sAsset, sIo) !== "K";
+		},
+
+		formatAcctObject: function (sCat, sAsset, sIo) {
+			switch (this._acctCat(sCat, sAsset, sIo)) {
+				case "A": return sAsset || "(chưa có mã tài sản)";
+				case "F": return sIo || "(chưa có mã lệnh)";
+				default: return "";
+			}
+		},
+
+		// Do = dong tai san nhung khong co ma tai san: phai xu ly truoc khi tao PO,
+		// khong de hoi dong nhin thay o trong.
+		formatAcctObjectState: function (sCat, sAsset, sIo) {
+			switch (this._acctCat(sCat, sAsset, sIo)) {
+				case "A": return sAsset ? "Success" : "Error";
+				case "F": return sIo ? "Success" : "Error";
+				default: return "None";
+			}
 		},
 
 		onNavBack: function () {
@@ -412,7 +471,13 @@ sap.ui.define([
 					// plant='QDPL' phia ABAP, xem create_pr_deep.abap) nen it.Plant
 					// luon rong — dien san QDPL tu ORG_DEFAULTS, van cho sua tay o bang.
 					Plant: it.Plant || oOrg.plant || "QDPL",
-					CostCenter: it.CostCenter || ""
+					CostCenter: it.CostCenter || "",
+					// Doi tuong hach toan lay nguyen tu dong PR — KHONG doan lai o day.
+					// PR da chot loai hach toan tu luc lap de nghi (xem mapSapItemToClient
+					// trong src/services/pr.service.js), PO chi hien lai cho dung.
+					AcctAssignCat: it.AcctAssignCat || "",
+					AssetNo: it.AssetNo || "",
+					InternalOrder: it.InternalOrder || ""
 				};
 			});
 
@@ -429,7 +494,10 @@ sap.ui.define([
 					NetPrice: 0,
 					Currency: oPRData.Currency || "",
 					Plant: oPRData.Plant || oOrg.plant || "QDPL",
-					CostCenter: oPRData.CostCenter || ""
+					CostCenter: oPRData.CostCenter || "",
+					AcctAssignCat: oPRData.AcctAssignCat || "",
+					AssetNo: oPRData.AssetNo || "",
+					InternalOrder: oPRData.InternalOrder || ""
 				});
 			}
 
@@ -866,7 +934,11 @@ sap.ui.define([
 					netPrice: Number(it.NetPrice) || 0,
 					costCenter: it.CostCenter || "",
 					plant: it.Plant || "",
-					assetNo: it.AssetNo || ""
+					// assetNo truoc day LUON rong: bang dong hang khong mang truong nay
+					// nen it.AssetNo undefined. Gio da mang tu PR sang.
+					assetNo: it.AssetNo || "",
+					internalOrder: it.InternalOrder || "",
+					acctAssignCat: it.AcctAssignCat || ""
 				};
 			});
 

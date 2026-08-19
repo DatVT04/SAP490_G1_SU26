@@ -104,6 +104,9 @@
         },
         {
           "uri": "css/13-rfq-chat.css"
+        },
+        {
+          "uri": "css/14-rfq-status.css"
         }
       ]
     },

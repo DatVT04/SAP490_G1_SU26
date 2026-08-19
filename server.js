@@ -27,6 +27,7 @@ app.use(express.static(path.join(__dirname, "webapp")));
 app.use(require("./src/routes/masterdata.routes.js"));
 app.use(require("./src/routes/material.routes.js"));
 app.use(require("./src/routes/threshold.routes.js"));
+app.use(require("./src/routes/asset-map.routes.js"));
 app.use(require("./src/routes/auth.routes.js"));
 app.use(require("./src/routes/ai.routes.js"));
 app.use(require("./src/routes/approval.routes.js"));

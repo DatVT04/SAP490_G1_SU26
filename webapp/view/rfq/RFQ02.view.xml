@@ -57,7 +57,7 @@
 							>
 								<items>
 									<SegmentedButtonItem key="OPEN" text="Đang chờ"/>
-									<SegmentedButtonItem key="AWARDED" text="Đã chốt"/>
+									<SegmentedButtonItem key="AWARDED" text="Đã xong"/>
 									<SegmentedButtonItem key="ALL" text="Tất cả"/>
 								</items>
 							</SegmentedButton>
@@ -86,7 +86,7 @@
 								<columns>
 									<Column width="10rem"><Text text="Mã RFQ"/></Column>
 									<Column><Text text="PR liên quan"/></Column>
-									<Column width="9rem"><Text text="Trạng thái"/></Column>
+									<Column width="10.5rem"><Text text="Trạng thái"/></Column>
 								</columns>
 								<items>
 									<ColumnListItem type="Active">
@@ -96,6 +96,8 @@
 											<ObjectStatus
 												text="{path: 'Status', formatter: '.formatRfqStatus'}"
 												state="{path: 'Status', formatter: '.formatRfqStatusState'}"
+												tooltip="{path: 'Status', formatter: '.formatRfqStatusHint'}"
+												class="qdStatusPill"
 											/>
 										</cells>
 									</ColumnListItem>
@@ -283,7 +285,7 @@
 						     khong biet la ai, khong lam duoc gi ngoai ngoi cho mail. -->
 						<VBox
 							class="qdContentCard"
-							visible="{= ${/rfq/Status} !== 'AWARDED' &amp;&amp; ${/pendingVendors}.length > 0 }"
+							visible="{= ${/rfqOpen} &amp;&amp; ${/pendingVendors}.length > 0 }"
 						>
 							<HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
 								<HBox alignItems="Center">
@@ -342,7 +344,7 @@
 						</VBox>
 
 						<!-- CARD 3: NHAP BAO GIA TAY (AUDIT TRAIL BAT BUOC) -->
-						<VBox class="qdContentCard" visible="{= ${/rfq/Status} !== 'AWARDED' }">
+						<VBox class="qdContentCard" visible="{/rfqOpen}">
 							<HBox alignItems="Center" class="sapUiSmallMarginBottom">
 								<Text text="3" class="qdStepBadge"/>
 								<VBox>
@@ -433,7 +435,7 @@
 						</VBox>
 
 						<!-- CARD 4: CHOT NCC THANG -->
-						<VBox class="qdContentCard" visible="{= ${/rfq/Status} !== 'AWARDED' &amp;&amp; ${/quotations}.length >= 1 }">
+						<VBox class="qdContentCard" visible="{= ${/rfqOpen} &amp;&amp; ${/quotations}.length >= 1 }">
 							<HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
 								<HBox alignItems="Center">
 									<Text text="4" class="qdStepBadge"/>
@@ -484,14 +486,21 @@
 						</VBox>
 
 						<!-- CARD KET QUA (khi da AWARDED) -->
-						<VBox class="qdContentCard" visible="{= ${/rfq/Status} === 'AWARDED' }">
+						<VBox class="qdContentCard" visible="{= !${/rfqOpen} }">
 							<HBox alignItems="Center">
 								<core:Icon src="sap-icon://accept" color="Positive" class="sapUiSmallMarginEnd"/>
 								<VBox>
 									<Title text="Đã chốt NCC {/rfq/AwardedVendor} — giá {path: '/rfq/FinalValue', formatter: '.formatCurrency'} {/rfq/Currency}" level="H3" class="qdCardTitle"/>
-									<Text text="Lý do: {/rfq/AwardReason} · Người chốt: {/rfq/AwardedBy} · PR gốc đã chuyển sang chờ CFO duyệt" class="qdCellHint"/>
+									<Text text="Lý do: {/rfq/AwardReason} · Người chốt: {/rfq/AwardedBy}" class="qdCellHint"/>
+									<Text text="{path: '/rfq/Status', formatter: '.formatAwardNextStep'}" class="qdCellHint"/>
 								</VBox>
 							</HBox>
+							<MessageStrip
+								text="RFQ này đã khoá: không nhập/sửa báo giá và không chốt lại NCC được nữa, vì đơn hàng đã phát hành theo báo giá hiện tại."
+								type="Information"
+								showIcon="true"
+								class="sapUiSmallMarginTop"
+							/>
 						</VBox>
 
 					</VBox>

@@ -373,6 +373,10 @@ router.post("/api/rfq/:id/remind", async (req, res) => {
 	}
 });
 
+// RFQ o cac trang thai nay coi nhu DA XONG: khong nhap/sua bao gia duoc nua.
+// Phai khop danh sach cung ten ben RFQ02.controller.js (giao dien an the nhap).
+const RFQ_CLOSED_STATUSES = ["AWARDED", "PO_CREATED", "PO_RELEASED", "PO_REJECTED"];
+
 // 3) Nhap tay 1 bao gia cho 1 NCC (bat buoc ghi ai nhap/luc nao/can cu gi — audit trail)
 router.post("/api/rfq/:id/quotation", async (req, res) => {
 	const { id } = req.params;
@@ -395,6 +399,23 @@ router.post("/api/rfq/:id/quotation", async (req, res) => {
 	}
 
 	try {
+		// RFQ da chot NCC / da thanh don hang thi KHOA: bao gia luc nay khong con
+		// khop don hang da phat hanh cho NCC nua. Giao dien da an the nhap bao gia,
+		// nhung khong tin FE — goi thang API van ghi duoc (giong cach da chan han
+		// nop bao gia qua khu o /api/rfq/:id/send).
+		const rfqHeadResp = await sapRead(`RfqSet('${odataEscape(id)}')`);
+		const rfqHead = (rfqHeadResp.data && rfqHeadResp.data.d) || null;
+		if (!rfqHead) {
+			return res.status(404).json({ success: false, message: "Khong tim thay RFQ " + id + "." });
+		}
+		if (RFQ_CLOSED_STATUSES.indexOf(String(rfqHead.Status || "").toUpperCase()) !== -1) {
+			return res.status(409).json({
+				success: false,
+				message: "RFQ " + id + " da khoa (trang thai " + rfqHead.Status
+					+ ") — khong nhap hay sua bao gia duoc nua vi don hang da phat hanh theo bao gia hien tai."
+			});
+		}
+
 		const session = await sapFetchCsrfToken();
 
 		// Bao gia nay la SUA (NCC da nam trong RFQ — ke ca da nop, NCC bao lai gia

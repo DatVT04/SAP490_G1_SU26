@@ -18,7 +18,7 @@
 const fs = require("fs");
 const path = require("path");
 const { ORG_DEFAULTS } = require("../config/org");
-const { odataEscape, sapWrite } = require("../lib/sap-client");
+const { odataEscape, sapRead, sapWrite } = require("../lib/sap-client");
 const { DATA_DIR } = require("../lib/store");
 const { sendPOEmailToVendor } = require("./po-mail.service");
 const { itemsOfRfq, normalizeLineNo, parseItemLines } = require("./rfq.service");
@@ -83,17 +83,52 @@ function poNumberForGroup(pr, itemLines) {
 	return distinct.join(", ");
 }
 
-/** Email NCC tu VendorSet (fallback khi store mat). */
-async function vendorEmailOf(vendorNo) {
-	if (!vendorNo) { return ""; }
+/** Email + ten NCC tu VendorSet. Ten dung de xung ho trong mail PO. */
+async function vendorOf(vendorNo) {
+	if (!vendorNo) { return { email: "", name: "" }; }
 	try {
 		const all = await fetchAllVendorsFromSAP();
 		const v = (all || []).find(function (x) { return String(x.VendorNo) === String(vendorNo); });
-		return v ? String(v.Email || v.VendorEmail || "").trim() : "";
+		if (!v) { return { email: "", name: "" }; }
+		return {
+			email: String(v.Email || v.VendorEmail || "").trim(),
+			name: String(v.VendorName || "").trim()
+		};
 	} catch (e) {
 		console.error("[po-approval] Doc VendorSet that bai:", e.message);
-		return "";
+		return { email: "", name: "" };
 	}
+}
+
+/** Giu ten cu cho cac cho chi can email. */
+async function vendorEmailOf(vendorNo) {
+	return (await vendorOf(vendorNo)).email;
+}
+
+/**
+ * Bao gia DA CHOT cua nhom — nguon that cua dieu khoan thanh toan va thoi gian
+ * giao hang. Duong fallback truoc day de 2 muc nay trong, mail gui NCC hien
+ * "Khong neu" ngay duoi chu ky cong ty.
+ */
+async function awardedQuoteOf(group) {
+	if (!group || !group.RfqId || !group.AwardedVendor) { return null; }
+	try {
+		const resp = await sapRead(`RfqSet('${odataEscape(String(group.RfqId))}')/RfqToQuotations`);
+		const rows = (resp.data && resp.data.d && resp.data.d.results) || [];
+		return rows.find(function (q) {
+			return String(q.VendorNo) === String(group.AwardedVendor);
+		}) || null;
+	} catch (e) {
+		console.error("[po-approval] Doc bao gia da chot that bai:", e.message);
+		return null;
+	}
+}
+
+/** Hom nay + N ngay -> "YYYY-MM-DD". Dung suy ngay giao tu LeadTimeDays. */
+function datePlusDays(days) {
+	const d = new Date();
+	d.setDate(d.getDate() + (Number(days) || 0));
+	return d.toISOString().split("T")[0];
 }
 
 /**
@@ -102,7 +137,7 @@ async function vendorEmailOf(vendorNo) {
  * FE). Cac truong logistics (dia chi giao, nguoi nhan...) de trong — chap nhan
  * duoc cho mail fallback, con duong chinh la payload da luu luc tao PO.
  */
-function buildFallbackMail(pr, group) {
+function buildFallbackMail(pr, group, quote) {
 	const groupItems = group ? itemsOfRfq(group, (pr && pr.items) || []) : ((pr && pr.items) || []);
 	const est = groupItems.reduce(function (sum, it) { return sum + (Number(it.EstimatedValue) || 0); }, 0);
 	const finalValue = Number(group && group.FinalValue)
@@ -131,9 +166,12 @@ function buildFallbackMail(pr, group) {
 		deliveryAddress: "",
 		receiverName: "",
 		receiverPhone: "",
-		deliveryDate: "",
+		// Hai muc nay lay tu chinh bao gia da chot — day la dieu khoan hai ben da
+		// thong nhat, khong phai gia tri bia. Khong co bao gia thi de rong va
+		// template mail se in cau "se xac nhan lai" thay vi o trong.
+		deliveryDate: (quote && Number(quote.LeadTimeDays) > 0) ? datePlusDays(quote.LeadTimeDays) : "",
 		paymentMethod: "",
-		paymentTerms: ""
+		paymentTerms: (quote && quote.PaymentTerms) || ""
 	};
 }
 
@@ -152,9 +190,18 @@ async function releaseGroup(pr, group, session) {
 	const vendorNo = (pending && pending.vendorNo)
 		|| (group && group.AwardedVendor)
 		|| "";
-	let vendorEmail = (pending && pending.vendorEmail) || "";
-	if (!vendorEmail) { vendorEmail = await vendorEmailOf(vendorNo); }
-	const mailData = (pending && pending.mail) || buildFallbackMail(pr, group);
+	// Luon doc master NCC: mail can TEN de xung ho, ma payload luu o PO-01 chi
+	// co so + email.
+	const vendorInfo = await vendorOf(vendorNo);
+	const vendorEmail = (pending && pending.vendorEmail) || vendorInfo.email;
+
+	const baseMail = (pending && pending.mail)
+		|| buildFallbackMail(pr, group, await awardedQuoteOf(group));
+
+	const mailData = Object.assign({}, baseMail, {
+		vendorName: vendorInfo.name,
+		prNumber: pr.SapPRId || pr.PRId || ""
+	});
 
 	if (group && group.RfqId) {
 		await sapWrite("MERGE", `RfqSet('${odataEscape(String(group.RfqId))}')`, { Status: "PO_RELEASED" }, session);

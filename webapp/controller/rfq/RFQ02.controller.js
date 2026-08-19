@@ -13,18 +13,40 @@ sap.ui.define([
 
 	var RFQ_STATUS_LABELS = {
 		DRAFT: "Nháp",
-		SENT: "Đã gửi NCC",
+		// "Đã gửi NCC" cu doc luot rat de nham voi PO_RELEASED ("gửi NCC" lan 2,
+		// nhung la gui don hang chu khong phai gui thu moi bao gia).
+		SENT: "Đã mời báo giá",
 		QUOTATIONS_RECEIVED: "Đã có báo giá",
 		AWARDED: "Đã chốt NCC",
 		// Trang thai nay do /api/po/create ghi len RfqSet khi nhom da thanh don hang.
 		// Thieu o day thi formatRfqStatus tra ve nguyen ma "PO_CREATED" — lac quer giua
 		// mot cot toan tieng Viet (bug 16/08).
-		PO_CREATED: "Đã tạo PO"
+		// Nhan noi VIEC DANG CHO AI chu khong ke lai viec da xong: nhin cot trang
+		// thai la biet ai phai lam gi tiep.
+		PO_CREATED: "Chờ duyệt PO",
+		// Hai trang thai nay do /api/po/:prId/approval ghi len (luong 2 cua duyet
+		// 18/08) — thieu o day thi cot Trang thai hien nguyen ma "PO_RELEASED".
+		PO_RELEASED: "Đã phát hành PO",
+		PO_REJECTED: "PO bị từ chối"
+	};
+
+	// Cau giai thich hien khi ro chuot vao trang thai — noi thang buoc tiep theo
+	// de nguoi moi dung khong phai doan. (Da bo icon: pill chi con chu + mau.)
+	var RFQ_STATUS_HINTS = {
+		DRAFT: "RFQ mới tạo, chưa gửi cho nhà cung cấp nào.",
+		SENT: "Đã gửi thư mời báo giá — đang chờ nhà cung cấp trả lời.",
+		QUOTATIONS_RECEIVED: "Đã có báo giá — đến lượt Purchasing so sánh và chốt NCC.",
+		AWARDED: "Đã chốt NCC — tiếp theo tạo đơn hàng ở màn PO-01.",
+		PO_CREATED: "Đã tạo PO trên SAP — đang chờ CFO/CEO duyệt ở màn PO-02.",
+		PO_RELEASED: "PO đã được duyệt và gửi cho nhà cung cấp. RFQ này đã khoá.",
+		PO_REJECTED: "PO bị từ chối ở màn PO-02 — xem lý do tại đó."
 	};
 
 	// RFQ o cac trang thai nay la DA XONG VIEC: khong con gi de nhap bao gia hay chot
 	// nua. Truoc day chi coi AWARDED la xong nen RFQ da tao PO van nam o tab "Dang cho".
-	var RFQ_CLOSED_STATUSES = ["AWARDED", "PO_CREATED"];
+	// Tu 19/08 gom ca PO_RELEASED/PO_REJECTED: RFQ da phat hanh PO gui NCC ma van sua
+	// duoc bao gia la lo hong kiem soat noi bo (bao gia khong con khop don hang da gui).
+	var RFQ_CLOSED_STATUSES = ["AWARDED", "PO_CREATED", "PO_RELEASED", "PO_REJECTED"];
 
 	return Controller.extend("com.qdavy.procurement.controller.rfq.RFQ02", {
 
@@ -32,6 +54,10 @@ sap.ui.define([
 			this.getView().setModel(new JSONModel({
 				Rfqs: [],
 				rfq: null,
+				// rfqOpen: RFQ dang chon con lam viec duoc khong (chua chot/chua thanh
+				// PO). Tinh san o _loadCompare bang isRfqOpen roi view chi bind co nay —
+				// khong nhung formatter vao trong expression binding {= ... }.
+				rfqOpen: false,
 				pr: null,
 				quotations: [],
 				pendingVendors: [],
@@ -228,6 +254,7 @@ sap.ui.define([
 						return;
 					}
 					oModel.setProperty("/rfq", res.rfq || null);
+					oModel.setProperty("/rfqOpen", that.isRfqOpen(res.rfq && res.rfq.Status));
 					oModel.setProperty("/pr", res.pr || null);
 					oModel.setProperty("/quotations", res.quotations || []);
 					oModel.setProperty("/pendingVendors", res.pendingVendors || []);
@@ -856,12 +883,49 @@ sap.ui.define([
 			return RFQ_STATUS_LABELS[String(s || "").toUpperCase()] || s;
 		},
 
+		// RFQ con lam viec duoc? Dung cho visible cua cac the THAO TAC (nhac NCC,
+		// nhap bao gia, chot NCC). Khai o day thay vi viet '!== AWARDED' rai rac
+		// trong XML — them 1 trang thai ket thuc moi chi phai sua RFQ_CLOSED_STATUSES.
+		isRfqOpen: function (s) {
+			return RFQ_CLOSED_STATUSES.indexOf(String(s || "").toUpperCase()) === -1;
+		},
+
+		isRfqClosed: function (s) {
+			return RFQ_CLOSED_STATUSES.indexOf(String(s || "").toUpperCase()) !== -1;
+		},
+
+		// The ket qua hien cho ca 4 trang thai ket thuc, moi cai mot buoc tiep theo
+		// khac nhau — truoc day cung mot dong "PR goc da chuyen sang cho CFO duyet"
+		// cho moi truong hop, va cau do da sai tu khi doi sang luong 2 cua duyet
+		// (CFO duyet PO chu khong duyet PR nua).
+		formatAwardNextStep: function (s) {
+			switch (String(s || "").toUpperCase()) {
+				case "AWARDED": return "Tiếp theo: tạo đơn hàng ở màn PO-01";
+				case "PO_CREATED": return "Đã tạo PO — đang chờ CFO/CEO duyệt ở màn PO-02";
+				case "PO_RELEASED": return "PO đã được duyệt và gửi cho nhà cung cấp";
+				case "PO_REJECTED": return "PO đã bị từ chối — xem lý do ở màn PO-02";
+				default: return "";
+			}
+		},
+
+		// Bang mau doc duoc thanh cau: XAM = chua bat dau · VANG = dang cho nguoi
+		// khac (NCC bao gia / CFO duyet) · XANH DUONG = den luot Purchasing lam ·
+		// XANH LA = xong · DO = hong. Nho vay liec cot trang thai la biet viec nao
+		// dang nam o minh.
 		formatRfqStatusState: function (s) {
-			s = String(s || "").toUpperCase();
-			if (s === "AWARDED" || s === "PO_CREATED") { return "Success"; }
-			if (s === "QUOTATIONS_RECEIVED") { return "Information"; }
-			if (s === "SENT") { return "Warning"; }
-			return "None";
+			switch (String(s || "").toUpperCase()) {
+				case "PO_REJECTED": return "Error";
+				case "PO_RELEASED": return "Success";
+				case "SENT":
+				case "PO_CREATED": return "Warning";
+				case "QUOTATIONS_RECEIVED":
+				case "AWARDED": return "Information";
+				default: return "None";
+			}
+		},
+
+		formatRfqStatusHint: function (s) {
+			return RFQ_STATUS_HINTS[String(s || "").toUpperCase()] || "";
 		},
 
 		// Chuoi SAP YYYYMMDD -> dd/MM/yyyy

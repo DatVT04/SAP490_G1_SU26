@@ -1,0 +1,51 @@
+/* ==========================================================================
+   14-rfq-status.css
+   Pill trang thai cho cot "Trang thai" o Danh sach RFQ (RFQ-02).
+
+   THU TU NAP QUAN TRONG: cac file css duoc liet ke theo dung thu tu nay trong
+   manifest.json (sap.ui5 > resources > css). Doi thu tu se lam doi do uu tien
+   cua cac rule co cung do dac hieu -> giao dien co the vo. Them file moi thi
+   them so thu tu lon hon o cuoi.
+   ========================================================================== */
+
+/* Nen pill lay theo CHINH state cua ObjectStatus (sapMObjStatusSuccess/
+   Warning/Error/Information) thay vi tu dat class rieng cho tung trang thai
+   RFQ — them trang thai moi chi can khai o formatRfqStatusState, khong phai
+   dong vao CSS. Neu ban UI5 doi ten class thi pill chi mat nen mau, chu KHONG
+   vo layout (chu + icon van hien binh thuong). */
+.qdStatusPill {
+	display: inline-flex;
+	align-items: center;
+	border-radius: 999px;
+	padding: 0.2rem 0.7rem;
+	white-space: nowrap;
+	line-height: 1.35;
+	background: rgba(100, 116, 139, 0.12);
+}
+
+.qdStatusPill .sapMObjStatusText {
+	font-weight: 600;
+	font-size: 0.8125rem;
+}
+
+.qdStatusPill.sapMObjStatusSuccess {
+	background: rgba(22, 163, 74, 0.12);
+}
+
+.qdStatusPill.sapMObjStatusWarning {
+	background: rgba(217, 119, 6, 0.12);
+}
+
+.qdStatusPill.sapMObjStatusError {
+	background: rgba(220, 38, 38, 0.12);
+}
+
+.qdStatusPill.sapMObjStatusInformation {
+	background: rgba(37, 99, 235, 0.12);
+}
+
+/* Dong RFQ dang chon: vien tim dong bo voi bang PR/NCC ben RFQ-01 */
+#rfqTable .sapMLIBSelected {
+	background: rgba(124, 58, 237, 0.06) !important;
+	border-left: 3px solid var(--qd-accent-purple) !important;
+}
