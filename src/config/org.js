@@ -37,6 +37,23 @@ const ORG_DEFAULTS = {
 const LEGAL_ESCALATION_THRESHOLD = 100000000;
 
 // ============================================================================
+// LOAI HACH TOAN CHO DONG CHI PHI (khong phai tai san)
+//
+// 'F' = Internal Order. Chi phi ghi vao IO ngan sach cua phong -> SAP tu ghi
+//       commitment va Availability Control tu CHAN khi vuot ngan sach (KO22 +
+//       tolerance limit). Day la cach chuan de "tru dan tien theo tung don".
+// 'K' = Cost Center. Cach cu: chi phi ve thang cost center, ngan sach IO KHONG
+//       bao gio bi tru -> chi con ngan sach o tang ung dung (thresholds.json).
+//
+// De 'K' de quay lui ngay neu AVC ben SAP chua kip cau hinh xong. Doi 1 dong
+// nay la ca luong PR/PO doi theo, khong phai sua cho nao khac.
+//
+// Vat tu Tai san (ZAST) LUON la Cat 'A', khong chiu anh huong cua bien nay —
+// tai san co ngan sach dau tu rieng, khong thuoc IO chi phi.
+// ============================================================================
+const BUDGET_ACCT_CAT = "F";
+
+// ============================================================================
 // MUI GIO (TIMEZONE) — vi sao can offset:
 // Cac field *At tren ZPR_DRAFT (CreatedAt/UpdatedAt/PurchasingAt/CfoAt/CeoAt)
 // do ABAP dong dau bang sy-datum/sy-uzeit — tuc GIO HE THONG SAP (server TUM
@@ -52,6 +69,7 @@ const LEGAL_ESCALATION_THRESHOLD = 100000000;
 const SAP_TZ_OFFSET_MIN = Number(process.env.SAP_TZ_OFFSET_MIN || 120);
 module.exports = {
 	PORT,
+	BUDGET_ACCT_CAT,
 	LEGAL_ESCALATION_THRESHOLD,
 	ODATA_SERVICE_PATH,
 	ORG_DEFAULTS,

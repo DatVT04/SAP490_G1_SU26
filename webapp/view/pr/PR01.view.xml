@@ -56,6 +56,23 @@
 						<Text text="{user>/role}" class="qdInfoValue"/>
 					</VBox>
 				</HBox>
+
+				<!-- LY DO DE NGHI MUA — can cu goc de Purchasing duyet NHU CAU.
+				     Truoc day nguoi de nghi chi khai MUA GI chu khong khai VI SAO,
+				     nen nguoi duyet khong co gi de dua vao ngoai cam tinh. -->
+				<VBox class="sapUiSmallMarginTop">
+					<Label text="Lý do đề nghị mua" required="true" class="qdInfoLabel"/>
+					<TextArea
+						id="taPurchaseReason"
+						value="{/header/purchaseReason}"
+						rows="2"
+						width="100%"
+						maxLength="255"
+						growing="true"
+						placeholder="VD: Máy tính của phòng hỏng không sửa được, cần thay để nhân viên tiếp tục làm việc"
+					/>
+					<Text text="Người duyệt đọc mục này để quyết định có duyệt nhu cầu hay không — ghi rõ hiện trạng và hậu quả nếu không mua." class="qdInfoHint"/>
+				</VBox>
 			</VBox>
 
 			<!-- ============ DANH SÁCH VẬT TƯ ============ -->

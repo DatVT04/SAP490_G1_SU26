@@ -1,0 +1,10 @@
+{
+  "byMaterial": {
+    "MON-001": {
+      "assetClass": "2000",
+      "assets": [
+        { "no": "100000", "used": false, "usedByPr": "" }
+      ]
+    }
+  }
+}

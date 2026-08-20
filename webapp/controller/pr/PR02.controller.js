@@ -154,6 +154,59 @@ sap.ui.define([
 			}).length;
 		},
 
+		// ── FORMATTER CHO KHOI "CAN CU DUYET" ──
+		// Tach thanh nhieu formatter nho thay vi nhoi vao expression binding: chuoi
+		// tieng Viet co dau + so tien dinh dang vi-VN viet trong XML rat de vo.
+
+		_money: function (nValue) {
+			return (Number(nValue) || 0).toLocaleString("vi-VN");
+		},
+
+		formatBudgetHead: function (sCostCenter, sIO, nThreshold) {
+			var s = "Bộ phận " + (sCostCenter || "—");
+			if (sIO) { s += " · IO " + sIO; }
+			if (nThreshold != null) {
+				s += " · ngân sách " + this._money(nThreshold) + " VND";
+			} else {
+				s += " · chưa đặt ngưỡng ngân sách";
+			}
+			return s;
+		},
+
+		formatBudgetDetail: function (nCommitted, nThisRequest, nRemaining) {
+			var s = "Đã cam kết từ các đề nghị đang chạy: " + this._money(nCommitted) + " VND";
+			if (nRemaining != null) {
+				s += " · còn lại " + this._money(nRemaining) + " VND";
+			}
+			s += " · đề nghị này " + this._money(nThisRequest) + " VND";
+			return s;
+		},
+
+		formatBudgetAfter: function (nThreshold, nRemainingAfter) {
+			if (nThreshold == null) {
+				return "Chưa đặt ngưỡng cho bộ phận này — không kiểm soát được ngân sách";
+			}
+			if (nRemainingAfter < 0) {
+				return "Duyệt đề nghị này sẽ VƯỢT ngân sách " + this._money(Math.abs(nRemainingAfter)) + " VND";
+			}
+			return "Duyệt xong còn lại " + this._money(nRemainingAfter) + " VND";
+		},
+
+		// Do = vuot ngan sach; vang = con duoi 20% (sap het); xanh = con thoai mai.
+		formatBudgetState: function (nThreshold, nRemainingAfter) {
+			if (nThreshold == null) { return "None"; }
+			if (nRemainingAfter < 0) { return "Error"; }
+			if (nRemainingAfter < Number(nThreshold) * 0.2) { return "Warning"; }
+			return "Success";
+		},
+
+		formatDuplicate: function (sMaterialNo, sDisplayId, sCostCenter, nQuantity, sUoM, sStatus) {
+			return (sMaterialNo || "?") + " — đề nghị " + (sDisplayId || "?")
+				+ " (bộ phận " + (sCostCenter || "?") + ", "
+				+ (Number(nQuantity) || 0) + " " + (sUoM || "") + ", "
+				+ (sStatus || "") + ")";
+		},
+
 		formatValue: function (fValue, sCurrency) {
 			if (fValue === undefined || fValue === null) { return ""; }
 			return Number(fValue).toLocaleString("vi-VN") + " " + (sCurrency || "VND");

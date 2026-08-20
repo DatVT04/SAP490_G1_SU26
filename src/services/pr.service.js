@@ -162,8 +162,9 @@ function mapSapItemToClient(sapItem) {
  */
 function mapClientItemToSapDeep(item) {
 	const sMaterialType = item.MaterialType || "ZSRV";
-	// Chi con 'A' (Tai san) va 'K' (Cost Center) — xem ghi chu o cho tao mappedItems.
-	const sCat = sMaterialType === "ZAST" ? "A" : "K";
+	// Loai hach toan da duoc quyet dinh o /api/approval/submit (theo BUDGET_ACCT_CAT
+	// va viec cost center co IO ngan sach hay khong) — doc lai, KHONG doan lai o day.
+	const sCat = item.AcctAssignCat || (sMaterialType === "ZAST" ? "A" : "K");
 	return {
 		MaterialNo: item.isFreeText ? "" : (item.MaterialNo || ""),
 		MaterialType: sMaterialType,
@@ -172,9 +173,10 @@ function mapClientItemToSapDeep(item) {
 		UoM: item.UoM || "PC",
 		EstimatedValue: String(item.EstimatedValue || 0),
 		AcctAssignCat: sCat,
-		CostCenter: sCat === "K" ? (item.CostCenter || "") : "",
-		// Luon rong: khong con Cat 'F'. Nguong ngan sach suy tu CostCenter luc tinh flag.
-		InternalOrder: "",
+		// Bang Z cua app giu cost center tren MOI dong (de biet de nghi thuoc phong
+		// nao); rieng PR THAT tren SAP thi createPRInSAP moi loc theo dung Cat.
+		CostCenter: item.CostCenter || "",
+		InternalOrder: sCat === "F" ? (item.InternalOrder || "") : "",
 		AssetNo: sCat === "A" ? (item.AssetNo || "") : "",
 		GLAccount: sCat === "A" ? "" : defaultGLAccount(sMaterialType),
 		IsFreeText: boolToSapX(item.isFreeText)
@@ -209,6 +211,9 @@ function mapSapPrToClient(sap) {
 		UpdatedAt: abapTsToIso(sap.UpdatedAt),
 		items: items,
 		Comment: sap.Comment || "",
+		// Ly do nguoi de nghi khai o PR-01 (can cu de Purchasing duyet nhu cau).
+		// Rong neu ZPR_DRAFT chua co field PURCHASE_REASON.
+		PurchaseReason: sap.PurchaseReason || "",
 		DecidedByEmail: sap.DecidedByEmail || "",
 		DecidedByRole: sap.DecidedByRole || "",
 		PurchasingApprovedBy: sap.PurchasingApprovedBy || "",

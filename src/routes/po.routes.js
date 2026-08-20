@@ -13,6 +13,7 @@ const { ODATA_SERVICE_PATH, ORG_DEFAULTS } = require("../config/org");
 const { extractSapErrorMessage, odataEscape, sapAuth, sapFetchCsrfToken, sapWrite } = require("../lib/sap-client");
 const { notifyCeos, notifyCfo, notifyPurchasing, notifyRequester } = require("../services/notify.service");
 const { getPendingRelease, poNumberForGroup, releaseGroup, releaseKey, savePendingRelease } = require("../services/po-approval.service");
+const { attachQuotationEvidence } = require("../services/decision-context.service");
 const { attachPoNumbers, enrichWithRfqAward, fetchPRItemsFromSAP, fetchPrDraftById, fetchPrDraftList, pickRealItemNo, updatePrDraft } = require("../services/pr.service");
 const { fetchRfqsByPr } = require("../services/rfq.service");
 
@@ -379,6 +380,15 @@ router.get("/api/po/pending-approval", async (req, res) => {
 					Currency: pr.Currency,
 					PoNumber: (pending && pending.poNumber) || pr.PoNumberText || ""
 				}];
+			}
+
+			// Bang chung canh tranh gia cho tung PO: moi may NCC, nhan may bao gia,
+			// gia thap nhat/cao nhat, co chon gia thap nhat khong. Day la thu CFO
+			// dua vao de duyet chi tien — xem decision-context.service.js.
+			try {
+				await attachQuotationEvidence(pr);
+			} catch (e) {
+				console.error("[GET /api/po/pending-approval] attachQuotationEvidence:", e.message);
 			}
 		}
 

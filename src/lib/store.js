@@ -28,7 +28,7 @@ const DATA_DIR = IS_SERVERLESS
 	: path.join(APP_ROOT, "data");
 const NOTIF_FILE = path.join(DATA_DIR, "notifications.json");
 const THRESHOLD_FILE = path.join(DATA_DIR, "thresholds.json");
-const ASSET_MAP_FILE = path.join(DATA_DIR, "asset-map.json");
+const MAT_CONFIG_FILE = path.join(DATA_DIR, "material-config.json");
 
 function ensureDataDir() {
 	try {
@@ -109,47 +109,49 @@ function saveThresholds() {
 }
 
 // ============================================================================
-// ANH XA VAT TU (ZAST) -> MA TAI SAN
-// SAP khong co lien ket san giua Material va Asset (2 module khac nhau: MM va
-// FI-AA), nen quan he "vat tu nay chinh la tai san nao" phai do Ke toan khai —
-// dung y nghia voi Info Record khai "vat tu nay mua cua NCC nao". Danh muc nay
-// la nguon de PR-01 tu dien o Asset.
+// DANH MUC CAU HINH VAT TU NOI BO: GIA KE HOACH + MA TAI SAN
+// Ban ghi that nam tren SAP (bang Z ZG1_MAT_CONFIG) — phan duoi day chi la ban
+// du phong trong ung dung, dung khi SAP chua san sang / loi. Xem
+// src/services/material-config.service.js.
 //
-// 1 vat tu co the ung nhieu ma tai san (mua 3 man hinh = 3 the tai san rieng),
-// nen gia tri luu duoi dang MANG. Nhan ca chuoi don cho de sua tay file.
+// Shape: { "MON-001": { assetClass, assets: [{ no, used, usedByPr }] } }
+// GIA KHONG nam o day — gia cua vat tu lay tu material master (MM02, bang MBEW)
+// qua MaterialSet.
+// Moi lan mua 1 the tai san rieng nen `assets` la KHO MA: dung den dau danh dau
+// den do. Chi tiet xem src/services/material-config.service.js.
 // ============================================================================
 
-function loadAssetMap() {
+function loadMaterialConfig() {
 	ensureDataDir();
-	if (!fs.existsSync(ASSET_MAP_FILE)) {
+	if (!fs.existsSync(MAT_CONFIG_FILE)) {
 		// Cung ly do voi thresholds: tren Vercel DATA_DIR nam trong /tmp va mat
 		// khi cold start -> phai co ban seed commit trong repo, neu khong PR-01
 		// se khong tu dien duoc ma nao tren production.
-		const seedFile = path.join(APP_ROOT, "data", "asset-map.json");
-		if (seedFile !== ASSET_MAP_FILE && fs.existsSync(seedFile)) {
+		const seedFile = path.join(APP_ROOT, "data", "material-config.json");
+		if (seedFile !== MAT_CONFIG_FILE && fs.existsSync(seedFile)) {
 			try {
 				const seed = JSON.parse(fs.readFileSync(seedFile, "utf8"));
 				const byMaterial = seed.byMaterial && typeof seed.byMaterial === "object" ? seed.byMaterial : {};
-				console.log("[DATA] Nap anh xa vat tu-tai san tu repo (seed):", Object.keys(byMaterial).length);
+				console.log("[DATA] Nap cau hinh vat tu tu repo (seed):", Object.keys(byMaterial).length);
 				return { byMaterial: byMaterial };
 			} catch (e) {
-				console.error("⚠️ Doc seed asset-map THAT BAI:", e.message);
+				console.error("⚠️ Doc seed material-config THAT BAI:", e.message);
 			}
 		}
 		return { byMaterial: {} };
 	}
 	try {
-		const raw = JSON.parse(fs.readFileSync(ASSET_MAP_FILE, "utf8"));
+		const raw = JSON.parse(fs.readFileSync(MAT_CONFIG_FILE, "utf8"));
 		return { byMaterial: raw.byMaterial && typeof raw.byMaterial === "object" ? raw.byMaterial : {} };
 	} catch (e) {
-		console.error("⚠️ Load asset-map THAT BAI:", e.message);
+		console.error("⚠️ Load material-config THAT BAI:", e.message);
 		return { byMaterial: {} };
 	}
 }
 
-function saveAssetMap() {
+function saveMaterialConfig() {
 	ensureDataDir();
-	fs.writeFileSync(ASSET_MAP_FILE, JSON.stringify(assetMapStore, null, 2), "utf8");
+	fs.writeFileSync(MAT_CONFIG_FILE, JSON.stringify(materialConfigStore, null, 2), "utf8");
 }
 
 /**
@@ -163,16 +165,25 @@ function normalizeMaterialKey(materialNo) {
 	return /^\d+$/.test(s) ? (s.replace(/^0+/, "") || "0") : s;
 }
 
-/** Mang ma tai san cua 1 vat tu ([] neu chua khai). */
-function assetsForMaterial(materialNo) {
+/** Cau hinh cua 1 vat tu: { assetClass, assets: [{no,used,usedByPr}] }. */
+function configForMaterial(materialNo) {
 	const key = normalizeMaterialKey(materialNo);
-	if (!key) { return []; }
-	const raw = assetMapStore.byMaterial[key];
-	if (raw == null || raw === "") { return []; }
-	const list = Array.isArray(raw) ? raw : String(raw).split(",");
-	return list
-		.map(function (x) { return String(x || "").trim(); })
-		.filter(Boolean);
+	const empty = { assetClass: "", assets: [] };
+	if (!key) { return empty; }
+	const raw = materialConfigStore.byMaterial[key];
+	if (!raw) { return empty; }
+	const assets = (Array.isArray(raw.assets) ? raw.assets : [])
+		.map(function (a) {
+			if (a && typeof a === "object") {
+				return { no: String(a.no || "").trim(), used: !!a.used, usedByPr: String(a.usedByPr || "") };
+			}
+			return { no: String(a || "").trim(), used: false, usedByPr: "" };
+		})
+		.filter(function (a) { return a.no; });
+	return {
+		assetClass: String(raw.assetClass || "").trim().toUpperCase(),
+		assets: assets
+	};
 }
 
 function normalizeOrderNo(orderNo) {
@@ -197,11 +208,11 @@ const notificationStore = _loadedNotifs.items;
 let nextNotificationId = _loadedNotifs.nextId;
 
 const thresholdStore = loadThresholds();
-const assetMapStore = loadAssetMap();
+const materialConfigStore = loadMaterialConfig();
 
 console.log("[DATA] Loaded notif:", notificationStore.length);
 console.log("[DATA] IO thresholds:", Object.keys(thresholdStore.byIO).length);
-console.log("[DATA] Vat tu co ma tai san:", Object.keys(assetMapStore.byMaterial).length);
+console.log("[DATA] Vat tu da cau hinh:", Object.keys(materialConfigStore.byMaterial).length);
 
 function pushNotification(toEmail, prId, message) {
 	if (!toEmail) { return; }
@@ -217,14 +228,14 @@ function pushNotification(toEmail, prId, message) {
 }
 module.exports = {
 	DATA_DIR,
-	assetMapStore,
-	assetsForMaterial,
+	configForMaterial,
 	getThresholdForIO,
 	normalizeMaterialKey,
 	normalizeOrderNo,
 	notificationStore,
+	materialConfigStore,
 	pushNotification,
-	saveAssetMap,
+	saveMaterialConfig,
 	saveNotifications,
 	saveThresholds,
 	thresholdStore,

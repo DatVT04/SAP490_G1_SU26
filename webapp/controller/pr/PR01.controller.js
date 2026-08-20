@@ -46,7 +46,7 @@ sap.ui.define([
 	// khi gui len SAP, xem _expandItemsForSubmit.
 	//
 	// aMapped = cac ma tai san da khai san cho vat tu nay (danh muc anh xa, xem
-	// /api/asset-map). Dien lan luot vao cac o; o nao vuot qua so ma da khai thi
+	// /api/material-config). Dien lan luot vao cac o; o nao vuot qua so ma da khai
 	// de trong cho nguoi de nghi nhap tay.
 	function buildAssetNumbers(sMaterialType, nQuantity, sFirstAssetNo, aMapped) {
 		if (sMaterialType !== "ZAST") { return []; }
@@ -84,7 +84,7 @@ sap.ui.define([
 				materialsLoading: true,
 				costCenters: [],
 				internalOrders: [],
-				header: { currency: "VND" },
+				header: { currency: "VND", purchaseReason: "" },
 				items: [emptyCatalogItem()],
 				totalText: "0",
 				escalationText: "",
@@ -100,12 +100,12 @@ sap.ui.define([
 			this._userCC = "";
 			this._resubmitOf = null;
 
-			this._assetMap = {};
+			this._matConfig = {};
 
 			this._loadMaterials();
 			this._loadAccountingLists();
 			this._loadThresholds();
-			this._loadAssetMap();
+			this._loadMaterialConfig();
 
 			this.getOwnerComponent().getRouter()
 				.getRoute("pr01")
@@ -516,10 +516,32 @@ sap.ui.define([
 			this._syncAssetNumbers(oItem);
 			oModel.setProperty(sPath, oItem);
 
-			var aMapped = this._assetsOfMaterial(oItem.materialNo);
-			if (bAsset && aMapped.length === 0) {
+			// Don gia lay tu MATERIAL MASTER (MM02 -> Accounting 1 -> Standard
+			// price), MaterialSet tra ve cung danh sach vat tu. Chi GOI Y khi o dang
+			// trong — nguoi de nghi da go gia thi ton trong, vi day la gia hach toan
+			// con gia mua that chot o buoc hoi gia (RFQ).
+			var nMasterPrice = Number(oMaterial.StandardPrice || oMaterial.MovingPrice || 0);
+			var nCurrentPrice = Number(oModel.getProperty(sPath + "/estimatedValue")) || 0;
+			if (nMasterPrice > 0 && nCurrentPrice <= 0) {
+				oModel.setProperty(sPath + "/estimatedValue", nMasterPrice);
+			}
+
+			// Canh bao dung viec: het ma trong kho khac han voi chua khai bao gio.
+			var oCfg = this._configOfMaterial(oItem.materialNo);
+			var aFree = this._assetsOfMaterial(oItem.materialNo);
+			var aMissing = [];
+			if (nMasterPrice <= 0) { aMissing.push("giá trong material master (MM02)"); }
+			if (bAsset && oCfg.assets.length === 0) {
+				aMissing.push("mã tài sản (AS01)");
+			} else if (bAsset && aFree.length === 0) {
 				MessageToast.show("Vật tư " + oItem.materialNo
-					+ " chưa khai mã tài sản trong Cấu hình — nhập tay mã tài sản (AS01).");
+					+ ": kho mã tài sản đã dùng hết. Kế toán cần tạo thẻ tài sản mới bằng AS01"
+					+ (oCfg.assetClass ? " (nhóm " + oCfg.assetClass + ")" : "")
+					+ " rồi khai vào Cấu hình.");
+			}
+			if (aMissing.length) {
+				MessageToast.show("Vật tư " + oItem.materialNo + " chưa có "
+					+ aMissing.join(" và ") + " — nhập tay giúp nhé.");
 			}
 
 			this._recalcTotal();
@@ -538,34 +560,53 @@ sap.ui.define([
 			this._recalcTotal();
 		},
 
-		// ── DANH MUC ANH XA VAT TU -> MA TAI SAN ──
-		// SAP khong co lien ket san Material <-> Asset (MM va FI-AA la 2 module
-		// khac nhau), nen quan he nay do Ke toan khai o man Cau hinh. Tai 1 lan
-		// luc mo man de moi lan chon vat tu khong phai goi lai server.
-		_loadAssetMap: function () {
+		// ── DANH MUC CAU HINH VAT TU (gia ke hoach + ma tai san) ──
+		// Nguon: bang Z ZG1_MAT_CONFIG tren SAP. Tai 1 lan luc mo man de moi lan
+		// chon vat tu khong phai goi lai server.
+		_loadMaterialConfig: function () {
 			var that = this;
-			fetch(BACKEND + "/api/asset-map")
+			fetch(BACKEND + "/api/material-config")
 				.then(function (r) { return r.json(); })
 				.then(function (res) {
-					that._assetMap = (res && res.byMaterial) || {};
+					that._matConfig = (res && res.byMaterial) || {};
 				})
 				.catch(function () {
-					// Khong chan man hinh: thieu danh muc thi o Asset de trong,
-					// nguoi de nghi van nhap tay duoc nhu truoc day.
-					that._assetMap = {};
+					// Khong chan man hinh: thieu danh muc thi o Don gia va Ma tai san
+					// de trong, nguoi de nghi van nhap tay duoc nhu truoc day.
+					that._matConfig = {};
 				});
 		},
 
 		// Chuan hoa khoa giong normalizeMaterialKey ben src/lib/store.js — SAP tra
 		// ma vat tu luc co so 0 dem dau luc khong.
-		_assetsOfMaterial: function (sMaterialNo) {
+		_configOfMaterial: function (sMaterialNo) {
 			var s = String(sMaterialNo || "").trim().toUpperCase();
-			if (!s) { return []; }
+			var oEmpty = { assetClass: "", assets: [] };
+			if (!s) { return oEmpty; }
 			var sKey = /^\d+$/.test(s) ? (s.replace(/^0+/, "") || "0") : s;
-			var raw = (this._assetMap || {})[sKey];
-			if (raw == null || raw === "") { return []; }
-			var aList = Array.isArray(raw) ? raw : String(raw).split(",");
-			return aList.map(function (x) { return String(x || "").trim(); }).filter(Boolean);
+			var raw = (this._matConfig || {})[sKey];
+			if (!raw) { return oEmpty; }
+			var aAssets = (Array.isArray(raw.assets) ? raw.assets : [])
+				.map(function (a) {
+					if (a && typeof a === "object") {
+						return { no: String(a.no || "").trim(), used: !!a.used };
+					}
+					return { no: String(a || "").trim(), used: false };
+				})
+				.filter(function (a) { return a.no; });
+			return {
+				assetClass: String(raw.assetClass || "").toUpperCase(),
+				assets: aAssets
+			};
+		},
+
+		// CHI cac ma CHUA DUNG. Moi tai san vat ly la 1 the rieng: ma da gan cho
+		// lan mua truoc khong duoc dung lai cho lan mua sau (xem kho ma trong
+		// src/services/material-config.service.js).
+		_assetsOfMaterial: function (sMaterialNo) {
+			return this._configOfMaterial(sMaterialNo).assets
+				.filter(function (a) { return !a.used; })
+				.map(function (a) { return a.no; });
 		},
 
 		// Giu lai gia tri Asset da nhap theo dung vi tri khi resize mang assetNumbers
@@ -623,6 +664,7 @@ sap.ui.define([
 				onClose: function (sAction) {
 					if (sAction === MessageBox.Action.YES) {
 						this.getView().getModel().setProperty("/items", [this._newItem()]);
+						this.getView().getModel().setProperty("/header/purchaseReason", "");
 						this._recalcTotal();
 					}
 				}.bind(this)
@@ -640,6 +682,15 @@ sap.ui.define([
 
 			if (!aItems || aItems.length === 0) {
 				MessageBox.warning("Vui lòng thêm ít nhất 1 dòng vật tư / dịch vụ vào danh sách.");
+				return;
+			}
+
+			// Ly do mua: can cu de Purchasing duyet NHU CAU. Chan o day cho nguoi
+			// dung thay ngay; backend con mot lop chan nua (khong tin FE).
+			var sPurchaseReason = String(oModel.getProperty("/header/purchaseReason") || "").trim();
+			if (sPurchaseReason.length < 10) {
+				MessageBox.warning("Vui lòng nhập Lý do đề nghị mua (ít nhất 10 ký tự).\n\n"
+					+ "Người duyệt dựa vào lý do này để quyết định — ví dụ: máy cũ hỏng, tuyển thêm nhân sự, hết vật tư tiêu hao.");
 				return;
 			}
 
@@ -699,6 +750,7 @@ sap.ui.define([
 					requesterEmail: oUser.email,
 					currency: sCurrency,
 					totalPRValue: nTotalPRValue,
+					purchaseReason: sPurchaseReason,
 					items: this._expandItemsForSubmit(aItems),
 					resubmitOf: this._resubmitOf || undefined
 				})
@@ -733,6 +785,7 @@ sap.ui.define([
 						title: "Đã gửi — " + sPrNumber,
 						onClose: function () {
 							oModel.setProperty("/items", [this._newItem()]);
+							oModel.setProperty("/header/purchaseReason", "");
 							this._recalcTotal();
 							this.getOwnerComponent().getRouter().navTo("dashboard");
 						}.bind(this)

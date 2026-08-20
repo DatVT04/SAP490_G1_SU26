@@ -37,16 +37,16 @@ sap.ui.define([
 		},
 
 		/**
-		 * Ghep danh muc vat tu tu SAP (/api/materials, loc ZAST) voi anh xa dang
-		 * luu (/api/asset-map). Phai lay ca 2 vi anh xa chi chua vat tu DA khai —
-		 * muon khai them vat tu moi thi phai liet ke du (cung ly do voi bang nguong).
+		 * Ghep danh muc vat tu tu SAP (/api/materials) voi cau hinh dang luu
+		 * (/api/material-config). Phai lay ca 2 vi cau hinh chi chua vat tu DA khai
+		 * — muon khai them vat tu moi thi phai liet ke du (cung ly do voi bang nguong).
 		 */
 		_loadAssetMap: function () {
 			var oModel = this.getView().getModel("assetModel");
 
 			Promise.all([
 				fetch(BACKEND + "/api/materials").then(function (r) { return r.json(); }),
-				fetch(BACKEND + "/api/asset-map").then(function (r) { return r.json(); })
+				fetch(BACKEND + "/api/material-config").then(function (r) { return r.json(); })
 			])
 				.then(function (aResults) {
 					var oMatRes = aResults[0] || {};
@@ -57,22 +57,43 @@ sap.ui.define([
 					}
 
 					var oByMat = (oMapRes && oMapRes.byMaterial) || {};
+					// Liet ke MOI vat tu, khong rieng ZAST: gia ke hoach ap dung cho ca
+					// dich vu (ZSRV). Cot ma tai san tu khoa lai o dong khong phai ZAST.
 					var aRows = (oMatRes.data || [])
-						.filter(function (m) {
-							return String(m.MaterialType || "").trim().toUpperCase() === "ZAST";
-						})
 						.map(function (m) {
 							var sNo = String(m.MaterialNo || "").trim();
 							var sKey = /^\d+$/.test(sNo.toUpperCase())
 								? (sNo.replace(/^0+/, "") || "0")
 								: sNo.toUpperCase();
-							var raw = oByMat[sKey];
-							var aList = Array.isArray(raw) ? raw : (raw ? String(raw).split(",") : []);
+							var sType = String(m.MaterialType || "").trim().toUpperCase();
+							var oCfg = oByMat[sKey] || {};
+							var aList = (Array.isArray(oCfg.assets) ? oCfg.assets : [])
+								.map(function (a) {
+									if (a && typeof a === "object") {
+										return { no: String(a.no || "").trim(), used: !!a.used, usedByPr: String(a.usedByPr || "") };
+									}
+									return { no: String(a || "").trim(), used: false, usedByPr: "" };
+								})
+								.filter(function (a) { return a.no; });
+
+							var aUsed = aList.filter(function (a) { return a.used; });
+
 							return {
 								materialNo: sNo,
 								description: m.Description || "",
-								assets: aList.map(function (x) { return String(x || "").trim(); })
-									.filter(Boolean).join(", ")
+								materialType: sType,
+								isAsset: sType === "ZAST",
+								typeLabel: sType === "ZAST" ? "Tài sản" : (sType === "ZSRV" ? "Dịch vụ" : sType),
+								assetClass: oCfg.assetClass || "",
+								// O nhap chi chua ma CON TRONG; ma da dung hien rieng ben
+								// duoi dang chi doc.
+								assets: aList.filter(function (a) { return !a.used; })
+									.map(function (a) { return a.no; }).join(", "),
+								usedText: aUsed.length
+									? "Đã dùng: " + aUsed.map(function (a) {
+										return a.no + (a.usedByPr ? " (PR " + a.usedByPr + ")" : "");
+									}).join(" · ")
+									: ""
 							};
 						});
 
@@ -84,14 +105,17 @@ sap.ui.define([
 					}
 				})
 				.catch(function () {
-					MessageToast.show("Không tải được ánh xạ vật tư — tài sản.");
+					MessageToast.show("Không tải được danh mục tài sản của vật tư.");
 				});
 		},
 
 		onClearAssetRow: function (oEvent) {
 			var oCtx = oEvent.getSource().getBindingContext("assetModel");
 			if (!oCtx) { return; }
-			this.getView().getModel("assetModel").setProperty(oCtx.getPath() + "/assets", "");
+			// Chi xoa phan khai duoc: ma DA DUNG khong dong o day (service giu lai).
+			var oModel = this.getView().getModel("assetModel");
+			oModel.setProperty(oCtx.getPath() + "/assets", "");
+			oModel.setProperty(oCtx.getPath() + "/assetClass", "");
 		},
 
 		onSaveAssetMap: function () {
@@ -104,14 +128,18 @@ sap.ui.define([
 				var aList = String(row.assets || "").split(",")
 					.map(function (x) { return String(x || "").trim(); })
 					.filter(Boolean);
-				// Chuoi rong = xoa khai bao cua vat tu do (backend hieu mang rong la delete).
-				oByMaterial[row.materialNo] = aList;
-				if (aList.length) { iSet += 1; }
+				var sClass = String(row.assetClass || "").trim().toUpperCase();
+				// Khong ma tai san + khong nhom tai san = xoa khai bao vat tu do.
+				oByMaterial[row.materialNo] = {
+					assets: aList,
+					assetClass: sClass
+				};
+				if (aList.length || sClass) { iSet += 1; }
 			});
 
 			oView.setBusy(true);
 
-			fetch(BACKEND + "/api/asset-map", {
+			fetch(BACKEND + "/api/material-config", {
 				method: "PUT",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
@@ -125,7 +153,7 @@ sap.ui.define([
 				.then(function (res) {
 					oView.setBusy(false);
 					if (!res || !res.success) {
-						MessageBox.error((res && res.message) || "Không lưu được ánh xạ tài sản.");
+						MessageBox.error((res && res.message) || "Không lưu được danh mục tài sản.");
 						return;
 					}
 					if (res.warning) {
@@ -137,9 +165,9 @@ sap.ui.define([
 						return;
 					}
 					MessageBox.success(
-						"Đã lưu ánh xạ vật tư — tài sản vào bảng ZG1_MAT_ASSET trên SAP.\n\n"
-						+ iSet + "/" + aRows.length + " vật tư Tài sản đã có mã tài sản.\n"
-						+ "Đề nghị mua sắm lập từ bây giờ sẽ tự điền mã tương ứng.",
+						"Đã lưu danh mục tài sản vào bảng ZG1_MAT_CONFIG trên SAP.\n\n"
+						+ iSet + "/" + aRows.length + " vật tư đã khai nhóm tài sản hoặc mã tài sản còn trống.\n"
+						+ "Đề nghị mua sắm lập từ bây giờ sẽ tự điền mã tài sản.",
 						{ title: "Cập nhật thành công" }
 					);
 				})

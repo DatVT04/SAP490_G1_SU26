@@ -134,14 +134,64 @@
 									<Text text="Đơn hàng chờ duyệt trong đề nghị này" class="qdInfoLabel"/>
 								</HBox>
 								<List items="{PoGroups}" showSeparators="Inner">
-									<StandardListItem
-										title="{= 'PO ' + (${PoNumber} || '(chưa đọc được số)') + ' — ' + (${AwardedVendorName} || ${AwardedVendor} || 'NCC ?') }"
-										description="{= (${RfqId} ? ${RfqId} + ' · ' : '') + (${ItemLines} ? ('dòng ' + ${ItemLines}) : 'toàn bộ dòng') + ' · Lý do chọn: ' + (${AwardReason} || '(chưa ghi)') }"
-										info="{parts: ['FinalValue','Currency'], formatter: '.formatValue'}"
-										infoState="{= ${Status} === 'PO_RELEASED' ? 'Success' : (${Status} === 'PO_REJECTED' ? 'Error' : 'Warning') }"
-										icon="sap-icon://sales-order-item"
-										wrapping="true"
-									/>
+									<CustomListItem>
+										<VBox class="qdPoGroupRow">
+											<HBox justifyContent="SpaceBetween" alignItems="Center" wrap="Wrap">
+												<VBox>
+													<Text
+														text="{= 'PO ' + (${PoNumber} || '(chưa đọc được số)') + ' — ' + (${AwardedVendorName} || ${AwardedVendor} || 'NCC ?') }"
+														class="qdDecisionValue"
+													/>
+													<Text
+														text="{= (${RfqId} ? ${RfqId} + ' · ' : '') + (${ItemLines} ? ('dòng ' + ${ItemLines}) : 'toàn bộ dòng') }"
+														class="qdCellHint"
+													/>
+												</VBox>
+												<ObjectStatus
+													text="{parts: ['FinalValue','Currency'], formatter: '.formatValue'}"
+													state="{= ${Status} === 'PO_RELEASED' ? 'Success' : (${Status} === 'PO_REJECTED' ? 'Error' : 'Warning') }"
+												/>
+											</HBox>
+
+											<!-- ══ BANG CHUNG CANH TRANH GIA ══
+											     Day la thu CFO thuc su can de duyet CHI TIEN: co that su hoi gia
+											     nhieu NCC khong, gia da chon co phai re nhat khong, khong re nhat
+											     thi vi sao. Tinh tu ZG1_QUOTATION — xem decision-context.service.js. -->
+											<VBox class="qdDecisionBox sapUiTinyMarginTop" visible="{= !!${Evidence} }">
+												<Text text="CĂN CỨ CHỐT GIÁ" class="qdDecisionTitle"/>
+												<Text
+													text="{parts: ['Evidence/Invited','Evidence/Received'], formatter: '.formatCompetition'}"
+													class="qdDecisionValue sapUiTinyMarginTop"
+												/>
+												<Text
+													text="{parts: ['Evidence/LowestPrice','Evidence/HighestPrice','Evidence/ChosenPrice'], formatter: '.formatPriceRange'}"
+													class="qdCellHint"
+												/>
+												<ObjectStatus
+													text="{parts: ['Evidence/ChosenIsLowest','Evidence/ExtraVsLowest','Evidence/SingleQuote'], formatter: '.formatPriceVerdict'}"
+													state="{parts: ['Evidence/ChosenIsLowest','Evidence/ExtraVsLowest','Evidence/SingleQuote'], formatter: '.formatPriceVerdictState'}"
+													class="sapUiTinyMarginTop"
+												/>
+												<Text
+													text="{= 'Lý do chọn: ' + (${AwardReason} || '(chưa ghi)') }"
+													class="qdCellHint sapUiTinyMarginTop"
+												/>
+												<Text
+													text="{parts: ['Evidence/LegalDocsOk','Evidence/PaymentTerms','Evidence/LeadTimeDays','Evidence/WarrantyMonths'], formatter: '.formatVendorTerms'}"
+													class="qdCellHint"
+												/>
+											</VBox>
+
+											<!-- Nhom khong di qua RFQ: noi thang la khong co bang chung so sanh -->
+											<MessageStrip
+												text="Đơn hàng này không đi qua vòng hỏi giá nên không có báo giá để so sánh — cần hỏi rõ Purchasing trước khi duyệt."
+												type="Warning"
+												showIcon="true"
+												visible="{= !${Evidence} }"
+												class="sapUiTinyMarginTop"
+											/>
+										</VBox>
+									</CustomListItem>
 								</List>
 							</VBox>
 

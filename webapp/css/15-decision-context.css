@@ -1,0 +1,47 @@
+/* ==========================================================================
+   15-decision-context.css
+   Khoi "Can cu duyet" tren PR-02 (Purchasing duyet nhu cau) va "Can cu chot
+   gia" tren PO-02 (CFO duyet chi tien).
+
+   THU TU NAP QUAN TRONG: cac file css duoc liet ke theo dung thu tu nay trong
+   manifest.json (sap.ui5 > resources > css). Doi thu tu se lam doi do uu tien
+   cua cac rule co cung do dac hieu -> giao dien co the vo. Them file moi thi
+   them so thu tu lon hon o cuoi.
+   ========================================================================== */
+
+/* Khoi can cu: nen xam nhat + vien trai xanh de tach hẳn khoi phan mo ta de
+   nghi o tren — nguoi duyet nhin phat la biet day la vung "de quyet dinh". */
+.qdDecisionBox {
+	background: rgba(37, 99, 235, 0.05);
+	border-left: 3px solid var(--qd-accent-blue);
+	border-radius: var(--qd-radius-md);
+	padding: 0.75rem 1rem;
+}
+
+.qdDecisionTitle {
+	font-size: 0.6875rem;
+	font-weight: 700;
+	letter-spacing: 1.2px;
+	color: var(--qd-accent-blue) !important;
+	text-transform: uppercase;
+}
+
+.qdDecisionValue {
+	font-size: 0.875rem;
+	font-weight: 600;
+	color: var(--qd-primary) !important;
+	line-height: 1.5;
+}
+
+/* Tung dong ngan sach / tung PO: cach nhau ro de khong doc nham dong nay sang
+   dong kia khi de nghi dung toi nhieu bo phan. */
+.qdBudgetRow,
+.qdPoGroupRow {
+	padding: 0.5rem 0;
+	width: 100%;
+}
+
+.qdBudgetRow + .qdBudgetRow,
+.qdPoGroupRow + .qdPoGroupRow {
+	border-top: 1px solid var(--qd-border);
+}

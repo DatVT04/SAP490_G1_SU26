@@ -248,6 +248,65 @@
 								<Text text="{= ${Comment} || ${Comments} }" class="qdCommentText"/>
 							</VBox>
 
+							<!-- ══ CAN CU DUYET ══
+							     Truoc day man nay chi hien NOI DUNG de nghi (mua gi, bao nhieu tien),
+							     nguoi duyet khong co gi de dua vao ma phan xet. Ba muc duoi day tra loi
+							     dung 3 cau hoi cua nguoi duyet nhu cau: vi sao can, phong con tien
+							     khong, va co dang mua trung khong. Tat ca tinh tu du lieu da co. -->
+							<VBox class="qdDecisionBox sapUiSmallMarginTop">
+								<Text text="CĂN CỨ DUYỆT" class="qdDecisionTitle"/>
+
+								<!-- 1. Ly do nguoi de nghi khai o PR-01 -->
+								<VBox class="sapUiTinyMarginTop">
+									<Text text="Lý do đề nghị mua" class="qdInfoLabel"/>
+									<Text
+										text="{= ${PurchaseReason} || '(đề nghị cũ — chưa có lý do)' }"
+										class="{= ${PurchaseReason} ? 'qdDecisionValue' : 'qdCellHint' }"
+									/>
+								</VBox>
+
+								<!-- 2. Ngan sach tung phong ma de nghi nay dung toi -->
+								<VBox class="sapUiSmallMarginTop" visible="{= (${BudgetContext} || []).length > 0 }">
+									<Text text="Ngân sách bộ phận" class="qdInfoLabel"/>
+									<List items="{BudgetContext}" showNoData="false" showSeparators="None">
+										<CustomListItem>
+											<VBox class="qdBudgetRow">
+												<Text
+													text="{parts: ['CostCenter','InternalOrder','Threshold'], formatter: '.formatBudgetHead'}"
+													class="qdDecisionValue"
+												/>
+												<Text
+													text="{parts: ['Committed','ThisRequest','Remaining'], formatter: '.formatBudgetDetail'}"
+													class="qdCellHint"
+												/>
+												<ObjectStatus
+													text="{parts: ['Threshold','RemainingAfter'], formatter: '.formatBudgetAfter'}"
+													state="{parts: ['Threshold','RemainingAfter'], formatter: '.formatBudgetState'}"
+													class="sapUiTinyMarginTop"
+												/>
+											</VBox>
+										</CustomListItem>
+									</List>
+								</VBox>
+
+								<!-- 3. Vat tu nay dang duoc de nghi o don khac (mua trung) -->
+								<VBox class="sapUiSmallMarginTop" visible="{= (${DuplicateWarnings} || []).length > 0 }">
+									<ObjectStatus
+										text="{= 'Cảnh báo trùng: ' + (${DuplicateWarnings} || []).length + ' đề nghị khác đang mua cùng vật tư' }"
+										state="Warning"
+										icon="sap-icon://warning"
+									/>
+									<List items="{DuplicateWarnings}" showNoData="false" showSeparators="None">
+										<CustomListItem>
+											<Text
+												text="{parts: ['MaterialNo','DisplayId','CostCenter','Quantity','UoM','Status'], formatter: '.formatDuplicate'}"
+												class="qdCellHint"
+											/>
+										</CustomListItem>
+									</List>
+								</VBox>
+							</VBox>
+
 							<HBox justifyContent="End" alignItems="Center" class="qdRowActions sapUiSmallMarginTop">
 								<Button
 									text="Chi tiết"

@@ -10,21 +10,33 @@ const express = require("express");
 const { findActiveEmployeeByEmail } = require("../services/employee.service");
 const { extractSapErrorMessage, odataEscape } = require("../lib/sap-client");
 const { boolToSapX } = require("../lib/sap-format");
-const { buildApprovalFlagsByCostCenter } = require("../services/approval.service");
+const { budgetOrderOfCostCenter, buildApprovalFlagsByCostCenter } = require("../services/approval.service");
+const { BUDGET_ACCT_CAT } = require("../config/org");
 const { notifyPurchasing, notifyRequester } = require("../services/notify.service");
 const { attachPoNumbers, createPRInSAP, createPrDraft, enrichWithRfqAward, fetchPrDraftById, fetchPrDraftList, mapClientItemToSapDeep, updatePrDraft } = require("../services/pr.service");
+const { markAssetsUsed } = require("../services/material-config.service");
+const { attachPurchasingContext } = require("../services/decision-context.service");
 
 const router = express.Router();
 
 
 router.post("/api/approval/submit", async (req, res) => {
-	const { requesterEmail, currency, totalPRValue, items, resubmitOf } = req.body || {};
+	const { requesterEmail, currency, totalPRValue, items, resubmitOf, purchaseReason } = req.body || {};
 
 	if (!requesterEmail) {
 		return res.status(400).json({ success: false, message: "Thieu thong tin nguoi de nghi." });
 	}
 	if (!Array.isArray(items) || items.length === 0) {
 		return res.status(400).json({ success: false, message: "PR phai co it nhat 1 vat tu." });
+	}
+	// LY DO MUA bat buoc: day la can cu goc de Purchasing duyet nhu cau. Truoc day
+	// nguoi de nghi chi khai MUA GI chu khong khai VI SAO CAN, nen nguoi duyet
+	// khong co gi de dua vao ngoai cam tinh.
+	if (!purchaseReason || String(purchaseReason).trim().length < 10) {
+		return res.status(400).json({
+			success: false,
+			message: "Bat buoc nhap ly do de nghi mua (it nhat 10 ky tu) — vd: may cu hong, tuyen them nhan su, het vat tu tieu hao."
+		});
 	}
 	for (var i = 0; i < items.length; i++) {
 		var it = items[i];
@@ -96,13 +108,35 @@ router.post("/api/approval/submit", async (req, res) => {
 		items[c].costCenter = employeeCC;
 	}
 
-	// Chi con 2 loai account assignment: 'A' (vat tu Tai san) va 'K' (Cost Center).
-	// Cau hinh cua nhom: moi phong ban = 1 Cost Center, va moi Cost Center gan dung
-	// 1 Internal Order ngan sach -> IO khong phai mot "loai" rieng, no la ngan sach
-	// cua chinh phong do. Nen KHONG con Cat 'F': PR len SAP luon mang CostCenter.
+	// ── LOAI HACH TOAN ──────────────────────────────────────────────────────
+	// Vat tu Tai san (ZAST) -> Cat 'A'.
+	// Dong chi phi -> Cat 'F' (Internal Order) khi BUDGET_ACCT_CAT = 'F': chi phi
+	// ghi vao IO ngan sach cua phong nen SAP tu ghi commitment va Availability
+	// Control tu chan khi vuot ngan sach. Day la co che "tru dan tien theo tung
+	// don" that su, thay vi chi so sanh 1 don voi 1 con so nhu truoc.
+	//
+	// Cost center chua gan IO nao thi BUOC phai quay ve Cat 'K' — khong the hach
+	// toan Cat 'F' ma khong co so order, BAPI se tu choi.
+	const ioByCostCenter = {};
+	if (BUDGET_ACCT_CAT === "F") {
+		for (const item of items) {
+			const cc = String(item.costCenter || "").trim();
+			if (!cc || ioByCostCenter[cc] !== undefined) { continue; }
+			ioByCostCenter[cc] = await budgetOrderOfCostCenter(cc);
+		}
+	}
+
 	const mappedItems = items.map(function (item, idx) {
 		var sMaterialType = item.materialType || "ZSRV";
-		var sCat = sMaterialType === "ZAST" ? "A" : "K";
+		var sBudgetIO = ioByCostCenter[String(item.costCenter || "").trim()] || "";
+		var sCat;
+		if (sMaterialType === "ZAST") {
+			sCat = "A";
+		} else if (BUDGET_ACCT_CAT === "F" && sBudgetIO) {
+			sCat = "F";
+		} else {
+			sCat = "K";
+		}
 		return {
 			LineNo: String(idx + 1).padStart(5, "0"),
 			MaterialNo: item.materialNo || "",
@@ -112,10 +146,12 @@ router.post("/api/approval/submit", async (req, res) => {
 			UoM: item.uom || "PC",
 			EstimatedValue: Number(item.estimatedValue) || 0,
 			AcctAssignCat: sCat,
-			CostCenter: sCat === "K" ? (item.costCenter || "") : "",
-			// Luon rong: khong con Cat 'F'. Xem itemsForFlags ben duoi de biet nguong
-			// ngan sach van duoc tinh — suy tu CostCenter chu khong tu field nay.
-			InternalOrder: "",
+			// GIU cost center tren MOI dong, ke ca Cat 'F'/'A': bang Z cua app dung
+			// no de biet de nghi thuoc phong nao (kiem tra quyen, tinh ngan sach
+			// phong, hien tren PR-02). Chi luc gui len PR THAT tren SAP thi
+			// createPRInSAP moi bo di theo dung quy tac cua tung Cat.
+			CostCenter: item.costCenter || "",
+			InternalOrder: sCat === "F" ? sBudgetIO : "",
 			AssetNo: sCat === "A" ? (item.assetNo || "") : "",
 			isFreeText: item.isFreeText || false
 		};
@@ -136,6 +172,11 @@ router.post("/api/approval/submit", async (req, res) => {
 		IoThreshold: flags.ioThreshold != null ? String(flags.ioThreshold) : "0",
 		EscalationIO: flags.escalationIO || "",
 		EstimatedTotalValue: String(totalPRValue || 0),
+		// Field nay can them tren ZPR_DRAFT + SEGW (xem HUONG_DAN_SAP_CAN_CU_DUYET.md).
+		// Chua them thi SAP bo qua property la nhieu — nhung neu SAP tra loi bao
+		// khong biet property, doan catch ben duoi se gui lai KHONG kem field nay
+		// de de nghi van gui duoc, chi la chua luu duoc ly do.
+		PurchaseReason: String(purchaseReason).trim().substring(0, 255),
 		PrDraftToItems: mappedItems.map(mapClientItemToSapDeep)
 	};
 
@@ -167,7 +208,21 @@ router.post("/api/approval/submit", async (req, res) => {
 
 	let record;
 	try {
-		record = await createPrDraft(payload);
+		try {
+			record = await createPrDraft(payload);
+		} catch (firstError) {
+			// ZPR_DRAFT chua co field PURCHASE_REASON (chua lam phan SAP): gui lai
+			// khong kem field do thay vi chan nguoi dung lap de nghi.
+			const msg = String(extractSapErrorMessage(firstError) || "");
+			if (/PurchaseReason/i.test(msg)) {
+				console.error("[POST /api/approval/submit] ZPR_DRAFT chua co PurchaseReason — gui lai khong kem ly do mua.");
+				const retryPayload = Object.assign({}, payload);
+				delete retryPayload.PurchaseReason;
+				record = await createPrDraft(retryPayload);
+			} else {
+				throw firstError;
+			}
+		}
 		if (!record) {
 			return res.status(502).json({ success: false, message: "SAP khong tra ve du lieu PR nhap vua tao." });
 		}
@@ -224,6 +279,12 @@ router.get("/api/approval/pending", async (req, res) => {
 		const pending = (await fetchPrDraftList(`Status eq '${odataEscape(statusFilter)}'`))
 			.filter((pr) => String(pr.Status || "").toUpperCase() === statusFilter);
 		await enrichWithRfqAward(pending);
+		// Can cu duyet cho Purchasing: ngan sach phong con lai + canh bao mua trung.
+		// Chi tinh cho dung man PR-02 — cac man khac dung chung endpoint nay khong
+		// can, khong bat chung tra gia doc them ca bang ZPR_DRAFT.
+		if (statusFilter === "PENDING_PURCHASING") {
+			await attachPurchasingContext(pending);
+		}
 		return res.json({ success: true, data: pending });
 	} catch (error) {
 		const message = extractSapErrorMessage(error);
@@ -473,10 +534,19 @@ router.patch("/api/approval/:id", async (req, res) => {
 		if (sapResult.sapIntegration !== "created" || !sapResult.sapPrNumber) {
 			// KHONG doi Status: de nghi van nam o PENDING_PURCHASING, sua loi
 			// (mang/SAP/master data) xong bam duyet lai la duoc — khong can rollback.
+			const sapMsg = String(sapResult.sapErrorMessage || "không có PRNumber");
+			// SAP Availability Control chan vi het ngan sach IO: doi sang cau nguoi
+			// mua hieu ngay phai lam gi, thay vi de nguyen message ky thuat cua BAPI
+			// ("Order 600165 budget exceeded" / "Item 00001 Budget exceeded").
+			const isBudgetBlock = /budget|ngan sach|ngân sách/i.test(sapMsg);
 			return res.status(502).json({
 				success: false,
-				message: "Không tạo được PR trên SAP: " + (sapResult.sapErrorMessage || "không có PRNumber")
-					+ " — đề nghị vẫn ở trạng thái chờ, có thể bấm duyệt lại sau khi xử lý lỗi.",
+				message: isBudgetBlock
+					? "SAP CHẶN vì vượt ngân sách của Internal Order: " + sapMsg
+						+ " — bộ phận này đã dùng hết ngân sách được cấp. Cần xin cấp thêm ngân sách (KO22) hoặc từ chối đề nghị."
+					: "Không tạo được PR trên SAP: " + sapMsg
+						+ " — đề nghị vẫn ở trạng thái chờ, có thể bấm duyệt lại sau khi xử lý lỗi.",
+				budgetBlocked: isBudgetBlock,
 				sapErrorMessage: sapResult.sapErrorMessage
 			});
 		}
@@ -508,6 +578,25 @@ router.patch("/api/approval/:id", async (req, res) => {
 			console.error("[PATCH /api/approval/:id] MERGE (Purchasing APPROVED) THAT BAI (PR SAP "
 				+ sapResult.sapPrNumber + " da ton tai):", message);
 			return res.status(502).json({ success: false, message, sapPrNumber: sapResult.sapPrNumber });
+		}
+
+		// Kho ma tai san: danh dau cac ma vua di vao PR that la DA DUNG, de lan
+		// mua sau cua cung vat tu lay ma khac — moi tai san vat ly 1 the rieng.
+		// Danh dau o day (PR that da tao) chu khong phai luc gui de nghi: de nghi
+		// bi tu choi thi khong dot ma nao. Ham nay khong nem loi.
+		try {
+			const assetUsage = (record.items || [])
+				.filter(function (it) { return String(it.AssetNo || "").trim(); })
+				.map(function (it) {
+					return { materialNo: it.MaterialNo, assetNo: it.AssetNo };
+				});
+			const marked = await markAssetsUsed(assetUsage, record.SapPRId);
+			if (marked > 0) {
+				console.log("[PATCH /api/approval/:id] Da danh dau", marked,
+					"ma tai san la da dung cho PR", record.SapPRId);
+			}
+		} catch (error) {
+			console.error("[PATCH /api/approval/:id] Danh dau kho ma tai san that bai:", error.message);
 		}
 
 		notifyRequester(

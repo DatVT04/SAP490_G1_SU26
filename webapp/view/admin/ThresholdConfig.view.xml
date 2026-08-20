@@ -15,7 +15,7 @@
                         <VBox>
                             <Text text="Quản trị hệ thống · CEO" class="qdPageEyebrow"/>
                             <Title text="Cấu hình hệ thống" level="H1" class="qdPageTitle"/>
-                            <Text text="Ngưỡng ngân sách theo Internal Order và ánh xạ vật tư tài sản với mã tài sản trên SAP" class="qdPageSub"/>
+                            <Text text="Ngưỡng ngân sách theo Internal Order và danh mục tài sản của vật tư" class="qdPageSub"/>
                         </VBox>
                     </HBox>
                     <Button icon="sap-icon://refresh" text="Tải lại" press=".onRefreshPress" class="qdHeroBtn"/>
@@ -76,19 +76,21 @@
                     </Table>
                 </VBox>
 
-                <!-- ÁNH XẠ VẬT TƯ (ZAST) SANG MÃ TÀI SẢN -->
-            <!-- SAP không có liên kết sẵn giữa Material (MM) và Asset (FI-AA):
-                 quan hệ "vật tư này chính là tài sản nào" phải do Kế toán khai,
-                 đúng ý nghĩa với Info Record khai vật tư và nhà cung cấp. Khai ở
-                 đây xong thì PR-01 tự điền ô Mã tài sản. -->
+                <!-- DANH MỤC TÀI SẢN CỦA VẬT TƯ: NHÓM TÀI SẢN + KHO MÃ -->
+            <!-- Khai ở đây xong thì PR-01 tự điền Mã tài sản khi người đề nghị
+                 chọn vật tư tài sản. Lưu trên SAP ở bảng Z ZG1_MAT_CONFIG.
+                 SAP không có liên kết sẵn Material (MM) với Asset (FI-AA) nên
+                 quan hệ này bắt buộc phải khai ở đâu đó.
+                 GIÁ không khai ở đây: lấy từ material master (MM02 -> view
+                 Accounting 1 -> Standard price), đúng chỗ chuẩn của SAP. -->
             <VBox class="qdContentCard qdCardTight">
                 <HBox alignItems="Center" class="sapUiSmallMargin">
                     <core:Icon src="sap-icon://add-product" class="qdCardIcon sapUiTinyMarginEnd"/>
-                    <Title text="Mã tài sản của vật tư tài sản ({= ${assetModel&gt;/rows}.length })" level="H3" class="qdCardTitle"/>
+                    <Title text="Tài sản của vật tư ({= ${assetModel&gt;/rows}.length })" level="H3" class="qdCardTitle"/>
                 </HBox>
 
                 <MessageStrip
-                    text="Chỉ liệt kê vật tư loại Tài sản (ZAST). Mã tài sản phải được Kế toán tạo trước trên SAP bằng AS01. Mua nhiều đơn vị thì khai nhiều mã, cách nhau bằng dấu phẩy — PR-01 điền lần lượt cho từng đơn vị số lượng."
+                    text="Ô Mã tài sản là KHO MÃ CÒN TRỐNG: mỗi tài sản mua về là một thẻ riêng nên mỗi mã chỉ dùng được một lần; PR-01 lấy mã chưa dùng, tạo PR thật xong thì mã đó chuyển sang Đã dùng. Kế toán tạo mã mới bằng AS01 theo đúng Nhóm tài sản rồi khai thêm vào đây. Giá vật tư không khai ở đây — nhập trong MM02, view Accounting 1."
                     type="Information"
                     showIcon="true"
                     class="sapUiSmallMarginBeginEnd sapUiSmallMarginBottom"
@@ -98,12 +100,14 @@
                     id="assetMapTable"
                     items="{assetModel&gt;/rows}"
                     mode="None"
-                    noDataText="Không có vật tư loại Tài sản (ZAST) nào trong danh mục SAP."
+                    noDataText="Không đọc được danh mục vật tư từ SAP."
                 >
                     <columns>
                         <Column width="10rem"><Text text="Mã vật tư"/></Column>
                         <Column><Text text="Tên vật tư"/></Column>
-                        <Column width="20rem"><Text text="Mã tài sản (AS01)"/></Column>
+                        <Column width="7rem"><Text text="Loại"/></Column>
+                        <Column width="8rem"><Text text="Nhóm tài sản"/></Column>
+                        <Column width="20rem"><Text text="Mã tài sản còn trống"/></Column>
                         <Column width="6rem" hAlign="Center"><Text text="Xoá"/></Column>
                     </columns>
                     <items>
@@ -111,11 +115,31 @@
                             <cells>
                                 <ObjectIdentifier title="{assetModel&gt;materialNo}"/>
                                 <Text text="{assetModel&gt;description}"/>
+                                <Text text="{assetModel&gt;typeLabel}"/>
                                 <Input
-                                    value="{assetModel&gt;assets}"
-                                    placeholder="VD: 100000 hoặc 100000, 100001"
+                                    value="{assetModel&gt;assetClass}"
+                                    enabled="{assetModel&gt;isAsset}"
+                                    placeholder="{= ${assetModel&gt;isAsset} ? 'VD: 2000' : '—' }"
+                                    tooltip="Nhóm tài sản (Asset Class) quyết định tài khoản kế toán và thời gian khấu hao. Cố định theo vật tư; kế toán dựa vào đây để tạo thẻ tài sản mới bằng AS01."
                                     width="100%"
                                 />
+                                <!-- Chi vat tu Tai san moi co the tai san; dich vu thi khoa lai.
+                                     O nhap = kho ma CON TRONG. Cac ma DA DUNG hien ben duoi dang
+                                     chi doc: chung gan voi tai san da mua that, xoa di la mat dau
+                                     vet va lan sau co the cap trung so. -->
+                                <VBox>
+                                    <Input
+                                        value="{assetModel&gt;assets}"
+                                        enabled="{assetModel&gt;isAsset}"
+                                        placeholder="{= ${assetModel&gt;isAsset} ? 'VD: 100001, 100002' : 'Không áp dụng' }"
+                                        width="100%"
+                                    />
+                                    <Text
+                                        text="{assetModel&gt;usedText}"
+                                        visible="{= !!${assetModel&gt;usedText} }"
+                                        class="qdCellHint"
+                                    />
+                                </VBox>
                                 <Button
                                     icon="sap-icon://decline"
                                     type="Transparent"
@@ -128,7 +152,7 @@
                 </Table>
 
                 <HBox justifyContent="End" class="sapUiSmallMargin">
-                    <Button text="Lưu ánh xạ tài sản"
+                    <Button text="Lưu danh mục tài sản"
                             type="Emphasized"
                             icon="sap-icon://save"
                             press=".onSaveAssetMap" />

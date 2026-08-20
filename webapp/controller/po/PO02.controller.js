@@ -245,6 +245,51 @@ sap.ui.define([
 
 		// ── FORMATTERS ──
 
+		// ── FORMATTER CHO KHOI "CAN CU CHOT GIA" ──
+		// Nguon so lieu: Evidence do decision-context.service dung tu ZG1_QUOTATION.
+
+		_money: function (nValue) {
+			return (Number(nValue) || 0).toLocaleString("vi-VN");
+		},
+
+		formatCompetition: function (nInvited, nReceived) {
+			return "Mời " + (Number(nInvited) || 0) + " nhà cung cấp · nhận được "
+				+ (Number(nReceived) || 0) + " báo giá";
+		},
+
+		formatPriceRange: function (nLowest, nHighest, nChosen) {
+			if (!Number(nChosen)) { return "Chưa đọc được giá của nhà cung cấp thắng."; }
+			var s = "Thấp nhất " + this._money(nLowest);
+			if (Number(nHighest) > Number(nLowest)) {
+				s += " · cao nhất " + this._money(nHighest);
+			}
+			return s + " · đã chọn " + this._money(nChosen) + " VND";
+		},
+
+		// Ba ket cuc: chi co 1 bao gia (khong co canh tranh — nang nhat),
+		// chon gia cao hon gia thap nhat (phai giai trinh), hoac chon dung gia
+		// thap nhat (khong con gi de hoi).
+		formatPriceVerdict: function (bIsLowest, nExtra, bSingle) {
+			if (bSingle) {
+				return "Chỉ có 1 báo giá — không có cạnh tranh, cần lý do chỉ định thầu";
+			}
+			if (bIsLowest) { return "Đã chọn báo giá thấp nhất"; }
+			return "KHÔNG chọn báo giá thấp nhất — đắt hơn " + this._money(nExtra) + " VND";
+		},
+
+		formatPriceVerdictState: function (bIsLowest, nExtra, bSingle) {
+			if (bSingle) { return "Error"; }
+			return bIsLowest ? "Success" : "Warning";
+		},
+
+		formatVendorTerms: function (bLegalOk, sPaymentTerms, nLeadTime, nWarranty) {
+			var a = [];
+			a.push("Hồ sơ pháp lý: " + (bLegalOk ? "đủ" : "CHƯA đủ"));
+			if (sPaymentTerms) { a.push("Thanh toán: " + sPaymentTerms); }
+			if (Number(nLeadTime) > 0) { a.push("Giao trong " + nLeadTime + " ngày"); }
+			if (Number(nWarranty) > 0) { a.push("Bảo hành " + nWarranty + " tháng"); }
+			return a.join(" · ");
+		},
 		formatValue: function (fValue, sCurrency) {
 			if (fValue === undefined || fValue === null || fValue === "") { return "—"; }
 			return Number(fValue).toLocaleString("vi-VN") + " " + (sCurrency || "VND");

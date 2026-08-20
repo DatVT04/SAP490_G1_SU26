@@ -45,6 +45,30 @@ function buildApprovalFlags(totalValue, items) {
 }
 
 /**
+ * IO NGAN SACH cua 1 cost center — dung khi hach toan Cat 'F'.
+ *
+ * Thiet ke cua nhom: moi phong = 1 cost center = 1 IO ngan sach. Nhung du lieu
+ * that co the co nhieu IO tren 1 cost center, nen uu tien IO DA DAT NGUONG
+ * (do la IO ngan sach thuc su cua phong); khong co cai nao dat nguong thi lay
+ * cai dau tien. Tra ve "" khi cost center chua gan IO nao — luc do phai quay ve
+ * Cat 'K', vi khong the hach toan Cat 'F' ma khong co so order.
+ */
+async function budgetOrderOfCostCenter(costCenter) {
+	const cc = String(costCenter || "").trim();
+	if (!cc) { return ""; }
+	try {
+		const master = await fetchInternalOrderMaster();
+		const list = (master.costCenterToIOs || {})[cc] || [];
+		if (!list.length) { return ""; }
+		const withThreshold = list.find(function (io) { return getThresholdForIO(io) != null; });
+		return normalizeOrderNo(withThreshold || list[0]);
+	} catch (error) {
+		console.error("[budgetOrderOfCostCenter] Doc danh muc IO that bai:", extractSapErrorMessage(error));
+		return "";
+	}
+}
+
+/**
  * Bao boc buildApprovalFlags cho thiet ke "chi con Cat K va A".
  *
  * Item khong con mang InternalOrder (Cat 'K' chi gui CostCenter len SAP), trong khi
@@ -121,5 +145,6 @@ async function buildAgingAlerts(role, email) {
 }
 module.exports = {
 	buildAgingAlerts,
+	budgetOrderOfCostCenter,
 	buildApprovalFlagsByCostCenter,
 };
