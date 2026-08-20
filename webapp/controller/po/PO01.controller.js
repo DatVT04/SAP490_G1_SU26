@@ -13,6 +13,21 @@ sap.ui.define([
 
 	return Controller.extend("com.qdavy.procurement.controller.po.PO01", {
 
+		// ── MA VAT TU CHO NGUOI DOC ──
+		// SAP luu ma vat tu danh so trong (internal numbering) o dang 18 ky tu, don
+		// day so 0 vao dau: "000000000000100001". Do la quy uoc luu tru chu khong
+		// phai ma that — chinh SAP GUI cung cat het so 0 dau khi hien (conversion
+		// exit ALPHA). Ham nay lam dung viec do.
+		//
+		// CHI DOI CHO HIEN THI. Khoa gui len OData/SAP van phai la chuoi day du, nen
+		// khong duoc dung ham nay cho thuoc tinh "key" cua ComboBox hay payload.
+		formatMatNo: function (sNo) {
+			var s = String(sNo === null || sNo === undefined ? "" : sNo).trim();
+			// Chi rut gon ma TOAN SO va co so 0 dan dau. "MON-001", "LAP-01" giu nguyen.
+			if (!/^0[0-9]+$/.test(s)) { return s; }
+			return s.replace(/^0+/, "") || s;
+		},
+
 		onInit: function () {
 			this._orgDefaults = {};
 
@@ -190,9 +205,33 @@ sap.ui.define([
 				});
 		},
 
+		/** Dong chu nho duoi ten vat tu o danh sach PR ben trai. */
+		formatMatQtyHint: function (sMatNo, nQty, sUoM) {
+			return "Mã VT: " + this.formatMatNo(sMatNo)
+				+ " | SL: " + (Number(nQty) || 0) + " " + (sUoM || "");
+		},
+
 		formatCurrency: function (fValue) {
 			if (fValue === undefined || fValue === null || fValue === "") { return "0"; }
 			return Number(fValue).toLocaleString("vi-VN");
+		},
+
+		// ── THANH TIEN TUNG DONG ──
+		// Cot "Don gia mua" la don gia MOT DON VI (gia trung thau / so luong). Voi don
+		// 55.000.000 mua 10 JHR thi o do hien 5.500.000 — dung, nhung nhin mot minh rat
+		// de bi doc nham thanh "he thong chia sai 10 lan". Cot Thanh tien nay hien
+		// SL x don gia de nguoi doc thay ngay 5.500.000 x 10 = 55.000.000.
+		formatLineTotal: function (fPrice, fQty) {
+			return this.formatCurrency((Number(fPrice) || 0) * (Number(fQty) || 0));
+		},
+
+		/** Dong chu nho duoi Thanh tien: "10 JHR x 5.500.000". */
+		formatLineTotalHint: function (fPrice, fQty, sUoM) {
+			var nQty = Number(fQty) || 0;
+			var nPrice = Number(fPrice) || 0;
+			if (!nQty || !nPrice) { return ""; }
+			return nQty.toLocaleString("vi-VN") + " " + (sUoM || "")
+				+ " × " + nPrice.toLocaleString("vi-VN");
 		},
 
 		// ── HACH TOAN TUNG DONG ──
@@ -810,7 +849,7 @@ sap.ui.define([
 			// gia cua cac dong nua.
 			var oNetPriceInput = oView.byId("inNetPrice");
 			if (oNetPriceInput && aPoItems.length) {
-				oNetPriceInput.setValue(String(Number(aPoItems[0].NetPrice) || 0));
+				oNetPriceInput.setValue(this.formatCurrency(aPoItems[0].NetPrice));
 			}
 		},
 

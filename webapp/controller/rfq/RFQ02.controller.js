@@ -50,6 +50,29 @@ sap.ui.define([
 
 	return Controller.extend("com.qdavy.procurement.controller.rfq.RFQ02", {
 
+		// ── MA VAT TU CHO NGUOI DOC ──
+		// SAP luu ma vat tu danh so trong (internal numbering) o dang 18 ky tu, don
+		// day so 0 vao dau: "000000000000100001". Do la quy uoc luu tru chu khong
+		// phai ma that — chinh SAP GUI cung cat het so 0 dau khi hien (conversion
+		// exit ALPHA). Ham nay lam dung viec do.
+		//
+		// CHI DOI CHO HIEN THI. Khoa gui len OData/SAP van phai la chuoi day du, nen
+		// khong duoc dung ham nay cho thuoc tinh "key" cua ComboBox hay payload.
+		formatMatNo: function (sNo) {
+			var s = String(sNo === null || sNo === undefined ? "" : sNo).trim();
+			// Chi rut gon ma TOAN SO va co so 0 dan dau. "MON-001", "LAP-01" giu nguyen.
+			if (!/^0[0-9]+$/.test(s)) { return s; }
+			return s.replace(/^0+/, "") || s;
+		},
+
+		/** "MON-001 · ZAST" — dong nhan dang vat tu tren bang so sanh bao gia. */
+		formatMatLine: function (sMatNo, sMatType) {
+			var sType = sMatType || "";
+			return sMatNo
+				? this.formatMatNo(sMatNo) + " · " + sType
+				: "Nhập tay (free-text) · " + sType;
+		},
+
 		onInit: function () {
 			this.getView().setModel(new JSONModel({
 				Rfqs: [],

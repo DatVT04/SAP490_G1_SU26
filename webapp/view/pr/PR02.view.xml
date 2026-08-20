@@ -216,7 +216,7 @@
 												<VBox class="qdNestedItemMain">
 													<Text text="{Description}" class="qdNestedItemDesc" wrapping="false"/>
 													<HBox>
-														<Text text="{MaterialNo}" class="qdCellHint"/>
+														<Text text="{path: 'MaterialNo', formatter: '.formatMatNo'}" class="qdCellHint"/>
 														<Text
 															text="{= ${MaterialType} === 'ZAST' ? ' · Tài sản (Cat.A)' : ' · Vật tư/DV (Cat.K)' }"
 															class="qdCellHint"

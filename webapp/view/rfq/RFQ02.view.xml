@@ -145,7 +145,7 @@
 											<VBox>
 												<Text text="{Description}"/>
 												<Text
-													text="{= ${MaterialNo} ? ${MaterialNo} + ' · ' + ${MaterialType} : 'Nhập tay (free-text) · ' + ${MaterialType} }"
+													text="{parts: ['MaterialNo','MaterialType'], formatter: '.formatMatLine'}"
 													class="qdCellHint"
 												/>
 											</VBox>

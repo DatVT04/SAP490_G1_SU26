@@ -146,7 +146,7 @@
 					<CustomListItem>
 						<VBox class="qdItemCard">
 							<HBox justifyContent="SpaceBetween" alignItems="Center" wrap="Wrap">
-								<ObjectIdentifier title="{Description}" text="{MaterialNo}"/>
+								<ObjectIdentifier title="{Description}" text="{path: 'MaterialNo', formatter: '.formatMatNo'}"/>
 								<ObjectStatus
 									text="{= ${AcctAssignCat} === 'A' ? 'Tài sản (Cat.A)' : (${AcctAssignCat} === 'F' ? 'Internal Order (Cat.F)' : 'Cost Center (Cat.K)') }"
 									state="{= ${AcctAssignCat} === 'A' ? 'Warning' : 'Success' }"

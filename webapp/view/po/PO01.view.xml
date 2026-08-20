@@ -72,7 +72,7 @@
 											<ObjectIdentifier title="{PrNumber}"/>
 											<VBox>
 												<Text text="{Description}" renderWhitespace="true"/>
-												<Text text="Mã VT: {MaterialNo} | SL: {Quantity} {UoM}" class="qdCellHint"/>
+												<Text text="{parts: ['MaterialNo','Quantity','UoM'], formatter: '.formatMatQtyHint'}" class="qdCellHint"/>
 											</VBox>
 											<ObjectNumber
 												number="{path: 'EstimatedValue', formatter: '.formatCurrency'}"
@@ -297,7 +297,7 @@
 
 									<core:Title text="Giá mua (Pricing)" class="qdFormSectionTitle qdFormSectionTitlePurple"/>
 
-									<Label text="Đơn giá dòng đầu (tham khảo)"/>
+									<Label text="Đơn giá dòng đầu — 1 đơn vị (tham khảo)"/>
 									<Input
 										id="inNetPrice"
 										editable="false"
@@ -412,7 +412,8 @@
 									<Column width="8rem"><Text text="Mã PR Nguồn"/></Column>
 									<Column><Text text="Mã &amp; Tên vật tư / dịch vụ"/></Column>
 									<Column hAlign="End" width="7rem"><Text text="Số lượng"/></Column>
-									<Column hAlign="End" width="8rem"><Text text="Đơn giá mua"/></Column>
+									<Column hAlign="End" width="9rem"><Text text="Đơn giá mua (1 đơn vị)"/></Column>
+									<Column hAlign="End" width="10rem"><Text text="Thành tiền"/></Column>
 									<Column width="6rem"><Text text="Nhà máy (Plant)"/></Column>
 									<Column width="11rem"><Text text="Hạch toán"/></Column>
 								</columns>
@@ -422,7 +423,7 @@
 											<Text text="{LineNo}"/>
 											<Text text="{PreqNo}"/>
 											<VBox>
-												<Text text="{MaterialNo}" class="sapMTextBold"/>
+												<Text text="{path: 'MaterialNo', formatter: '.formatMatNo'}" class="sapMTextBold"/>
 												<Text text="{Description}"/>
 												<ObjectStatus
 													text="{= ${MaterialType} === 'ZAST' ? 'Vật tư/Tài sản' : (${MaterialType} === 'ZSRV' ? 'Dịch vụ' : ${MaterialType}) }"
@@ -437,6 +438,17 @@
 												change=".onItemPriceChange"
 												textAlign="End"
 											/>
+											<VBox>
+												<ObjectNumber
+													number="{parts: ['NetPrice','Quantity'], formatter: '.formatLineTotal'}"
+													unit="{Currency}"
+													emphasized="true"
+												/>
+												<Text
+													text="{parts: ['NetPrice','Quantity','UoM'], formatter: '.formatLineTotalHint'}"
+													class="qdCellHint"
+												/>
+											</VBox>
 											<Input value="{Plant}"/>
 											<!-- Cot hach toan: dong Cost Center (Cat K) cho nhap tay, dong
 											     Tai san (Cat A) / Internal Order (Cat F) chi hien ma lay tu

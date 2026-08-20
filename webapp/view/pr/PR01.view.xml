@@ -138,7 +138,7 @@
 										>
 											<core:ListItem
 												key="{MaterialNo}"
-												text="{MaterialNo}"
+												text="{path: 'MaterialNo', formatter: '.formatMatNo'}"
 												additionalText="{Description}"
 											/>
 										</ComboBox>

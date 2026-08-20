@@ -152,7 +152,7 @@
 											<Text text="{LineNo}"/>
 											<VBox>
 												<Text text="{Description}" class="qdCellStrong"/>
-												<Text text="{MaterialNo}" class="qdCellHint"/>
+												<Text text="{path: 'MaterialNo', formatter: '.formatMatNo'}" class="qdCellHint"/>
 												<ObjectStatus
 													text="{= ${MaterialType} === 'ZAST' ? 'Vật tư/Tài sản' : (${MaterialType} === 'ZSRV' ? 'Dịch vụ' : ${MaterialType}) }"
 													state="{= ${MaterialType} === 'ZSRV' ? 'Success' : 'Information' }"
