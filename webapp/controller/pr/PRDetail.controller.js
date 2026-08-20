@@ -15,7 +15,7 @@ sap.ui.define([
 		PENDING_RFQ: "Đã duyệt hợp lệ — đang ở bước hỏi giá (RFQ)",
 		RFQ_SENT: "Đã gửi RFQ tới nhà cung cấp, chờ báo giá",
 		QUOTATIONS_RECEIVED: "Đã nhận báo giá, chờ Purchasing chốt nhà cung cấp",
-		AWARDED: "Đã chốt NCC — chờ tạo đơn hàng (PO)",
+		AWARDED: "Đã chốt nhà cung cấp — chờ tạo đơn hàng",
 		PENDING_CFO: "PO đã tạo — chờ CFO duyệt đơn hàng",
 		PENDING_CEO: "PO vượt ngưỡng IO — chờ CEO duyệt đơn hàng",
 		APPROVED: "Đã phê duyệt",
@@ -117,15 +117,15 @@ sap.ui.define([
 			var rfqSub = "";
 
 			if (rfqDone) {
-				rfqSub = "Đã chốt NCC " + pr.RfqAwardedVendor;
+				rfqSub = "Đã chốt nhà cung cấp " + pr.RfqAwardedVendor;
 			} else if (status === "PENDING_RFQ") {
 				rfqSub = "Đang lập yêu cầu báo giá";
 			} else if (status === "RFQ_SENT") {
-				rfqSub = "Đã gửi NCC, chờ báo giá";
+				rfqSub = "Đã gửi nhà cung cấp, chờ báo giá";
 			} else if (status === "QUOTATIONS_RECEIVED") {
-				rfqSub = "Đã nhận báo giá, chờ chốt NCC";
+				rfqSub = "Đã nhận báo giá, chờ chốt nhà cung cấp";
 			} else if (status === "AWARDED") {
-				rfqSub = "Đã chốt NCC, chờ tạo đơn hàng (PO)";
+				rfqSub = "Đã chốt nhà cung cấp, chờ tạo đơn hàng";
 			}
 
 			// Các route RFQ chỉ cập nhật UpdatedAt chứ chưa ghi mốc thời gian riêng cho
@@ -219,12 +219,12 @@ sap.ui.define([
 		var finalIcon = "sap-icon://complete";
 
 		if (status === "PO_RELEASED") {
-			finalTitle = "Hoàn tất — PO đã duyệt & gửi NCC";
+			finalTitle = "Hoàn tất — đơn hàng đã duyệt và gửi nhà cung cấp";
 			finalSub = pr.SapPRId ? ("PR SAP: " + pr.SapPRId) : "Đơn hàng đã gửi nhà cung cấp";
 			finalIcon = "sap-icon://sales-order";
 		} else if (isPoRejected) {
 			finalTitle = "PO bị từ chối";
-			finalSub = pr.Comment || "Purchasing cần chọn lại NCC / tạo PO mới";
+			finalSub = pr.Comment || "Bộ phận Mua sắm cần chọn lại nhà cung cấp hoặc tạo đơn hàng mới";
 			finalIcon = "sap-icon://decline";
 		} else if (isPoCreated) {
 			finalTitle = "Hoàn tất — Đã tạo PO";
@@ -309,7 +309,7 @@ sap.ui.define([
 		if (st === "PO_REJECTED") {
 			return {
 				text: "Đơn hàng bị từ chối" + (pr.Comment ? (": " + pr.Comment) : ".")
-					+ " Chưa gửi gì cho nhà cung cấp — Purchasing sẽ chọn lại NCC hoặc tạo PO mới.",
+					+ " Đơn hàng chưa được gửi cho nhà cung cấp. Bộ phận Mua sắm sẽ chọn lại nhà cung cấp hoặc tạo đơn hàng mới.",
 				type: "Error"
 			};
 		}
@@ -366,7 +366,7 @@ sap.ui.define([
 				.then(function (oResult) {
 					oView.setBusy(false);
 					if (!oResult || !oResult.success) {
-						MessageBox.error((oResult && oResult.message) || "Không tải được chi tiết đề nghị mua sắm.");
+						MessageBox.error((oResult && oResult.message) || "Không tải được chi tiết đề nghị mua sắm. Vui lòng thử lại.");
 						return;
 					}
 					var pr = oResult.data || {};
@@ -492,7 +492,7 @@ sap.ui.define([
 						throw new Error("Server phản hồi quá lâu. Vui lòng thử lại.");
 					}
 					if (oError instanceof TypeError) {
-						throw new Error("Không thể kết nối tới máy chủ.");
+						throw new Error("Không thể kết nối tới máy chủ. Vui lòng thử lại.");
 					}
 					throw oError;
 				});

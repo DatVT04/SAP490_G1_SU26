@@ -5,8 +5,9 @@ sap.ui.define([
 	"sap/m/MessageToast",
 	"sap/ui/model/Filter",
 	"sap/ui/model/FilterOperator",
-	"com/qdavy/procurement/model/Config"
-], function (Controller, JSONModel, MessageBox, MessageToast, Filter, FilterOperator, Config) {
+	"com/qdavy/procurement/model/Config",
+	"com/qdavy/procurement/model/Msg"
+], function (Controller, JSONModel, MessageBox, MessageToast, Filter, FilterOperator, Config, Msg) {
 	"use strict";
 
 	var BACKEND = Config.BACKEND;
@@ -36,10 +37,10 @@ sap.ui.define([
 		DRAFT: "RFQ mới tạo, chưa gửi cho nhà cung cấp nào.",
 		SENT: "Đã gửi thư mời báo giá — đang chờ nhà cung cấp trả lời.",
 		QUOTATIONS_RECEIVED: "Đã có báo giá — đến lượt Purchasing so sánh và chốt NCC.",
-		AWARDED: "Đã chốt NCC — tiếp theo tạo đơn hàng ở màn PO-01.",
-		PO_CREATED: "Đã tạo PO trên SAP — đang chờ CFO/CEO duyệt ở màn PO-02.",
+		AWARDED: "Đã chốt nhà cung cấp — bước tiếp theo là tạo đơn hàng ở màn hình PO-01.",
+		PO_CREATED: "Đã tạo đơn hàng trên SAP — đang chờ CFO/CEO duyệt ở màn hình PO-02.",
 		PO_RELEASED: "PO đã được duyệt và gửi cho nhà cung cấp. RFQ này đã khoá.",
-		PO_REJECTED: "PO bị từ chối ở màn PO-02 — xem lý do tại đó."
+		PO_REJECTED: "Đơn hàng bị từ chối ở màn hình PO-02 — xem lý do tại đó."
 	};
 
 	// RFQ o cac trang thai nay la DA XONG VIEC: khong con gi de nhap bao gia hay chot
@@ -146,7 +147,7 @@ sap.ui.define([
 				.catch(function () {
 					// Khong chan man hinh: thieu danh muc thi Select rong, van nhap duoc
 					// cac truong khac. Bao giá cu van hien nguyen van ma da luu.
-					MessageToast.show("Không tải được danh mục điều khoản thanh toán.");
+					MessageToast.show("Không tải được danh mục điều khoản thanh toán. Vui lòng thử lại.");
 				});
 		},
 
@@ -171,12 +172,12 @@ sap.ui.define([
 						// van liet ke ca RFQ da chot.
 						that._applyRfqFilter();
 					} else {
-						MessageToast.show((res && res.message) || "Không tải được danh sách RFQ.");
+						MessageToast.show((res && res.message) || "Không tải được danh sách yêu cầu báo giá. Vui lòng thử lại.");
 					}
 				})
 				.catch(function () {
 					oTable.setBusy(false);
-					MessageToast.show("Không thể kết nối máy chủ để lấy danh sách RFQ.");
+					MessageToast.show("Không thể kết nối tới máy chủ. Vui lòng thử lại.");
 				});
 		},
 
@@ -273,7 +274,7 @@ sap.ui.define([
 				.then(function (res) {
 					oWorkArea.setBusy(false);
 					if (!res || !res.success) {
-						MessageToast.show((res && res.message) || "Không tải được dữ liệu RFQ " + sRfqId + ".");
+						MessageToast.show((res && res.message) || "Không tải được dữ liệu của yêu cầu báo giá " + sRfqId + ".");
 						return;
 					}
 					oModel.setProperty("/rfq", res.rfq || null);
@@ -291,7 +292,7 @@ sap.ui.define([
 				})
 				.catch(function () {
 					oWorkArea.setBusy(false);
-					MessageToast.show("Không thể kết nối máy chủ.");
+					MessageToast.show("Không thể kết nối tới máy chủ. Vui lòng thử lại.");
 				});
 		},
 
@@ -306,8 +307,8 @@ sap.ui.define([
 			var iNoEmail = aPending.filter(function (v) { return !v.VendorEmail; }).length;
 
 			MessageBox.confirm(
-				"Gửi email nhắc tới " + (aPending.length - iNoEmail) + " NCC chưa gửi báo giá?"
-					+ (iNoEmail > 0 ? "\n\n" + iNoEmail + " NCC không có email trong master sẽ bị bỏ qua — cần liên hệ bằng cách khác." : ""),
+				"Gửi email nhắc tới " + (aPending.length - iNoEmail) + " nhà cung cấp chưa gửi báo giá?"
+					+ (iNoEmail > 0 ? "\n\n" + iNoEmail + " nhà cung cấp chưa có email trong dữ liệu chủ sẽ bị bỏ qua. Vui lòng liên hệ bằng kênh khác." : ""),
 				{
 					title: "Nhắc nhà cung cấp",
 					onClose: function (sAction) {
@@ -323,15 +324,15 @@ sap.ui.define([
 							.then(function (res) {
 								oView.setBusy(false);
 								if (!res || !res.success) {
-									MessageBox.error((res && res.message) || "Gửi nhắc thất bại.");
+									MessageBox.error((res && res.message) || "Không gửi được email nhắc. Vui lòng thử lại.");
 									return;
 								}
-								MessageToast.show("Đã gửi nhắc tới " + res.emailsSent + "/" + res.totalVendors + " NCC."
-									+ (res.emailsFailed ? " (" + res.emailsFailed + " thư gửi lỗi)" : ""));
+								MessageToast.show("Đã gửi email nhắc tới " + res.emailsSent + "/" + res.totalVendors + " nhà cung cấp."
+									+ (res.emailsFailed ? " (" + res.emailsFailed + " thư gửi không thành công)" : ""));
 							})
 							.catch(function () {
 								oView.setBusy(false);
-								MessageBox.error("Không thể kết nối máy chủ để gửi nhắc.");
+								MessageBox.error("Không thể kết nối tới máy chủ. Vui lòng thử lại.");
 							});
 					}
 				}
@@ -344,7 +345,7 @@ sap.ui.define([
 			var oCtx = oEvent.getSource().getBindingContext();
 			var oVendor = oCtx ? oCtx.getObject() : null;
 			if (!oVendor || !oVendor.QuoteLink) {
-				MessageToast.show("Không có link cho NCC này.");
+				MessageToast.show("Nhà cung cấp này chưa có link báo giá.");
 				return;
 			}
 
@@ -353,7 +354,7 @@ sap.ui.define([
 			var fnFallback = function () {
 				MessageBox.information(oVendor.QuoteLink, {
 					title: "Link báo giá của " + (oVendor.VendorName || oVendor.VendorNo),
-					details: "Sao chép thủ công đoạn link ở trên rồi gửi cho NCC."
+					details: "Vui lòng sao chép thủ công đường dẫn ở trên rồi gửi cho nhà cung cấp."
 				});
 			};
 
@@ -469,7 +470,7 @@ sap.ui.define([
 					if (String(v.VendorNo) === String(sVendor) && v.VendorName) { sName = v.VendorName; }
 				});
 				oModel.setProperty("/quoteModeText",
-					"NCC " + sName + " KHÔNG nằm trong danh sách mời ban đầu — lưu sẽ thêm báo giá mới của NCC này vào RFQ.");
+					"NCC " + sName + " không nằm trong danh sách mời ban đầu. Khi lưu, hệ thống sẽ thêm báo giá của nhà cung cấp này vào yêu cầu báo giá.");
 				oModel.setProperty("/quoteModeState", "Information");
 			} else {
 				oModel.setProperty("/quoteModeText", "");
@@ -487,15 +488,15 @@ sap.ui.define([
 			var sSource = oView.byId("inQuoteSource").getValue();
 
 			if (!sVendor) {
-				MessageBox.warning("Hãy chọn Nhà cung cấp.");
+				MessageBox.warning("Vui lòng chọn nhà cung cấp.");
 				return;
 			}
 			if (!sPrice || Number(sPrice) <= 0) {
-				MessageBox.warning("Giá báo phải là số dương.");
+				MessageBox.warning("Giá báo phải là số lớn hơn 0.");
 				return;
 			}
 			if (!sSource || !sSource.trim()) {
-				MessageBox.warning("Bắt buộc nhập căn cứ (SourceNote) — ví dụ email NCC ngày nào.");
+				MessageBox.warning("Vui lòng nhập căn cứ của báo giá. Ví dụ: email nhà cung cấp gửi ngày 20/08/2026.");
 				return;
 			}
 
@@ -521,7 +522,7 @@ sap.ui.define([
 				MessageBox.confirm(
 					"NCC " + (oExisting.VendorName || sVendor) + " đã có báo giá "
 						+ this.formatCurrency(oExisting.QuotedPrice) + " VND.\n\nGhi đè bằng giá mới "
-						+ this.formatCurrency(oPayload.quotedPrice) + " VND? Giá cũ sẽ không được giữ lại.",
+						+ this.formatCurrency(oPayload.quotedPrice) + " VND? Giá cũ sẽ bị thay thế và không thể khôi phục.",
 					{
 						title: "Sửa báo giá (báo lại giá lần 2)",
 						onClose: function (sAction) {
@@ -552,19 +553,22 @@ sap.ui.define([
 				.then(function (oResult) {
 					oView.setBusy(false);
 					if (!oResult.body || !oResult.body.success) {
-						MessageBox.error((oResult.body && oResult.body.message) || "Lưu báo giá thất bại.");
+						Msg.fail(oResult.body, {
+							title: "Không lưu được báo giá",
+							fallback: "Không lưu được báo giá lên SAP. Số liệu bạn nhập vẫn còn trên biểu mẫu, vui lòng thử lại."
+						});
 						return;
 					}
 					MessageToast.show(oResult.body.mode === "created"
-						? "Đã thêm báo giá mới của NCC " + oPayload.vendorNo + " vào RFQ."
-						: "Đã cập nhật báo giá của NCC " + oPayload.vendorNo + ".");
+						? "Đã thêm báo giá của nhà cung cấp " + oPayload.vendorNo + "."
+						: "Đã cập nhật báo giá của nhà cung cấp " + oPayload.vendorNo + ".");
 					that._clearQuotationForm();
 					that._loadCompare();
 					that._loadRfqList();
 				})
 				.catch(function () {
 					oView.setBusy(false);
-					MessageBox.error("Không thể kết nối máy chủ để lưu báo giá.");
+					MessageBox.error("Không thể kết nối tới máy chủ. Vui lòng thử lại.");
 				});
 		},
 
@@ -712,12 +716,12 @@ sap.ui.define([
 						oModel.setProperty("/aiMessages", [{ role: "ai", text: res.recommendation || "" }]);
 						that._renderAiChat();
 					} else {
-						MessageToast.show((res && res.message) || "AI không phản hồi.");
+						MessageToast.show((res && res.message) || "Trợ lý AI chưa phản hồi. Vui lòng thử lại sau.");
 					}
 				})
 				.catch(function () {
 					oModel.setProperty("/busyAi", false);
-					MessageToast.show("Không gọi được AI so sánh báo giá.");
+					MessageToast.show("Không kết nối được tới trợ lý AI. Vui lòng thử lại.");
 				});
 		},
 
@@ -729,11 +733,11 @@ sap.ui.define([
 			var sQuestion = (oInput.getValue() || "").trim();
 
 			if (!sQuestion) {
-				MessageToast.show("Hãy nhập câu hỏi trước.");
+				MessageToast.show("Vui lòng nhập câu hỏi.");
 				return;
 			}
 			if (!this._currentRfqId) {
-				MessageToast.show("Hãy chọn một RFQ trước.");
+				MessageToast.show("Vui lòng chọn một yêu cầu báo giá trước.");
 				return;
 			}
 
@@ -788,14 +792,14 @@ sap.ui.define([
 						// Loi cung phai hien TRONG mach chat, khong chi bung toast roi de lai
 						// bong bong "dang soan..." treo vinh vien.
 						fnFillSlot("Xin lỗi, tôi chưa trả lời được câu này. "
-							+ ((res && res.message) || "AI không phản hồi."));
-						MessageToast.show((res && res.message) || "AI không phản hồi.");
+							+ ((res && res.message) || "Trợ lý AI chưa phản hồi. Vui lòng thử lại sau."));
+						MessageToast.show((res && res.message) || "Trợ lý AI chưa phản hồi. Vui lòng thử lại sau.");
 					}
 				})
 				.catch(function () {
 					oModel.setProperty("/busyAi", false);
 					fnFillSlot("Không gọi được AI (lỗi kết nối). Bạn thử hỏi lại giúp tôi.");
-					MessageToast.show("Không gọi được AI.");
+					MessageToast.show("Không kết nối được tới trợ lý AI. Vui lòng thử lại.");
 				});
 		},
 
@@ -814,23 +818,23 @@ sap.ui.define([
 				: "";
 
 			if (!sVendor) {
-				MessageBox.warning("Hãy chọn Nhà cung cấp thắng.");
+				MessageBox.warning("Vui lòng chọn nhà cung cấp trúng thầu.");
 				return;
 			}
 			if (!sReason || !sReason.trim()) {
-				MessageBox.warning("Bắt buộc nhập lý do chọn Nhà cung cấp.");
+				MessageBox.warning("Vui lòng nhập lý do chọn nhà cung cấp.");
 				return;
 			}
 			if (aQuotations.length === 1 && (!sSoleSource || !sSoleSource.trim())) {
-				MessageBox.warning("Chỉ có 1 báo giá — bắt buộc nhập lý do chỉ định 1 NCC (sole source).");
+				MessageBox.warning("Chỉ có một báo giá. Vui lòng nhập lý do chỉ định thầu (sole source).");
 				return;
 			}
 
 			MessageBox.confirm(
-				"Chốt NCC " + sVendor + " cho RFQ " + this._currentRfqId
-				+ "? Sau khi mọi nhóm chốt xong, Purchasing tạo PO trên màn PO-01 — CFO duyệt PO trước khi gửi NCC.",
+				"Chốt nhà cung cấp " + sVendor + " cho yêu cầu báo giá " + this._currentRfqId
+				+ "?\n\nSau khi tất cả các nhóm được chốt, Bộ phận Mua sắm sẽ tạo đơn hàng ở màn hình PO-01. CFO duyệt đơn hàng trước khi gửi cho nhà cung cấp.",
 				{
-					title: "Xác nhận chốt Nhà cung cấp",
+					title: "Xác nhận chốt nhà cung cấp",
 					onClose: function (sAction) {
 						if (sAction !== MessageBox.Action.OK) { return; }
 
@@ -851,13 +855,16 @@ sap.ui.define([
 							.then(function (oResult) {
 								oView.setBusy(false);
 								if (!oResult.body || !oResult.body.success) {
-									MessageBox.error((oResult.body && oResult.body.message) || "Chốt NCC thất bại.");
+									Msg.fail(oResult.body, {
+									title: "Không chốt được nhà cung cấp",
+									fallback: "Không chốt được nhà cung cấp trúng thầu. Yêu cầu báo giá vẫn giữ nguyên, vui lòng thử lại."
+								});
 									return;
 								}
 								MessageBox.success(
-									"Đã chốt NCC " + oResult.body.awardedVendor + " — giá "
+									"Đã chốt nhà cung cấp " + oResult.body.awardedVendor + " với giá "
 									+ Number(oResult.body.finalValue).toLocaleString("vi-VN")
-									+ " VND. Tiếp theo: tạo đơn hàng trên màn PO-01 (CFO sẽ duyệt PO trước khi gửi NCC).",
+									+ " VND.\n\nBước tiếp theo: tạo đơn hàng ở màn hình PO-01. CFO sẽ duyệt đơn hàng trước khi gửi cho nhà cung cấp.",
 									{
 										title: "Chốt RFQ thành công",
 										onClose: function () {
@@ -869,7 +876,7 @@ sap.ui.define([
 							})
 							.catch(function () {
 								oView.setBusy(false);
-								MessageBox.error("Không thể kết nối máy chủ để chốt NCC.");
+								MessageBox.error("Không thể kết nối tới máy chủ. Vui lòng thử lại.");
 							});
 					}
 				}
@@ -923,10 +930,10 @@ sap.ui.define([
 		// (CFO duyet PO chu khong duyet PR nua).
 		formatAwardNextStep: function (s) {
 			switch (String(s || "").toUpperCase()) {
-				case "AWARDED": return "Tiếp theo: tạo đơn hàng ở màn PO-01";
-				case "PO_CREATED": return "Đã tạo PO — đang chờ CFO/CEO duyệt ở màn PO-02";
+				case "AWARDED": return "Bước tiếp theo: tạo đơn hàng ở màn hình PO-01";
+				case "PO_CREATED": return "Đã tạo đơn hàng — đang chờ CFO/CEO duyệt ở màn hình PO-02";
 				case "PO_RELEASED": return "PO đã được duyệt và gửi cho nhà cung cấp";
-				case "PO_REJECTED": return "PO đã bị từ chối — xem lý do ở màn PO-02";
+				case "PO_REJECTED": return "Đơn hàng đã bị từ chối — xem lý do ở màn hình PO-02";
 				default: return "";
 			}
 		},

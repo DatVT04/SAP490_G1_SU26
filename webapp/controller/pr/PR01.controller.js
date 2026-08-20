@@ -3,8 +3,9 @@ sap.ui.define([
 	"sap/ui/model/json/JSONModel",
 	"sap/m/MessageBox",
 	"sap/m/MessageToast",
-	"com/qdavy/procurement/model/Config"
-], function (Controller, JSONModel, MessageBox, MessageToast, Config) {
+	"com/qdavy/procurement/model/Config",
+	"com/qdavy/procurement/model/Msg"
+], function (Controller, JSONModel, MessageBox, MessageToast, Config, Msg) {
 	"use strict";
 
 	var BACKEND = Config.BACKEND;
@@ -179,9 +180,9 @@ sap.ui.define([
 			this._recalcTotal();
 
 			MessageBox.information(
-				"Bạn đang sửa lại đề nghị " + oData.prId + " bị Purchasing trả lại."
+				"Đề nghị " + oData.prId + " đã bị Bộ phận Mua sắm trả lại."
 				+ (oData.returnReason ? ("\n\nLý do trả lại: " + oData.returnReason) : "")
-				+ "\n\nDữ liệu cũ đã được điền sẵn — sửa xong bấm Gửi.",
+				+ "\n\nDữ liệu cũ đã được điền sẵn. Vui lòng chỉnh sửa rồi bấm Gửi đề nghị.",
 				{ title: "Sửa & gửi lại đề nghị" }
 			);
 		},
@@ -451,7 +452,7 @@ sap.ui.define([
 				.then(function (oResult) {
 					oModel.setProperty("/materialsLoading", false);
 					if (!oResult || !oResult.success) {
-						MessageBox.error((oResult && oResult.message) || "Không tải được danh sách vật tư / dịch vụ.");
+						MessageBox.error((oResult && oResult.message) || "Không tải được danh sách vật tư / dịch vụ. Vui lòng thử lại.");
 						return;
 					}
 					oModel.setProperty("/materials", oResult.data || []);
@@ -477,7 +478,7 @@ sap.ui.define([
 			var oModel = this.getView().getModel();
 			var aItems = oModel.getProperty("/items").slice();
 			if (aItems.length <= 1) {
-				MessageToast.show("Phải có ít nhất 1 dòng.");
+				MessageToast.show("Đề nghị phải có ít nhất một dòng vật tư / dịch vụ.");
 				return;
 			}
 			aItems.splice(iIndex, 1);
@@ -532,14 +533,18 @@ sap.ui.define([
 			oModel.setProperty(sPath, oItem);
 
 			// Don gia lay tu MATERIAL MASTER (MM02 -> Accounting 1 -> Standard
-			// price), MaterialSet tra ve cung danh sach vat tu. Chi GOI Y khi o dang
-			// trong — nguoi de nghi da go gia thi ton trong, vi day la gia hach toan
-			// con gia mua that chot o buoc hoi gia (RFQ).
+			// price), MaterialSet tra ve cung danh sach vat tu.
+			//
+			// LUON GHI DE khi doi vat tu. Ban cu chi dien khi o dang trong, nen doi
+			// vat tu lan 2 thi dong hang van giu gia cua vat tu TRUOC do — chon
+			// TRAIN-001 (8 trieu) roi doi sang MOUSE-001 van hien 8 trieu. Don gia
+			// thuoc ve vat tu, doi vat tu la no het hieu luc, y het cot Mo ta va DVT
+			// deu duoc ghi de o tren.
+			//
+			// Vat tu moi chua khai gia -> XOA TRANG chu khong giu so cu, de nguoi de
+			// nghi thay ngay la phai go tay (co them toast nhac ben duoi).
 			var nMasterPrice = Number(oMaterial.StandardPrice || oMaterial.MovingPrice || 0);
-			var nCurrentPrice = Number(oModel.getProperty(sPath + "/estimatedValue")) || 0;
-			if (nMasterPrice > 0 && nCurrentPrice <= 0) {
-				oModel.setProperty(sPath + "/estimatedValue", nMasterPrice);
-			}
+			oModel.setProperty(sPath + "/estimatedValue", nMasterPrice > 0 ? nMasterPrice : 0);
 
 			// Canh bao dung viec: het ma trong kho khac han voi chua khai bao gio.
 			var oCfg = this._configOfMaterial(oItem.materialNo);
@@ -550,13 +555,13 @@ sap.ui.define([
 				aMissing.push("mã tài sản (AS01)");
 			} else if (bAsset && aFree.length === 0) {
 				MessageToast.show("Vật tư " + oItem.materialNo
-					+ ": kho mã tài sản đã dùng hết. Kế toán cần tạo thẻ tài sản mới bằng AS01"
+					+ ": đã dùng hết mã tài sản khả dụng. Kế toán cần tạo thẻ tài sản mới bằng AS01"
 					+ (oCfg.assetClass ? " (nhóm " + oCfg.assetClass + ")" : "")
-					+ " rồi khai vào Cấu hình.");
+					+ " rồi khai vào màn hình Cấu hình hệ thống.");
 			}
 			if (aMissing.length) {
 				MessageToast.show("Vật tư " + oItem.materialNo + " chưa có "
-					+ aMissing.join(" và ") + " — nhập tay giúp nhé.");
+					+ aMissing.join(" và ") + " — vui lòng nhập tay.");
 			}
 
 			this._recalcTotal();
@@ -673,7 +678,7 @@ sap.ui.define([
 		onResetPress: function () {
 			var aItems = this.getView().getModel().getProperty("/items") || [];
 			if (aItems.length === 0) { return; }
-			MessageBox.confirm("Xóa toàn bộ dòng và tạo lại 1 dòng trống?", {
+			MessageBox.confirm("Xoá toàn bộ dòng đã nhập và bắt đầu lại? Thao tác này không thể hoàn tác.", {
 				actions: [MessageBox.Action.YES, MessageBox.Action.NO],
 				emphasizedAction: MessageBox.Action.NO,
 				onClose: function (sAction) {
@@ -696,7 +701,7 @@ sap.ui.define([
 			syncAcctAssignCat(aItems);
 
 			if (!aItems || aItems.length === 0) {
-				MessageBox.warning("Vui lòng thêm ít nhất 1 dòng vật tư / dịch vụ vào danh sách.");
+				MessageBox.warning("Đề nghị chưa có dòng nào. Vui lòng thêm ít nhất một vật tư / dịch vụ vào danh sách.");
 				return;
 			}
 
@@ -705,7 +710,7 @@ sap.ui.define([
 			var sPurchaseReason = String(oModel.getProperty("/header/purchaseReason") || "").trim();
 			if (sPurchaseReason.length < 10) {
 				MessageBox.warning("Vui lòng nhập Lý do đề nghị mua (ít nhất 10 ký tự).\n\n"
-					+ "Người duyệt dựa vào lý do này để quyết định — ví dụ: máy cũ hỏng, tuyển thêm nhân sự, hết vật tư tiêu hao.");
+					+ "Người duyệt căn cứ vào lý do này để ra quyết định. Ví dụ: thiết bị cũ đã hỏng, tuyển thêm nhân sự, hết vật tư tiêu hao.");
 				return;
 			}
 
@@ -739,7 +744,7 @@ sap.ui.define([
 				// giua chung ma khong tai lai trang.
 				if (this._userCC && item.costCenter !== this._userCC) {
 					MessageBox.error("Dòng " + idx + ": bạn chỉ được lập đề nghị cho bộ phận "
-						+ this._userCC + ". Vui lòng tải lại trang.");
+						+ this._userCC + ". Vui lòng tải lại trang rồi nhập lại.");
 					return;
 				}
 				// ZAST thêm bắt buộc đủ Asset No cho từng đơn vị số lượng
@@ -747,8 +752,8 @@ sap.ui.define([
 					var aAssets = item.assetNumbers || [];
 					if (aAssets.length !== Number(item.quantity)
 						|| aAssets.some(function (a) { return !String(a.value || "").trim(); })) {
-						MessageBox.warning("Dòng " + idx + ": Vật tư Tài sản (ZAST) bắt buộc nhập đủ "
-							+ item.quantity + " mã Asset (mỗi đơn vị số lượng 1 mã).");
+						MessageBox.warning("Dòng " + idx + ": vật tư Tài sản (ZAST) phải nhập đủ "
+							+ item.quantity + " mã tài sản — mỗi đơn vị số lượng tương ứng một mã.");
 						return;
 					}
 				}
@@ -773,7 +778,10 @@ sap.ui.define([
 				.then(function (oResult) {
 					oView.setBusy(false);
 					if (!oResult || !oResult.success) {
-						MessageBox.error((oResult && oResult.message) || "Không tạo được đề nghị mua sắm.");
+						Msg.fail(oResult, {
+							title: "Không gửi được đề nghị",
+							fallback: "Không tạo được đề nghị mua sắm. Dữ liệu bạn nhập vẫn còn trên màn hình, vui lòng thử gửi lại."
+						});
 						return;
 					}
 					var oApproval = oResult.approval || {};
@@ -840,7 +848,7 @@ sap.ui.define([
 						throw new Error("Server phản hồi quá lâu.");
 					}
 					if (oError instanceof TypeError) {
-						throw new Error("Không thể kết nối tới máy chủ.");
+						throw new Error("Không thể kết nối tới máy chủ. Vui lòng thử lại.");
 					}
 					throw oError;
 				});

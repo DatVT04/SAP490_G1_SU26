@@ -123,7 +123,7 @@
 						</columns>
 
 						<items>
-							<ColumnListItem>
+							<ColumnListItem vAlign="Top">
 								<cells>
 									<!-- Vật tư / Dịch vụ -->
 									<VBox>
@@ -159,7 +159,7 @@
 									/>
 
 									<!-- ĐVT (từ material master) -->
-									<Text text="{uom}" textAlign="Center"/>
+									<Text text="{uom}" textAlign="Center" class="sapUiTinyMarginTop"/>
 
 									<!-- Số lượng -->
 									<Input
@@ -211,7 +211,7 @@
 									</VBox>
 
 									<!-- IO ngân sách — chỉ đọc, theo bộ phận -->
-									<Text text="{internalOrderText}" class="qdCellHint"/>
+									<Text text="{internalOrderText}" class="qdCellHint sapUiTinyMarginTop"/>
 
 									<!-- Asset — mỗi đơn vị số lượng của dòng ZAST có 1 mã tài sản riêng.
 									     Số ô = số lượng, tự sinh lại khi nhập Số lượng xong (Enter/Tab).

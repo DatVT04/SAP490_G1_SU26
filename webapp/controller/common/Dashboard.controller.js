@@ -113,7 +113,7 @@ sap.ui.define([
 			var sUpper = String(sRole || "").toUpperCase();
 			if (sUpper === "PURCHASING") {
 				oModel.setProperty("/kpiPendingLabel", "PR chờ tôi duyệt");
-				oModel.setProperty("/kpiApprovedLabel", "PR đã chốt NCC — chờ tạo PO");
+				oModel.setProperty("/kpiApprovedLabel", "Đã chốt nhà cung cấp — chờ tạo đơn hàng");
 				oModel.setProperty("/kpiValueLabel", "Giá trị chờ duyệt");
 			} else if (sUpper === "CFO" || sUpper === "CEO") {
 				oModel.setProperty("/kpiPendingLabel", "Đơn hàng (PO) chờ tôi duyệt");
@@ -330,7 +330,7 @@ sap.ui.define([
 			var aList = this.getView().getModel("dash").getProperty("/notifications") || [];
 			var aUnread = aList.filter(function (n) { return !n.read && String(n.id).indexOf("aging-") !== 0; });
 			if (aUnread.length === 0) {
-				MessageToast.show("Không còn thông báo chưa đọc.");
+				MessageToast.show("Không có thông báo chưa đọc.");
 				return;
 			}
 			var that = this;
@@ -341,7 +341,7 @@ sap.ui.define([
 					body: "{}"
 				});
 			})).then(function () {
-				MessageToast.show("Đã đánh dấu tất cả đã đọc.");
+				MessageToast.show("Đã đánh dấu tất cả thông báo là đã đọc.");
 				that._loadNotifications();
 			});
 		},

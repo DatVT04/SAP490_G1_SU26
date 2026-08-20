@@ -11,12 +11,13 @@ sap.ui.define([
 	"sap/m/VBox",
 	"sap/m/Label",
 	"sap/m/Text",
-	"com/qdavy/procurement/model/Config"
+	"com/qdavy/procurement/model/Config",
+	"com/qdavy/procurement/model/Msg"
 ], function (
 	Controller, JSONModel, MessageBox, MessageToast,
 	Dialog, DialogType, Button, ButtonType,
 	TextArea, VBox, Label, Text,
-	Config
+	Config, Msg
 ) {
 	"use strict";
 
@@ -48,7 +49,7 @@ sap.ui.define([
 		_onRouteMatched: function () {
 			var sRole = String(this.getOwnerComponent().getModel("user").getProperty("/role") || "").toUpperCase();
 			if (sRole !== "CFO" && sRole !== "CEO") {
-				MessageBox.error("Chỉ CFO hoặc CEO được duyệt đơn hàng.");
+				MessageBox.error("Chỉ CFO hoặc CEO được phép duyệt đơn hàng.");
 				this.getOwnerComponent().getRouter().navTo("dashboard");
 				return;
 			}
@@ -73,7 +74,7 @@ sap.ui.define([
 					oView.setBusy(false);
 					oModel.setProperty("/loading", false);
 					if (!oResult || !oResult.success) {
-						MessageBox.error((oResult && oResult.message) || "Không tải được danh sách đơn hàng chờ duyệt.");
+						MessageBox.error((oResult && oResult.message) || "Không tải được danh sách đơn hàng chờ duyệt. Vui lòng thử lại.");
 						return;
 					}
 					var aData = (oResult.data || []).sort(function (a, b) {
@@ -84,7 +85,7 @@ sap.ui.define([
 				.catch(function (oError) {
 					oView.setBusy(false);
 					oModel.setProperty("/loading", false);
-					MessageBox.error(oError.message || "Không thể kết nối tới máy chủ.");
+					MessageBox.error(oError.message || "Không thể kết nối tới máy chủ. Vui lòng thử lại.");
 				});
 		},
 
@@ -120,11 +121,11 @@ sap.ui.define([
 
 			var sHint;
 			if (bWillEscalate) {
-				sHint = "\n\nĐơn này VƯỢT NGƯỠNG Internal Order — duyệt của bạn sẽ CHUYỂN TIẾP lên CEO, chưa gửi gì cho NCC.";
+				sHint = "\n\nĐơn hàng này vượt ngưỡng phê duyệt của Internal Order. Sau khi bạn duyệt, đơn sẽ được chuyển tiếp lên CEO và chưa gửi cho nhà cung cấp.";
 			} else if (bIsApprove) {
 				sHint = "\n\nDuyệt xong hệ thống GỬI EMAIL đơn hàng cho nhà cung cấp ngay.";
 			} else {
-				sHint = "\n\nTừ chối: PO KHÔNG được gửi cho NCC. Purchasing sẽ chọn lại nhà cung cấp hoặc điều chỉnh rồi tạo PO mới.";
+				sHint = "\n\nNếu từ chối, đơn hàng sẽ không được gửi cho nhà cung cấp. Bộ phận Mua sắm sẽ chọn lại nhà cung cấp hoặc điều chỉnh rồi tạo đơn hàng mới.";
 			}
 
 			var sSummary = "PR: " + (oPR.DisplayId || oPR.PRId)
@@ -144,7 +145,7 @@ sap.ui.define([
 			var oDialog = new Dialog({
 				type: DialogType.Message,
 				title: bIsApprove
-					? (bWillEscalate ? "Duyệt — sẽ chuyển CEO" : "Xác nhận duyệt & gửi NCC")
+					? (bWillEscalate ? "Duyệt — sẽ chuyển CEO" : "Xác nhận duyệt và gửi nhà cung cấp")
 					: "Xác nhận từ chối đơn hàng",
 				content: [
 					new VBox({
@@ -203,15 +204,18 @@ sap.ui.define([
 				.then(function (oResult) {
 					oView.setBusy(false);
 					if (!oResult || !oResult.success) {
-						MessageBox.error((oResult && oResult.message) || "Không cập nhật được. Vui lòng thử lại.");
+						Msg.fail(oResult, {
+							title: "Không cập nhật được đơn hàng",
+							fallback: "Không cập nhật được trạng thái đơn hàng. Đơn hàng vẫn ở trạng thái chờ duyệt, vui lòng thử lại."
+						});
 						return;
 					}
 
 					if (oResult.escalated) {
 						MessageBox.information(
-							"PR " + oPR.PRId + " đã chuyển lên CEO.\n"
-							+ (oResult.reason || "Vượt ngưỡng IO — cần CEO duyệt.")
-							+ "\nChưa gửi gì cho nhà cung cấp.",
+							"Đề nghị " + oPR.PRId + " đã được chuyển lên CEO phê duyệt.\n"
+							+ (oResult.reason || "Giá trị vượt ngưỡng phê duyệt của CFO.")
+							+ "\nHệ thống chưa gửi đơn hàng cho nhà cung cấp.",
 							{ title: "Đã chuyển CEO" }
 						);
 					} else if (sAction === "APPROVED") {
@@ -221,17 +225,17 @@ sap.ui.define([
 						var sMailLine = iSent >= aReleased.length && aReleased.length > 0
 							? "Đã gửi email đơn hàng cho nhà cung cấp."
 							: "Lưu ý: " + (aReleased.length - iSent) + "/" + aReleased.length
-								+ " email chưa gửi được (kiểm tra email NCC trong master rồi gửi lại thủ công).";
+								+ " email chưa gửi được. Vui lòng kiểm tra email nhà cung cấp trong dữ liệu chủ rồi gửi lại thủ công.";
 						MessageBox.success(
-							"Đã duyệt đơn hàng của PR " + oPR.PRId + "."
+							"Đã duyệt đơn hàng của đề nghị " + oPR.PRId + "."
 							+ (aPoNums.length ? "\nPO: " + aPoNums.join(", ") : "")
 							+ "\n" + sMailLine,
 							{ title: "PO đã duyệt" }
 						);
 					} else {
 						MessageBox.warning(
-							"Đã từ chối đơn hàng của PR " + oPR.PRId
-							+ ".\nPO không được gửi cho NCC. Purchasing đã được thông báo để xử lý lại.",
+							"Đã từ chối đơn hàng của đề nghị " + oPR.PRId
+							+ ".\nĐơn hàng không được gửi cho nhà cung cấp. Bộ phận Mua sắm đã nhận được thông báo để xử lý lại.",
 							{ title: "Đã từ chối" }
 						);
 					}
@@ -239,7 +243,7 @@ sap.ui.define([
 				}.bind(this))
 				.catch(function (oError) {
 					oView.setBusy(false);
-					MessageBox.error(oError.message || "Không thể kết nối tới máy chủ.");
+					MessageBox.error(oError.message || "Không thể kết nối tới máy chủ. Vui lòng thử lại.");
 				});
 		},
 
@@ -274,7 +278,7 @@ sap.ui.define([
 				return "Chỉ có 1 báo giá — không có cạnh tranh, cần lý do chỉ định thầu";
 			}
 			if (bIsLowest) { return "Đã chọn báo giá thấp nhất"; }
-			return "KHÔNG chọn báo giá thấp nhất — đắt hơn " + this._money(nExtra) + " VND";
+			return "Không chọn báo giá thấp nhất — cao hơn " + this._money(nExtra) + " VND";
 		},
 
 		formatPriceVerdictState: function (bIsLowest, nExtra, bSingle) {
@@ -355,7 +359,7 @@ sap.ui.define([
 						throw new Error("Server phản hồi quá lâu. Vui lòng kiểm tra mạng và thử lại.");
 					}
 					if (oError instanceof TypeError) {
-						throw new Error("Không thể kết nối tới máy chủ.");
+						throw new Error("Không thể kết nối tới máy chủ. Vui lòng thử lại.");
 					}
 					throw oError;
 				});

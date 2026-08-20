@@ -132,7 +132,7 @@ sap.ui.define([
 			oView.setBusy(false);
 
 			if (!oResult.body || !oResult.body.success) {
-				MessageBox.error((oResult.body && oResult.body.message) || "Đăng nhập thất bại. Email không tồn tại hoặc đã bị khóa.");
+				MessageBox.error((oResult.body && oResult.body.message) || "Đăng nhập không thành công. Email không tồn tại trong hệ thống hoặc tài khoản đã bị khoá.");
 				return;
 			}
 

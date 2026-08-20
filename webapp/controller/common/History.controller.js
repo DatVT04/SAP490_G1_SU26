@@ -140,7 +140,7 @@ sap.ui.define([
 					oModel.setProperty("/history", []);
 					oModel.setProperty("/pendingCountText", "0 đề nghị");
 					oModel.setProperty("/historyCountText", "0 đề nghị");
-					MessageBox.error("Không tải được lịch sử đề nghị.");
+					MessageBox.error("Không tải được lịch sử đề nghị mua sắm. Vui lòng thử lại.");
 				});
 		},
 
@@ -268,7 +268,7 @@ sap.ui.define([
 				PENDING_RFQ: "Đã duyệt hợp lệ — chờ hỏi giá (RFQ)",
 				RFQ_SENT: "Đã gửi RFQ, chờ báo giá",
 				QUOTATIONS_RECEIVED: "Đã có báo giá",
-				AWARDED: "Đã chốt NCC — chờ tạo PO",
+				AWARDED: "Đã chốt nhà cung cấp — chờ tạo đơn hàng",
 				PENDING_CFO: "Chờ CFO duyệt PO",
 				PENDING_CEO: "Chờ CEO duyệt PO",
 				APPROVED: "Đã duyệt",
@@ -276,7 +276,7 @@ sap.ui.define([
 				RETURNED: "Bị trả lại (luồng cũ)",
 				CANCELLED: "Đã hủy (luồng cũ)",
 				PO_CREATED: "Đã tạo PO — chờ duyệt",
-				PO_RELEASED: "PO đã duyệt & gửi NCC",
+				PO_RELEASED: "Đơn hàng đã duyệt và gửi nhà cung cấp",
 				PO_REJECTED: "PO bị từ chối",
 				OPENED: "Đã mở",
 				OPEN: "Mở"

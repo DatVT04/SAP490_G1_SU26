@@ -4,8 +4,9 @@ sap.ui.define([
     "sap/m/MessageBox",
     "sap/m/MessageToast",
     "sap/ui/core/routing/History",
-    "sap/ui/core/ValueState"
-], function (Controller, JSONModel, MessageBox, MessageToast, History, ValueState) {
+    "sap/ui/core/ValueState",
+    "com/qdavy/procurement/model/Msg"
+], function (Controller, JSONModel, MessageBox, MessageToast, History, ValueState, Msg) {
     "use strict";
 
     var DEFAULTS = {
@@ -43,7 +44,7 @@ sap.ui.define([
             var sRole = oUserModel ? String(oUserModel.getProperty("/role") || "").toUpperCase() : "";
 
             if (sRole && sRole !== "PURCHASING") {
-                MessageBox.error("Chức năng tạo danh mục chỉ dành cho Purchasing.", {
+                MessageBox.error("Chỉ Bộ phận Mua sắm được phép tạo danh mục vật tư.", {
                     onClose: this.onBack.bind(this)
                 });
                 return;
@@ -122,7 +123,7 @@ sap.ui.define([
                 oModel.setProperty("/materialGroups", oResult.data.materialGroups || []);
                 oModel.setProperty("/purchasingGroups", oResult.data.purchasingGroups || []);
             } catch (oError) {
-                MessageToast.show("Không tải được value help SAP; đang dùng dữ liệu dự phòng.");
+                MessageToast.show("Không tải được danh mục gợi ý từ SAP. Hệ thống đang dùng dữ liệu dự phòng, bạn vẫn nhập tiếp được.");
                 oModel.setProperty("/uoms", this._fallbackUoms());
                 oModel.setProperty("/materialGroups", this._fallbackGroups(sType));
                 oModel.setProperty("/purchasingGroups", []);
@@ -213,7 +214,7 @@ sap.ui.define([
 
         onCreateMaterial: function () {
             if (!this._validate()) {
-                MessageBox.warning("Vui lòng hoàn thành các trường bắt buộc trước khi tạo.");
+                MessageBox.warning("Còn trường bắt buộc chưa nhập. Vui lòng hoàn thiện các trường có dấu * rồi thử lại.");
                 return;
             }
 
@@ -240,7 +241,7 @@ sap.ui.define([
 
             MessageBox.confirm(
                 "Tạo " + (oData.materialType === "ZSRV" ? "dịch vụ" : "vật tư/tài sản")
-                + " mới trên SAP?",
+                + " mới trên SAP? Bản ghi đã tạo sẽ không xoá được.",
                 {
                     title: "Xác nhận tạo danh mục",
                     emphasizedAction: MessageBox.Action.OK,
@@ -271,16 +272,19 @@ sap.ui.define([
 
                 var sMaterialNo = oResult.materialNumber || (oResult.data && oResult.data.materialNumber) || "";
                 MessageBox.success(
-                    "Tạo thành công.\nMã SAP: " + (sMaterialNo || "SAP đã tiếp nhận"),
+                    "Đã tạo danh mục trên SAP.\n\nMã vật tư: " + (sMaterialNo || "SAP đã tiếp nhận, mã sẽ hiện sau khi đồng bộ"),
                     {
-                        title: "Hoàn tất",
+                        title: "Tạo danh mục thành công",
                         onClose: function () {
                             this.onReset();
                         }.bind(this)
                     }
                 );
             } catch (oError) {
-                MessageBox.error(oError.message || "Không thể tạo danh mục trên SAP.");
+                Msg.fail(oError, {
+                    title: "Không tạo được danh mục",
+                    fallback: "Không tạo được danh mục trên SAP. Vui lòng kiểm tra lại thông tin đã nhập rồi thử lại."
+                });
             } finally {
                 oModel.setProperty("/busy", false);
             }

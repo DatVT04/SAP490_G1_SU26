@@ -5,8 +5,9 @@ sap.ui.define([
 	"sap/m/MessageToast",
 	"sap/ui/model/Filter",
 	"sap/ui/model/FilterOperator",
-	"com/qdavy/procurement/model/Config"
-], function (Controller, JSONModel, MessageBox, MessageToast, Filter, FilterOperator, Config) {
+	"com/qdavy/procurement/model/Config",
+	"com/qdavy/procurement/model/Msg"
+], function (Controller, JSONModel, MessageBox, MessageToast, Filter, FilterOperator, Config, Msg) {
 	"use strict";
 
 	var BACKEND = Config.BACKEND;
@@ -234,7 +235,7 @@ sap.ui.define([
 				})
 				.catch(function () {
 					oTable.setBusy(false);
-					MessageToast.show("Không thể lấy danh sách PR từ máy chủ.");
+					MessageToast.show("Không tải được danh sách đề nghị mua sắm. Vui lòng thử lại.");
 				});
 		},
 
@@ -253,7 +254,7 @@ sap.ui.define([
 				})
 				.catch(function () {
 					oTable.setBusy(false);
-					MessageToast.show("Không tải được danh sách Nhà cung cấp.");
+					MessageToast.show("Không tải được danh sách nhà cung cấp. Vui lòng thử lại.");
 				});
 		},
 
@@ -310,7 +311,7 @@ sap.ui.define([
 		// NCC vua duoc tao them tren SAP (BP/XK01) -> tai lai ma khong can F5 ca trang.
 		onReloadVendorsPress: function () {
 			this._loadVendors();
-			MessageToast.show("Đang tải lại danh sách Nhà cung cấp từ SAP...");
+			MessageToast.show("Đang tải lại danh sách nhà cung cấp từ SAP...");
 		},
 
 		onPRSelect: function (oEvent) {
@@ -406,7 +407,7 @@ sap.ui.define([
 			});
 			if (aInvalid.length) {
 				aInvalid.forEach(function (oItem) { oTable.setSelectedItem(oItem, false); });
-				MessageToast.show("Dòng này đã thuộc một RFQ khác của PR — không thể đưa vào RFQ mới.");
+				MessageToast.show("Dòng này đã thuộc một yêu cầu báo giá khác. Không thể đưa vào RFQ mới.");
 			}
 			this.getView().getModel().setProperty("/selectedLineCount", oTable.getSelectedItems().length);
 			this._updateGroupHint();
@@ -581,14 +582,14 @@ sap.ui.define([
 		// ── 3. AI GOI Y NCC (dua tren vat tu dong dau + ngan sach cua PR dang chon) ──
 		onAiSuggestPress: function () {
 			if (!this._currentPR) {
-				MessageToast.show("Hãy chọn một PR trước.");
+				MessageToast.show("Vui lòng chọn một đề nghị mua sắm trước.");
 				return;
 			}
 			var oModel = this.getView().getModel();
 			var that = this;
 			var aVendors = oModel.getProperty("/Vendors") || [];
 			if (aVendors.length === 0) {
-				MessageToast.show("Chưa có danh sách Nhà cung cấp để AI phân tích.");
+				MessageToast.show("Chưa tải được danh sách nhà cung cấp nên chưa thể phân tích.");
 				return;
 			}
 
@@ -615,12 +616,12 @@ sap.ui.define([
 						oModel.setProperty("/aiMessages", [{ role: "ai", text: res.recommendation || "" }]);
 						that._renderAiChat();
 					} else {
-						MessageToast.show((res && res.message) || "AI không phản hồi.");
+						MessageToast.show((res && res.message) || "Trợ lý AI chưa phản hồi. Vui lòng thử lại sau.");
 					}
 				})
 				.catch(function () {
 					oModel.setProperty("/busyAi", false);
-					MessageToast.show("Không gọi được AI gợi ý.");
+					MessageToast.show("Không kết nối được tới trợ lý AI. Vui lòng thử lại.");
 				});
 		},
 
@@ -634,23 +635,23 @@ sap.ui.define([
 			var oModel = this.getView().getModel();
 
 			if (!this._currentPR) {
-				MessageToast.show("Hãy chọn một PR trước.");
+				MessageToast.show("Vui lòng chọn một đề nghị mua sắm trước.");
 				return;
 			}
 			var aVendors = oModel.getProperty("/Vendors") || [];
 			if (aVendors.length === 0) {
-				MessageToast.show("Chưa có danh sách Nhà cung cấp để AI phân tích.");
+				MessageToast.show("Chưa tải được danh sách nhà cung cấp nên chưa thể phân tích.");
 				return;
 			}
 			// Chi hoi AI ve nhung dong CHUA thuoc RFQ nao — dong da chot roi thi khong
 			// con gi de chia nua, dua vao chi lam nhieu context va de AI goi y nham.
 			var aFree = (oModel.getProperty("/PRItems") || []).filter(function (r) { return !r._assigned; });
 			if (aFree.length === 0) {
-				MessageToast.show("Mọi dòng của PR này đều đã thuộc một RFQ.");
+				MessageToast.show("Mọi dòng của đề nghị này đều đã thuộc một yêu cầu báo giá.");
 				return;
 			}
 			if (aFree.length === 1) {
-				MessageToast.show("Chỉ còn 1 dòng — không cần chia nhóm, chọn NCC rồi gửi luôn.");
+				MessageToast.show("Chỉ còn một dòng nên không cần chia nhóm. Vui lòng chọn nhà cung cấp rồi gửi yêu cầu báo giá.");
 				return;
 			}
 
@@ -665,7 +666,7 @@ sap.ui.define([
 				.then(function (res) {
 					oModel.setProperty("/busyGroupAi", false);
 					if (!res || !res.success) {
-						MessageToast.show((res && res.message) || "AI không phản hồi.");
+						MessageToast.show((res && res.message) || "Trợ lý AI chưa phản hồi. Vui lòng thử lại sau.");
 						return;
 					}
 					// AI tra ve khong dung JSON: van hien nguyen van trong khung chat de
@@ -683,7 +684,7 @@ sap.ui.define([
 				})
 				.catch(function () {
 					oModel.setProperty("/busyGroupAi", false);
-					MessageToast.show("Không gọi được AI gợi ý chia nhóm.");
+					MessageToast.show("Không kết nối được tới trợ lý AI. Vui lòng thử lại.");
 				});
 		},
 
@@ -796,7 +797,7 @@ sap.ui.define([
 				this.onVendorSelectionChange();
 			}
 
-			MessageToast.show("Đã tích sẵn nhóm \"" + oGroup.name + "\". Kiểm tra lại rồi bấm Tạo & Gửi RFQ.");
+			MessageToast.show("Đã chọn sẵn các dòng của nhóm \"" + oGroup.name + "\". Vui lòng kiểm tra lại rồi bấm Tạo & Gửi RFQ.");
 		},
 
 		// ── 3b. HOI THEM AI (chat tuong tac tren nen du lieu NCC dang xem) ──
@@ -808,12 +809,12 @@ sap.ui.define([
 			var sQuestion = (oInput.getValue() || "").trim();
 
 			if (!sQuestion) {
-				MessageToast.show("Hãy nhập câu hỏi trước.");
+				MessageToast.show("Vui lòng nhập câu hỏi.");
 				return;
 			}
 			var aVendors = oModel.getProperty("/Vendors") || [];
 			if (aVendors.length === 0) {
-				MessageToast.show("Chưa có danh sách Nhà cung cấp để hỏi AI.");
+				MessageToast.show("Chưa tải được danh sách nhà cung cấp nên chưa thể hỏi trợ lý AI.");
 				return;
 			}
 
@@ -874,14 +875,14 @@ sap.ui.define([
 						// Loi cung phai hien TRONG mach chat, khong chi bung toast roi de lai
 						// bong bong "dang soan..." treo vinh vien.
 						fnFillSlot("Xin lỗi, tôi chưa trả lời được câu này. "
-							+ ((res && res.message) || "AI không phản hồi."));
-						MessageToast.show((res && res.message) || "AI không phản hồi.");
+							+ ((res && res.message) || "Trợ lý AI chưa phản hồi. Vui lòng thử lại sau."));
+						MessageToast.show((res && res.message) || "Trợ lý AI chưa phản hồi. Vui lòng thử lại sau.");
 					}
 				})
 				.catch(function () {
 					oModel.setProperty("/busyAi", false);
 					fnFillSlot("Không gọi được AI (lỗi kết nối). Bạn thử hỏi lại giúp tôi.");
-					MessageToast.show("Không gọi được AI.");
+					MessageToast.show("Không kết nối được tới trợ lý AI. Vui lòng thử lại.");
 				});
 		},
 
@@ -891,7 +892,7 @@ sap.ui.define([
 			var oView = this.getView();
 
 			if (!this._currentPR) {
-				MessageBox.warning("Hãy chọn một PR trước khi tạo RFQ.");
+				MessageBox.warning("Vui lòng chọn một đề nghị mua sắm trước khi tạo yêu cầu báo giá.");
 				return;
 			}
 
@@ -899,7 +900,7 @@ sap.ui.define([
 				return oItem.getBindingContext().getObject();
 			});
 			if (aSelected.length === 0) {
-				MessageBox.warning("Hãy chọn ít nhất 1 Nhà cung cấp để mời báo giá.");
+				MessageBox.warning("Vui lòng chọn ít nhất một nhà cung cấp để mời báo giá.");
 				return;
 			}
 
@@ -909,14 +910,14 @@ sap.ui.define([
 				return oItem.getBindingContext().getObject().LineNo;
 			});
 			if (aLines.length === 0) {
-				MessageBox.warning("Hãy chọn ít nhất 1 dòng để đưa vào RFQ này.");
+				MessageBox.warning("Vui lòng chọn ít nhất một dòng vật tư để đưa vào yêu cầu báo giá này.");
 				return;
 			}
 
 			var oDeadlinePicker = oView.byId("dpDeadline");
 			var sDeadline = oDeadlinePicker.getValue();
 			if (!sDeadline) {
-				MessageBox.warning("Hãy chọn hạn nộp báo giá (Deadline).");
+				MessageBox.warning("Vui lòng chọn hạn nộp báo giá.");
 				return;
 			}
 			// Phong truong hop go tay/paste ngay qua khu (minDate chi chan luc bam vao lich).
@@ -924,7 +925,7 @@ sap.ui.define([
 			var oToday = new Date();
 			oToday.setHours(0, 0, 0, 0);
 			if (oDeadlineDate && oDeadlineDate < oToday) {
-				MessageBox.warning("Hạn nộp báo giá không được ở quá khứ. Vui lòng chọn lại.");
+				MessageBox.warning("Hạn nộp báo giá không được là ngày trong quá khứ. Vui lòng chọn lại.");
 				return;
 			}
 
@@ -934,9 +935,9 @@ sap.ui.define([
 			// ly do sole-source khi chot o man RFQ-02.
 			if (aSelected.length < 2) {
 				MessageBox.confirm(
-					"Bạn chỉ mời 1 Nhà cung cấp báo giá. Khi chốt kết quả sẽ bắt buộc nhập lý do chỉ định 1 NCC (sole source). Tiếp tục?",
+					"Bạn chỉ mời một nhà cung cấp báo giá. Khi chốt kết quả, hệ thống sẽ bắt buộc nhập lý do chỉ định thầu (sole source). Tiếp tục?",
 					{
-						title: "Chỉ có 1 Nhà cung cấp",
+						title: "Chỉ mời một nhà cung cấp",
 						onClose: function (sAction) {
 							if (sAction === MessageBox.Action.OK) { fnSubmit(); }
 						}
@@ -974,7 +975,7 @@ sap.ui.define([
 				})
 				.then(function (oResult) {
 					if (!oResult.body || !oResult.body.success) {
-						throw new Error((oResult.body && oResult.body.message) || "Tạo RFQ thất bại.");
+						throw new Error((oResult.body && oResult.body.message) || "Không tạo được yêu cầu báo giá.");
 					}
 					var sRfqId = oResult.body.rfqId;
 					// So dong cua PR con chua duoc gan vao RFQ nao — backend tinh giup,
@@ -1007,10 +1008,10 @@ sap.ui.define([
 								+ aNoEmail.join(", ") + ". Vào RFQ-02 để lấy link báo giá riêng gửi cho họ bằng cách khác.";
 						}
 						if (oBody.emailsFailed) {
-							sMsg += "\n\n" + oBody.emailsFailed + " thư bị lỗi khi gửi — có thể gửi nhắc lại ở màn RFQ-02.";
+							sMsg += "\n\n" + oBody.emailsFailed + " thư gửi không thành công. Bạn có thể gửi nhắc lại ở màn hình RFQ-02.";
 						}
 					} else {
-						sMsg += " LƯU Ý: gửi email thất bại (" + (oBody.message || "không rõ lý do") + ") — có thể gửi lại sau.";
+						sMsg += " Lưu ý: có email gửi không thành công (" + (oBody.message || "không rõ lý do") + ") — có thể gửi lại sau.";
 					}
 					// PR chia nhieu nhom: gui xong nhom nay van con dong chua hoi gia. Noi ro
 					// va GIU PR lai (khong _clearPRSelection) de nguoi dung tao tiep nhom sau —
@@ -1033,7 +1034,11 @@ sap.ui.define([
 				})
 				.catch(function (error) {
 					oView.setBusy(false);
-					MessageBox.error(error.message || "Không tạo được RFQ.");
+					Msg.fail(error, {
+						title: "Không tạo được yêu cầu báo giá",
+						fallback: "Không tạo được yêu cầu báo giá trên SAP. Chưa có email nào được gửi cho nhà cung cấp,"
+							+ " các lựa chọn của bạn vẫn còn trên màn hình."
+					});
 				});
 		},
 

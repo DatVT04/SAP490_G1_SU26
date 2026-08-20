@@ -14,13 +14,14 @@ sap.ui.define([
 	"sap/m/List",
 	"sap/m/StandardListItem",
 	"sap/m/MessageStrip",
-	"com/qdavy/procurement/model/Config"
+	"com/qdavy/procurement/model/Config",
+	"com/qdavy/procurement/model/Msg"
 ], function (
 	Controller, JSONModel, MessageBox, MessageToast,
 	Dialog, DialogType, Button, ButtonType,
 	TextArea, VBox, Label, Text,
 	List, StandardListItem, MessageStrip,
-	Config
+	Config, Msg
 ) {
 	"use strict";
 
@@ -69,7 +70,7 @@ sap.ui.define([
 				return;
 			}
 			if (!isApproverRole(sRole)) {
-				MessageBox.error("Bạn không có quyền truy cập màn này. Chỉ Bộ phận mua sắm (Purchasing).");
+				MessageBox.error("Bạn không có quyền truy cập màn hình này. Chỉ Bộ phận Mua sắm được phê duyệt đề nghị.");
 				this.getOwnerComponent().getRouter().navTo("dashboard");
 				return;
 			}
@@ -94,7 +95,7 @@ sap.ui.define([
 					oModel.setProperty("/loading", false);
 
 					if (!oResult || !oResult.success) {
-						MessageBox.error((oResult && oResult.message) || "Không tải được danh sách đề nghị đang chờ duyệt.");
+						MessageBox.error((oResult && oResult.message) || "Không tải được danh sách đề nghị đang chờ duyệt. Vui lòng thử lại.");
 						return;
 					}
 
@@ -114,7 +115,7 @@ sap.ui.define([
 				.catch(function (oError) {
 					oView.setBusy(false);
 					oModel.setProperty("/loading", false);
-					MessageBox.error(oError.message || "Không thể kết nối tới máy chủ.");
+					MessageBox.error(oError.message || "Không thể kết nối tới máy chủ. Vui lòng thử lại.");
 				});
 		},
 
@@ -202,7 +203,7 @@ sap.ui.define([
 				return "Chưa đặt ngưỡng cho bộ phận này — không kiểm soát được ngân sách";
 			}
 			if (nRemainingAfter < 0) {
-				return "Duyệt đề nghị này sẽ VƯỢT ngân sách " + this._money(Math.abs(nRemainingAfter)) + " VND";
+				return "Duyệt đề nghị này sẽ vượt ngân sách " + this._money(Math.abs(nRemainingAfter)) + " VND";
 			}
 			return "Duyệt xong còn lại " + this._money(nRemainingAfter) + " VND";
 		},
@@ -254,7 +255,7 @@ sap.ui.define([
 		onViewComparePress: function (oEvent) {
 			var oPR = oEvent.getSource().getBindingContext().getObject();
 			if (!oPR || !oPR.RfqId) {
-				MessageBox.error("Đề nghị này không có RFQ để so sánh.");
+				MessageBox.error("Đề nghị này chưa có yêu cầu báo giá nên chưa có gì để so sánh.");
 				return;
 			}
 			var that = this;
@@ -265,14 +266,14 @@ sap.ui.define([
 				.then(function (oResult) {
 					oView.setBusy(false);
 					if (!oResult || !oResult.success) {
-						MessageBox.error((oResult && oResult.message) || "Không tải được bảng so sánh báo giá.");
+						MessageBox.error((oResult && oResult.message) || "Không tải được bảng so sánh báo giá. Vui lòng thử lại.");
 						return;
 					}
 					that._openCompareDialog(oPR, oResult);
 				})
 				.catch(function (oError) {
 					oView.setBusy(false);
-					MessageBox.error(oError.message || "Không thể kết nối tới máy chủ.");
+					MessageBox.error(oError.message || "Không thể kết nối tới máy chủ. Vui lòng thử lại.");
 				});
 		},
 
@@ -351,7 +352,7 @@ sap.ui.define([
 		onDetailPress: function (oEvent) {
 			var oPR = oEvent.getSource().getBindingContext().getObject();
 			if (!oPR || !oPR.PRId) {
-				MessageBox.error("Không xác định được mã đề nghị.");
+				MessageBox.error("Không xác định được mã đề nghị. Vui lòng tải lại danh sách.");
 				return;
 			}
 			this.getOwnerComponent().getRouter().navTo("prdetail", {
@@ -459,7 +460,10 @@ sap.ui.define([
 					oView.setBusy(false);
 
 					if (!oResult || !oResult.success) {
-						MessageBox.error((oResult && oResult.message) || "Không cập nhật được trạng thái. Vui lòng thử lại.");
+						Msg.fail(oResult, {
+							title: "Không phê duyệt được đề nghị",
+							fallback: "Không cập nhật được trạng thái đề nghị. Đề nghị vẫn ở trạng thái chờ, vui lòng thử lại."
+						});
 						return;
 					}
 
@@ -468,13 +472,13 @@ sap.ui.define([
 						// Duyet = da TAO PR THAT tren SAP ngay tai buoc nay (ME51N).
 						sMsg = "Đã duyệt " + sPRId + ".\n"
 							+ "Đã tạo PR trên SAP — số PR: " + oResult.sapPrNumber + " (tra cứu ME53N).\n"
-							+ "Tiếp theo: tạo RFQ hỏi giá nhà cung cấp trên màn RFQ-01.";
+							+ "Bước tiếp theo: tạo yêu cầu báo giá ở màn hình RFQ-01.";
 						MessageBox.success(sMsg, { title: "Đã duyệt — PR " + oResult.sapPrNumber });
 					} else if (sStatus === "APPROVED") {
-						MessageToast.show("Đã phê duyệt " + sPRId + ".", { duration: 4000 });
+						MessageToast.show("Đã phê duyệt đề nghị " + sPRId + ".", { duration: 4000 });
 					} else {
 						MessageBox.warning(
-							"Đã từ chối " + sPRId + ".\nNgười tạo đã được thông báo kèm lý do, có thể lập đề nghị mới.",
+							"Đã từ chối đề nghị " + sPRId + ".\nNgười đề nghị đã nhận được thông báo kèm lý do và có thể lập đề nghị mới.",
 							{ title: "Đã từ chối" }
 						);
 					}
@@ -490,7 +494,7 @@ sap.ui.define([
 				}.bind(this))
 				.catch(function (oError) {
 					oView.setBusy(false);
-					MessageBox.error(oError.message || "Không thể kết nối tới máy chủ.");
+					MessageBox.error(oError.message || "Không thể kết nối tới máy chủ. Vui lòng thử lại.");
 				});
 		},
 

@@ -539,13 +539,22 @@ router.patch("/api/approval/:id", async (req, res) => {
 			// mua hieu ngay phai lam gi, thay vi de nguyen message ky thuat cua BAPI
 			// ("Order 600165 budget exceeded" / "Item 00001 Budget exceeded").
 			const isBudgetBlock = /budget|ngan sach|ngân sách/i.test(sapMsg);
+			// userMessage = cau danh cho NGUOI DUNG (khong nhet loi BAPI vao).
+			// detail     = nguyen van loi cua SAP, front-end day xuong muc
+			//              "Xem chi tiet" de nguoi dung khong phai doc,
+			//              nhung van chup ra duoc khi can bao loi.
 			return res.status(502).json({
 				success: false,
+				kind: isBudgetBlock ? "BUDGET_EXCEEDED" : "SAP_ERROR",
+				userMessage: isBudgetBlock
+					? "Bộ phận này đã dùng hết ngân sách được cấp nên SAP không cho tạo đề nghị mua sắm.\n\n"
+						+ "Đề nghị vẫn được giữ ở trạng thái chờ. Bạn có thể xin cấp thêm ngân sách cho Internal Order (giao dịch KO22) rồi phê duyệt lại, hoặc từ chối đề nghị này."
+					: "Không tạo được đề nghị mua sắm trên SAP.\n\n"
+						+ "Đề nghị vẫn được giữ ở trạng thái chờ. Vui lòng xử lý nguyên nhân rồi bấm Phê duyệt lại.",
 				message: isBudgetBlock
-					? "SAP CHẶN vì vượt ngân sách của Internal Order: " + sapMsg
-						+ " — bộ phận này đã dùng hết ngân sách được cấp. Cần xin cấp thêm ngân sách (KO22) hoặc từ chối đề nghị."
-					: "Không tạo được PR trên SAP: " + sapMsg
-						+ " — đề nghị vẫn ở trạng thái chờ, có thể bấm duyệt lại sau khi xử lý lỗi.",
+					? "Vượt ngân sách Internal Order."
+					: "Không tạo được PR trên SAP.",
+				detail: sapMsg,
 				budgetBlocked: isBudgetBlock,
 				sapErrorMessage: sapResult.sapErrorMessage
 			});

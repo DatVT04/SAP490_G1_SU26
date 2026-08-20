@@ -3,8 +3,9 @@ sap.ui.define([
 	"sap/ui/model/json/JSONModel",
 	"sap/m/MessageBox",
 	"sap/m/MessageToast",
-	"com/qdavy/procurement/model/Config"
-], function (Controller, JSONModel, MessageBox, MessageToast, Config) {
+	"com/qdavy/procurement/model/Config",
+	"com/qdavy/procurement/model/Msg"
+], function (Controller, JSONModel, MessageBox, MessageToast, Config, Msg) {
 	"use strict";
 
 	var BACKEND = Config.BACKEND;
@@ -23,7 +24,7 @@ sap.ui.define([
 		_onRouteMatched: function () {
 			var sRole = String(this.getOwnerComponent().getModel("user").getProperty("/role") || "").toUpperCase();
 			if (sRole !== "CEO") {
-				MessageBox.error("Chỉ CEO mới được cấu hình ngưỡng phê duyệt.");
+				MessageBox.error("Chỉ CEO được phép mở màn hình Cấu hình hệ thống.");
 				this.getOwnerComponent().getRouter().navTo("dashboard");
 				return;
 			}
@@ -52,7 +53,7 @@ sap.ui.define([
 					var oMatRes = aResults[0] || {};
 					var oMapRes = aResults[1] || {};
 					if (!oMatRes.success) {
-						MessageToast.show(oMatRes.message || "Không tải được danh mục vật tư từ SAP.");
+						MessageToast.show(oMatRes.message || "Không tải được danh mục vật tư từ SAP. Vui lòng thử lại.");
 						return;
 					}
 
@@ -105,7 +106,7 @@ sap.ui.define([
 					}
 				})
 				.catch(function () {
-					MessageToast.show("Không tải được danh mục tài sản của vật tư.");
+					MessageToast.show("Không tải được danh mục mã tài sản của vật tư. Vui lòng thử lại.");
 				});
 		},
 
@@ -153,27 +154,30 @@ sap.ui.define([
 				.then(function (res) {
 					oView.setBusy(false);
 					if (!res || !res.success) {
-						MessageBox.error((res && res.message) || "Không lưu được danh mục tài sản.");
+						Msg.fail(res, {
+							title: "Không lưu được danh mục",
+							fallback: "Không lưu được danh mục mã tài sản. Thay đổi chưa được ghi nhận, vui lòng thử lại."
+						});
 						return;
 					}
 					if (res.warning) {
 						MessageBox.warning(
 							res.warning + "\n\n"
-							+ "Thay đổi vẫn áp dụng ngay cho màn Lập đề nghị, nhưng chưa nằm trên SAP.",
+							+ "Thay đổi đã có hiệu lực ngay trên màn hình Lập đề nghị, nhưng chưa được lưu xuống SAP.",
 							{ title: "Đã lưu trong ứng dụng" }
 						);
 						return;
 					}
 					MessageBox.success(
 						"Đã lưu danh mục tài sản vào bảng ZG1_MAT_CONFIG trên SAP.\n\n"
-						+ iSet + "/" + aRows.length + " vật tư đã khai nhóm tài sản hoặc mã tài sản còn trống.\n"
+						+ iSet + "/" + aRows.length + " vật tư đã khai nhóm tài sản hoặc còn mã tài sản trống.\n"
 						+ "Đề nghị mua sắm lập từ bây giờ sẽ tự điền mã tài sản.",
 						{ title: "Cập nhật thành công" }
 					);
 				})
 				.catch(function () {
 					oView.setBusy(false);
-					MessageBox.error("Không thể kết nối tới máy chủ.");
+					MessageBox.error("Không thể kết nối tới máy chủ. Vui lòng thử lại.");
 				});
 		},
 
@@ -198,7 +202,7 @@ sap.ui.define([
 					var oThRes = aResults[1] || {};
 
 					if (!oIoRes.success) {
-						MessageBox.error(oIoRes.message || "Không tải được danh sách Internal Order từ SAP.");
+						MessageBox.error(oIoRes.message || "Không tải được danh sách Internal Order từ SAP. Vui lòng thử lại.");
 						return;
 					}
 
@@ -219,7 +223,7 @@ sap.ui.define([
 				})
 				.catch(function () {
 					oView.setBusy(false);
-					MessageBox.error("Không thể kết nối tới máy chủ.");
+					MessageBox.error("Không thể kết nối tới máy chủ. Vui lòng thử lại.");
 				});
 		},
 
@@ -256,7 +260,7 @@ sap.ui.define([
 			});
 
 			if (bInvalid) {
-				MessageBox.error("Ngưỡng phải là số không âm. Vui lòng kiểm tra lại các dòng đã nhập.");
+				MessageBox.error("Ngưỡng phê duyệt phải là số không âm. Vui lòng kiểm tra lại các dòng đã nhập.");
 				return;
 			}
 
@@ -271,20 +275,23 @@ sap.ui.define([
 				.then(function (res) {
 					oView.setBusy(false);
 					if (!res || !res.success) {
-						MessageBox.error((res && res.message) || "Không lưu được cấu hình ngưỡng.");
+						Msg.fail(res, {
+							title: "Không lưu được cấu hình",
+							fallback: "Không lưu được cấu hình ngưỡng phê duyệt. Thay đổi chưa được ghi nhận, vui lòng thử lại."
+						});
 						return;
 					}
 					MessageBox.success(
 						"Đã lưu cấu hình ngưỡng.\n\n"
 						+ iSet + " Internal Order đang có ngưỡng, "
-						+ (aRows.length - iSet) + " IO không đặt ngưỡng.\n"
-						+ "Các PR gửi lên từ bây giờ sẽ áp dụng ngay.",
+						+ (aRows.length - iSet) + " Internal Order chưa đặt ngưỡng.\n"
+						+ "Các đề nghị mua sắm gửi từ bây giờ sẽ áp dụng ngưỡng mới.",
 						{ title: "Cập nhật thành công" }
 					);
 				})
 				.catch(function () {
 					oView.setBusy(false);
-					MessageBox.error("Không thể kết nối tới máy chủ.");
+					MessageBox.error("Không thể kết nối tới máy chủ. Vui lòng thử lại.");
 				});
 		},
 

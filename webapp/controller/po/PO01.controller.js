@@ -5,8 +5,9 @@ sap.ui.define([
 	"sap/m/MessageToast",
 	"sap/ui/model/Filter",
 	"sap/ui/model/FilterOperator",
-	"com/qdavy/procurement/model/Config"
-], function (Controller, JSONModel, MessageBox, MessageToast, Filter, FilterOperator, Config) {
+	"com/qdavy/procurement/model/Config",
+	"com/qdavy/procurement/model/Msg"
+], function (Controller, JSONModel, MessageBox, MessageToast, Filter, FilterOperator, Config, Msg) {
 	"use strict";
 
 	var BACKEND = Config.BACKEND;
@@ -186,7 +187,7 @@ sap.ui.define([
 				}.bind(this))
 				.catch(function () {
 					oView.setBusy(false);
-					MessageToast.show("Không thể lấy danh sách PR từ máy chủ.");
+					MessageToast.show("Không tải được danh sách đề nghị mua sắm. Vui lòng thử lại.");
 				});
 		},
 
@@ -201,7 +202,7 @@ sap.ui.define([
 					}
 				})
 				.catch(function () {
-					MessageToast.show("Không tải được danh sách Nhà cung cấp từ SAP.");
+					MessageToast.show("Không tải được danh sách nhà cung cấp từ SAP. Vui lòng thử lại.");
 				});
 		},
 
@@ -440,7 +441,7 @@ sap.ui.define([
 					oModel.setProperty("/RfqGroups", []);
 					oModel.setProperty("/hasMultiGroup", false);
 					oView.byId("poCreationArea").setVisible(false);
-					MessageToast.show("PR " + (oPRData.PrNumber || "") + " đã tạo đủ đơn hàng cho tất cả các nhóm.");
+					MessageToast.show("Đề nghị " + (oPRData.PrNumber || "") + " đã tạo đủ đơn hàng cho tất cả các nhóm.");
 					return;
 				}
 
@@ -871,7 +872,7 @@ sap.ui.define([
 			var oPR = this._currentPR;
 
 			if (!oPR) {
-				MessageBox.error("Vui lòng chọn một PR từ danh sách bên trái.");
+				MessageBox.error("Chưa chọn đề nghị mua sắm. Vui lòng chọn một đề nghị ở danh sách bên trái.");
 				return;
 			}
 
@@ -879,7 +880,7 @@ sap.ui.define([
 			// hoac danh sach chua kip tai lai). De request di den SAP thi no tra ve
 			// "PR already converted to PO ..." — dung ky thuat nhung doc nhu he thong hong.
 			if (this._currentGroup && this._currentGroup.Done) {
-				MessageBox.information("Nhóm này đã có đơn hàng trên SAP rồi — không cần tạo lại.",
+				MessageBox.information("Nhóm này đã có đơn hàng trên SAP. Không cần tạo lại.",
 					{ title: "Đã có đơn hàng" });
 				return;
 			}
@@ -917,11 +918,11 @@ sap.ui.define([
 			}
 
 			if (!this._isValidPhone(sReceiverPhone)) {
-				MessageBox.error("Số điện thoại người nhận không hợp lệ. VD: 0912345678 hoặc +84912345678.");
+				MessageBox.error("Số điện thoại người nhận hàng không hợp lệ. Ví dụ hợp lệ: 0912345678 hoặc +84912345678.");
 				return;
 			}
 			if (!this._isValidPhone(sBuyerPhone)) {
-				MessageBox.error("Số điện thoại (người đại diện) không hợp lệ. VD: 0912345678 hoặc +84912345678.");
+				MessageBox.error("Số điện thoại người đại diện không hợp lệ. Ví dụ hợp lệ: 0912345678 hoặc +84912345678.");
 				return;
 			}
 
@@ -952,7 +953,7 @@ sap.ui.define([
 			if (aZeroLines.length) {
 				MessageBox.error("Các dòng sau chưa có đơn giá: "
 					+ aZeroLines.map(function (it) { return it.LineNo; }).join(", ")
-					+ ". Nhập đơn giá cho từng dòng trong bảng Chi tiết dòng hàng.");
+					+ ". Vui lòng nhập đơn giá cho các dòng này trong bảng Chi tiết dòng hàng.");
 				return;
 			}
 
@@ -1018,7 +1019,7 @@ sap.ui.define([
 					if (res && res.success) {
 						var sPoNum = res.poNumber || (res.po && res.po.PoNumber) || "PO_SUCCESS";
 						// 18/08/2026: PO tao xong CHUA gui NCC — cho CFO/CEO duyet (PO-02).
-						var sMailInfo = "\nChưa gửi cho NCC — đơn hàng chờ CFO duyệt trên màn PO-02, duyệt xong hệ thống mới gửi mail.";
+						var sMailInfo = "\nĐơn hàng chưa được gửi cho nhà cung cấp. CFO duyệt ở màn hình PO-02, duyệt xong hệ thống mới gửi email.";
 
 						// PR tach nhieu nhom: tao xong nhom nay van con nhom khac chua co don
 						// hang. Khong roi man hinh nua ma tai lai danh sach de lam tiep nhom sau —
@@ -1031,7 +1032,7 @@ sap.ui.define([
 								+ (bMoreGroups ? " Màn hình sẽ quay lại để bạn tạo đơn cho nhóm còn lại." : "")
 							: "";
 
-						MessageBox.success("Tạo Purchase Order thành công!\nMã PO: " + sPoNum + sMailInfo + sGroupInfo, {
+						MessageBox.success("Đã tạo đơn hàng trên SAP.\n\nMã đơn hàng: " + sPoNum + sMailInfo + sGroupInfo, {
 							onClose: function () {
 								if (bMoreGroups) {
 									var sKeep = this._currentPR && this._currentPR.PrNumber;
@@ -1054,33 +1055,26 @@ sap.ui.define([
 							MessageBox.information(
 								"Yêu cầu mua hàng này đã được chuyển thành đơn hàng trên SAP"
 								+ (aPo ? " (PO " + aPo[0] + ")" : "")
-								+ " rồi. Không cần tạo lại.",
+								+ ". Không cần tạo lại.",
 								{ title: "Đã có đơn hàng" }
 							);
 							this._loadApprovedPRs();
 							return;
 						}
 
-						// Hien ca danh sach errordetails tu SAP chu khong chi 1 dong message.
-						// Truoc day chi hien "An exception was raised" — cau chung chung ma
-						// Gateway tra ve khi ABAP raise exception, khong noi len duoc gi ca.
-						var sMsg = sRaw || "Không thể khởi tạo PO trên SAP.";
-						var aDetails = (res && res.sapErrorDetails) || [];
-						if (aDetails.length) {
-							sMsg += "\n\nChi tiết từ SAP:\n" + aDetails.map(function (d) {
-								return "• [" + (d.severity || "?") + "] " + d.message
-									+ (d.code ? "  (" + d.code + ")" : "");
-							}).join("\n");
-						}
-						if (res && res.sapHttpStatus) {
-							sMsg += "\n\nHTTP " + res.sapHttpStatus;
-						}
-						MessageBox.error(sMsg, { title: "Tạo PO thất bại" });
+						// Loi cua SAP (message + errordetails + ma HTTP) duoc Msg gom lai
+						// va day xuong muc "Xem chi tiet". Nguoi mua hang chi doc mot cau
+						// noi ro don hang chua duoc tao va de nghi van con nguyen.
+						Msg.fail(res, {
+							title: "Không tạo được đơn hàng",
+							fallback: "Không tạo được đơn hàng trên SAP. Đề nghị mua sắm vẫn giữ nguyên,"
+								+ " bạn có thể kiểm tra lại thông tin rồi bấm Tạo PO lần nữa."
+						});
 					}
 				}.bind(this))
 				.catch(function () {
 					oView.setBusy(false);
-					MessageBox.error("Không thể kết nối đến máy chủ backend.");
+					MessageBox.error("Không thể kết nối tới máy chủ. Vui lòng thử lại.");
 				});
 		}
 	});
