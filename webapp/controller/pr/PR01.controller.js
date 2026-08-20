@@ -405,6 +405,36 @@ sap.ui.define([
 			this._recalcTotal();
 		},
 
+		/** 22000000 -> "22.000.000". Bang 0 thi tra chuoi rong de placeholder hien. */
+		formatMoney: function (nValue) {
+			var n = Number(nValue) || 0;
+			return n ? n.toLocaleString("vi-VN") : "";
+		},
+
+		/**
+		 * Nguoi de nghi go don gia.
+		 *
+		 * O nay hien so co dau phan cach nghin nen KHONG doc thang getValue()
+		 * thanh so duoc ("22.000.000" -> NaN). Boc lay chu so truoc, ghi vao
+		 * model, roi ep o hien lai dang da dinh dang.
+		 *
+		 * Vi sao phai setValue lai: neu nguoi dung go "22000000" trong khi model
+		 * dang la 22000000 thi setProperty khong doi gia tri -> binding khong
+		 * chay lai -> o van hien "22000000" khong co dau cham. setValue lam cho
+		 * ket qua luon nhu nhau du go kieu nao.
+		 */
+		onItemPriceChange: function (oEvent) {
+			var oInput = oEvent.getSource();
+			var oCtx = oInput.getBindingContext();
+			if (!oCtx) { return; }
+
+			var nValue = Number(String(oInput.getValue() || "").replace(/\D/g, "")) || 0;
+			oCtx.getModel().setProperty(oCtx.getPath() + "/estimatedValue", nValue);
+			oInput.setValue(this.formatMoney(nValue));
+
+			this._recalcTotal();
+		},
+
 		_recalcTotal: function () {
 			var oModel = this.getView().getModel();
 			var aItems = oModel.getProperty("/items") || [];

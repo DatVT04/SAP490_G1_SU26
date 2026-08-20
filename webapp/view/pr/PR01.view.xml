@@ -173,14 +173,15 @@
 										placeholder="0"
 									/>
 
-									<!-- Đơn giá -->
+									<!-- Đơn giá — hiển thị có dấu phân cách nghìn (22.000.000) cho dễ đọc.
+									     Vì vậy KHÔNG dùng type="Number": ô số của trình duyệt từ chối dấu
+									     chấm, gõ vào là mất. onItemPriceChange bóc lấy chữ số rồi ghi vào
+									     model, binding tự định dạng lại. Cùng cách làm với cột Đơn giá
+									     mua ở màn PO-01 để hai màn nhìn giống nhau. -->
 									<Input
-										value="{estimatedValue}"
-										type="Number"
+										value="{path: 'estimatedValue', formatter: '.formatMoney'}"
 										textAlign="End"
-										valueLiveUpdate="true"
-										liveChange=".onItemValueChange"
-										change=".onItemValueChange"
+										change=".onItemPriceChange"
 										width="100%"
 										placeholder="0"
 									/>
