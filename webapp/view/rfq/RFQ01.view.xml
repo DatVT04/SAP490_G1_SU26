@@ -14,8 +14,8 @@
 					<Button icon="sap-icon://nav-back" press=".onNavBack" class="qdHeroBackBtn"/>
 					<VBox>
 						<Text text="Quy trình Mua sắm · Bước 2a" class="qdPageEyebrow"/>
-						<Title text="RFQ-01 · Lập &amp; Gửi Yêu cầu báo giá (RFQ)" level="H1" class="qdPageTitle"/>
-						<Text text="Chọn PR đang chờ xử lý, mời nhà cung cấp báo giá qua email — AI gợi ý NCC phù hợp" class="qdPageSub"/>
+						<Title text="RFQ-01 · Lập &amp; gửi yêu cầu báo giá (RFQ)" level="H1" class="qdPageTitle"/>
+						<Text text="Chọn PR đang chờ xử lý và mời nhà cung cấp báo giá qua email — có AI gợi ý nhà cung cấp phù hợp." class="qdPageSub"/>
 					</VBox>
 				</HBox>
 			</VBox>
@@ -33,14 +33,14 @@
 							<HBox alignItems="Center" class="sapUiSmallMargin">
 								<Text text="1" class="qdStepBadge qdStepBadgePurple"/>
 								<VBox>
-									<Title text="PR chờ Purchasing xử lý" level="H3" class="qdCardTitle"/>
-									<Text text="Chọn một Yêu cầu mua hàng để mở RFQ" class="qdCellHint"/>
+									<Title text="PR chờ xử lý" level="H3" class="qdCardTitle"/>
+									<Text text="Chọn một đề nghị để lập RFQ" class="qdCellHint"/>
 								</VBox>
 							</HBox>
 
 							<SearchField
 								id="sfPendingPRSearch"
-								placeholder="Tìm mã PR, mô tả hoặc người yêu cầu..."
+								placeholder="Tìm mã PR, mô tả hoặc người đề nghị..."
 								liveChange=".onPendingPRSearch"
 								search=".onPendingPRSearch"
 								width="100%"
@@ -58,7 +58,7 @@
 								growing="true"
 								growingThreshold="15"
 								growingScrollToLoad="true"
-								noDataText="Không có PR nào đang chờ Purchasing xử lý."
+								noDataText="Không có PR nào đang chờ xử lý."
 							>
 								<columns>
 									<Column width="8rem"><Text text="Mã PR"/></Column>
@@ -71,7 +71,7 @@
 											<ObjectIdentifier title="{PRId}"/>
 											<VBox>
 												<Text text="{Description}"/>
-												<Text text="Người yêu cầu: {RequesterEmail}" class="qdCellHint"/>
+												<Text text="Người đề nghị: {RequesterEmail}" class="qdCellHint"/>
 											</VBox>
 											<ObjectNumber
 												number="{path: 'TotalValue', formatter: '.formatCurrency'}"
@@ -97,7 +97,7 @@
 
 						<!-- Chua chon PR nao (danh sach rong): huong dan thay vi cot phai trong tron -->
 						<MessageStrip
-							text="Chọn một PR ở cột bên trái để bắt đầu lập Yêu cầu báo giá."
+							text="Chọn một PR ở cột bên trái để bắt đầu lập yêu cầu báo giá."
 							type="Information"
 							showIcon="true"
 							visible="{= !${/hasSelectedPR} }"
@@ -115,7 +115,7 @@
 									<Text text="1b" class="qdStepBadge qdStepBadgePurple"/>
 									<VBox>
 										<Title text="Chọn dòng vật tư / dịch vụ đưa vào RFQ này" level="H3" class="qdCardTitle"/>
-										<Text text="Chỉ những dòng được tích mới nằm trong yêu cầu báo giá gửi đi — NCC sẽ không nhìn thấy các dòng khác của PR" class="qdCellHint"/>
+										<Text text="Chỉ những dòng được tích mới nằm trong yêu cầu báo giá gửi đi — nhà cung cấp không nhìn thấy các dòng khác của PR." class="qdCellHint"/>
 									</VBox>
 								</HBox>
 								<Button
@@ -183,8 +183,8 @@
 								<HBox alignItems="Center">
 									<Text text="2" class="qdStepBadge qdStepBadgePurple"/>
 									<VBox>
-										<Title text="Chọn Nhà cung cấp mời báo giá" level="H3" class="qdCardTitle"/>
-										<Text text="Nên mời tối thiểu 2 NCC để có cơ sở so sánh — nếu chỉ mời 1, khi chốt sẽ phải nhập lý do chỉ định (sole source)" class="qdCellHint"/>
+										<Title text="Chọn nhà cung cấp mời báo giá" level="H3" class="qdCardTitle"/>
+										<Text text="Nên mời tối thiểu 2 nhà cung cấp để có cơ sở so sánh — nếu chỉ mời 1, khi chốt sẽ phải nhập lý do chỉ định thầu (sole source)." class="qdCellHint"/>
 									</VBox>
 								</HBox>
 								<Button
@@ -220,8 +220,8 @@
 							     trang nen xem duoc cac nhom canh nhau va van thao tac cho khac duoc. -->
 							<VBox visible="{= ${/aiGroups}.length > 0 }" class="sapUiSmallMarginBottom">
 								<HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiTinyMarginBottom">
-									<Title text="Phương án AI đề xuất — chọn nhóm để làm trước" level="H4" class="qdCardTitle"/>
-									<Button icon="sap-icon://decline" type="Transparent" tooltip="Đóng gợi ý, tự chia tay" press=".onDismissGroupsPress"/>
+									<Title text="Phương án AI đề xuất — chọn nhóm thực hiện trước" level="H4" class="qdCardTitle"/>
+									<Button icon="sap-icon://decline" type="Transparent" tooltip="Đóng gợi ý và tự chia nhóm thủ công" press=".onDismissGroupsPress"/>
 								</HBox>
 								<HBox wrap="Wrap" items="{/aiGroups}" class="qdAiGroupRow">
 									<VBox class="qdAiGroupCard">
@@ -235,7 +235,7 @@
 										<HBox wrap="Wrap" items="{path: 'vendorChips', templateShareable: false}" class="qdAiChipRow" visible="{hasVendors}">
 											<Text text="{}" class="qdAiChip qdAiChipVendor"/>
 										</HBox>
-										<MessageStrip text="Chưa có NCC phù hợp trong danh sách — chọn NCC thủ công ở bảng dưới." type="Warning" showIcon="true" visible="{= !${hasVendors} }" class="sapUiTinyMarginBottom"/>
+										<MessageStrip text="Chưa có nhà cung cấp phù hợp trong danh sách — vui lòng chọn thủ công ở bảng bên dưới." type="Warning" showIcon="true" visible="{= !${hasVendors} }" class="sapUiTinyMarginBottom"/>
 										<Text text="{reason}" class="qdAiGroupReason" maxLines="3"/>
 										<Button text="Áp dụng nhóm này" type="Emphasized" icon="sap-icon://accept" press=".onApplyGroupPress" class="sapUiTinyMarginTop"/>
 									</VBox>
@@ -281,7 +281,7 @@
 							<!-- Nguon du lieu NCC + huong xu ly khi thieu NCC (feedback QDAVY 13/08:
 							     "Thong tin NCC lay o dau? Sao co moi 3? NCC can moi khong co thi sao?") -->
 							<MessageStrip
-								text="Danh sách lấy trực tiếp từ Vendor Master trên SAP (bảng LFA1) — hiển thị đủ toàn bộ NCC đã khai báo trên hệ thống. Nếu NCC cần mời chưa có: tạo Vendor Master mới trên SAP (BP/XK01) hoặc bổ sung email cho NCC, rồi tải lại trang."
+								text="Danh sách lấy trực tiếp từ Vendor Master trên SAP (bảng LFA1), hiển thị toàn bộ nhà cung cấp đã khai báo. Nếu nhà cung cấp cần mời chưa có, hãy tạo Vendor Master mới trên SAP (BP/XK01) hoặc bổ sung email, sau đó tải lại trang."
 								type="Information"
 								showIcon="true"
 								class="sapUiSmallMarginBottom"
@@ -290,7 +290,7 @@
 							<OverflowToolbar class="sapUiTinyMarginBottom">
 								<SearchField
 									id="sfVendorSearch"
-									placeholder="Tìm theo mã, tên hoặc email NCC..."
+									placeholder="Tìm theo mã, tên hoặc email nhà cung cấp..."
 									liveChange=".onVendorSearch"
 									search=".onVendorSearch"
 									width="100%"
@@ -316,7 +316,7 @@
 								growing="true"
 								growingThreshold="15"
 								growingScrollToLoad="true"
-								noDataText="Không tải được danh sách Nhà cung cấp từ SAP."
+								noDataText="Không tải được danh sách nhà cung cấp từ SAP."
 							>
 								<columns>
 									<Column width="9rem"><Text text="Mã NCC"/></Column>
@@ -343,7 +343,7 @@
 									<Text text="3" class="qdStepBadge qdStepBadgePurple"/>
 									<VBox>
 										<Title text="Hạn nộp báo giá &amp; Gửi RFQ" level="H3" class="qdCardTitle"/>
-										<Text text="Hệ thống sinh mã RFQ, lưu vào SAP và gửi email mời báo giá tới các NCC đã chọn" class="qdCellHint"/>
+										<Text text="Hệ thống sinh mã RFQ, lưu vào SAP và gửi email mời báo giá tới các nhà cung cấp đã chọn." class="qdCellHint"/>
 									</VBox>
 								</HBox>
 								<HBox alignItems="Center">
@@ -364,7 +364,7 @@
 
 							<HBox alignItems="End" wrap="Wrap" class="qdRfqSendRow">
 								<VBox class="sapUiSmallMarginEnd">
-									<Label text="Hạn nộp báo giá (Deadline)" required="true"/>
+									<Label text="Hạn nộp báo giá" required="true"/>
 									<DatePicker
 										id="dpDeadline"
 										change=".onDeadlineChange"
@@ -389,7 +389,7 @@
 							</HBox>
 
 							<Text
-								text="Cần chọn ít nhất 1 dòng (bước 1b) và 1 Nhà cung cấp (bước 2) để bật nút gửi."
+								text="Chọn ít nhất 1 dòng vật tư (bước 1b) và 1 nhà cung cấp (bước 2) trước khi gửi."
 								visible="{= ${/selectedVendorCount} === 0 || ${/selectedLineCount} === 0 }"
 								class="qdCellHint sapUiTinyMarginTop"
 							/>

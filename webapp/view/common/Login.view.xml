@@ -21,7 +21,7 @@
 						</HBox>
 
 						<Title text="QDAVY Procurement" level="H1" class="qdLoginHeading sapUiLargeMarginTop"/>
-						<Text text="Nền tảng số hóa quy trình mua sắm - kết nối trực tiếp với SAP S/4HANA" class="qdLoginHeadingSub sapUiTinyMarginTop"/>
+						<Text text="Nền tảng số hóa quy trình mua sắm — kết nối trực tiếp với SAP S/4HANA" class="qdLoginHeadingSub sapUiTinyMarginTop"/>
 
 						<VBox class="qdLoginFeatureList sapUiLargeMarginTop">
 							<HBox alignItems="Center" class="qdLoginFeatureItem">
@@ -30,7 +30,7 @@
 							</HBox>
 							<HBox alignItems="Center" class="qdLoginFeatureItem">
 								<core:Icon src="sap-icon://complete" class="qdLoginFeatureIcon"/>
-								<Text text="Phê duyệt theo đúng quy trình, rõ ràng" class="qdLoginFeatureText sapUiSmallMarginBegin"/>
+								<Text text="Phê duyệt đúng quy trình, minh bạch" class="qdLoginFeatureText sapUiSmallMarginBegin"/>
 							</HBox>
 							<HBox alignItems="Center" class="qdLoginFeatureItem">
 								<core:Icon src="sap-icon://customer" class="qdLoginFeatureIcon"/>
@@ -62,12 +62,12 @@
 							showIcon="true"
 							class="qdLoginConfigWarning sapUiTinyMarginTop"
 							visible="{= ${/googleConfigChecked} &amp;&amp; !${/googleAvailable} }"
-							text="Đăng nhập Google chưa được cấu hình cho môi trường này (thiếu GOOGLE_CLIENT_ID). Vui lòng liên hệ quản trị hệ thống."
+							text="Đăng nhập Google chưa được cấu hình cho môi trường này. Vui lòng liên hệ quản trị hệ thống (thiếu GOOGLE_CLIENT_ID)."
 						/>
 
 						<HBox justifyContent="Center" class="sapUiMediumMarginTop">
 							<Text
-								text="Chỉ tài khoản Google đã được cấp quyền trong SAP mới đăng nhập được"
+								text="Chỉ tài khoản Google đã được cấp quyền trên hệ thống mới có thể đăng nhập."
 								class="qdLoginHint"
 								textAlign="Center"
 							/>

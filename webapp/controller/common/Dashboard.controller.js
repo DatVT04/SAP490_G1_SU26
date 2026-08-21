@@ -43,8 +43,8 @@ sap.ui.define([
 				approvedCount: "–",
 				pendingValueText: "–",
 				pendingValueUnit: "VND",
-				kpiPendingLabel: "PR chờ duyệt",
-				kpiApprovedLabel: "PR đã duyệt",
+				kpiPendingLabel: "Đề nghị chờ duyệt",
+				kpiApprovedLabel: "Đề nghị đã duyệt",
 				kpiValueLabel: "Giá trị chờ duyệt",
 				tileCount: 1,
 				notifications: [],
@@ -117,12 +117,12 @@ sap.ui.define([
 			// khop voi man hinh mo ra khi bam (feedback 14/08).
 			var sUpper = String(sRole || "").toUpperCase();
 			if (sUpper === "PURCHASING") {
-				oModel.setProperty("/kpiPendingLabel", "PR chờ tôi duyệt");
+				oModel.setProperty("/kpiPendingLabel", "Đề nghị chờ tôi duyệt");
 				oModel.setProperty("/kpiApprovedLabel", "Đã chốt nhà cung cấp — chờ tạo đơn hàng");
 				oModel.setProperty("/kpiValueLabel", "Giá trị chờ duyệt");
 			} else if (sUpper === "CFO" || sUpper === "CEO") {
 				oModel.setProperty("/kpiPendingLabel", "Đề nghị chờ tôi duyệt");
-				oModel.setProperty("/kpiApprovedLabel", "PR tôi đã xử lý");
+				oModel.setProperty("/kpiApprovedLabel", "Đề nghị tôi đã xử lý");
 				oModel.setProperty("/kpiValueLabel", "Giá trị chờ duyệt");
 			} else {
 				oModel.setProperty("/kpiPendingLabel", "Đề nghị của tôi đang xử lý");

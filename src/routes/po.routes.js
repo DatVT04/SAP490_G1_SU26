@@ -474,7 +474,7 @@ router.patch("/api/pr-approval/:prId", async (req, res) => {
 			return res.status(502).json({ success: false, message });
 		}
 
-		notifyRequester(record, "Đề nghị " + record.PRId + " bị " + sRole + " TỪ CHỐI. Lý do: " + comment);
+		notifyRequester(record, "Đề nghị " + record.PRId + " bị " + sRole + " từ chối. Lý do: " + comment);
 		await notifyPurchasing(
 			record.PRId,
 			"Đề nghị " + record.PRId + " bị " + sRole + " từ chối: " + comment
@@ -544,11 +544,11 @@ router.patch("/api/pr-approval/:prId", async (req, res) => {
 	notifyRequester(
 		record,
 		"Đề nghị " + record.PRId + " đã được " + sRole
-		+ " PHÊ DUYỆT. Bộ phận Mua sắm sẽ tạo đơn hàng và gửi nhà cung cấp."
+		+ " phê duyệt. Bộ phận Mua sắm sẽ tạo đơn hàng và gửi nhà cung cấp."
 	);
 	await notifyPurchasing(
 		record.PRId,
-		"Đề nghị " + record.PRId + " đã được " + sRole + " duyệt — vào màn PO-01 tạo đơn hàng cho nhà cung cấp đã chốt."
+		"Đề nghị " + record.PRId + " đã được " + sRole + " duyệt — vào màn hình PO-01 tạo đơn hàng cho nhà cung cấp đã chốt."
 	);
 
 	return res.json({ success: true, approval: record });

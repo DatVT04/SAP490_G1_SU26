@@ -731,9 +731,9 @@ sap.ui.define([
 			// Khung chat chi con 1 cau dan ngan + canh bao dong bi sot (neu co) — noi dung
 			// chinh da nam tren the, khong lap lai ca doan van nua.
 			var sText = "Tôi đề xuất tách PR này thành " + aCards.length + " nhóm — xem các thẻ bên dưới, "
-				+ "bấm \"Áp dụng\" ở nhóm muốn làm trước. Đây chỉ là bản nháp, bạn vẫn sửa lại được.";
+				+ "nhấn \"Áp dụng\" ở nhóm muốn làm trước. Đây chỉ là bản nháp, bạn vẫn sửa lại được.";
 			if ((oRes.missingLines || []).length) {
-				sText += "\n- LƯU Ý: tôi chưa xếp được nhóm cho dòng " + oRes.missingLines.join(", ")
+				sText += "\n- Lưu ý: tôi chưa xếp được nhóm cho dòng " + oRes.missingLines.join(", ")
 					+ " — bạn tự tích tay cho các dòng này.";
 			}
 			oModel.setProperty("/aiMessages", [{ role: "ai", text: sText }]);
@@ -795,7 +795,7 @@ sap.ui.define([
 				this.onVendorSelectionChange();
 			}
 
-			MessageToast.show("Đã chọn sẵn các dòng của nhóm \"" + oGroup.name + "\". Vui lòng kiểm tra lại rồi bấm Tạo & Gửi RFQ.");
+			MessageToast.show("Đã chọn sẵn các dòng của nhóm \"" + oGroup.name + "\". Vui lòng kiểm tra lại rồi nhấn Tạo & Gửi RFQ.");
 		},
 
 		// ── 3b. HOI THEM AI (chat tuong tac tren nen du lieu NCC dang xem) ──
@@ -977,7 +977,7 @@ sap.ui.define([
 				d = Number(aDMY[1]); m = Number(aDMY[2]); y = Number(aDMY[3]);
 			} else {
 				return { ok: false, message: "Hạn nộp báo giá không hợp lệ. Nhập theo dạng ngày/tháng/năm "
-					+ "(vd 28/08/2026), hoặc bấm biểu tượng lịch để chọn." };
+					+ "(VD: 28/08/2026) hoặc nhấn biểu tượng lịch để chọn." };
 			}
 
 			// Ngay phai CO THAT: 31/02 hay 99/99 deu bi Date tu doi sang thang sau.
@@ -1063,8 +1063,8 @@ sap.ui.define([
 						// vong lap gui mail) — khong ai biet ho khong he nhan duoc thu.
 						var aNoEmail = oBody.vendorsWithoutEmail || [];
 						if (aNoEmail.length) {
-							sMsg += "\n\nCHƯA GỬI ĐƯỢC cho " + aNoEmail.length + " NCC vì chưa có email trong master: "
-								+ aNoEmail.join(", ") + ". Vào RFQ-02 để lấy link báo giá riêng gửi cho họ bằng cách khác.";
+							sMsg += "\n\nChưa gửi được cho " + aNoEmail.length + " nhà cung cấp vì thiếu email trong dữ liệu chủ: "
+								+ aNoEmail.join(", ") + ". Vào màn hình RFQ-02 để sao chép link báo giá riêng và gửi qua kênh khác.";
 						}
 						if (oBody.emailsFailed) {
 							sMsg += "\n\n" + oBody.emailsFailed + " thư gửi không thành công. Bạn có thể gửi nhắc lại ở màn hình RFQ-02.";

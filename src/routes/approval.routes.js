@@ -260,13 +260,13 @@ router.post("/api/approval/submit", async (req, res) => {
 
 	notifyRequester(
 		record,
-		"Đề nghị " + record.PRId + " đã được gửi, đang chờ Bộ phận mua sắm (Purchasing) xem xét. PR trên SAP sẽ được tạo khi Purchasing duyệt."
+		"Đề nghị " + record.PRId + " đã được gửi, đang chờ Bộ phận Mua sắm (Purchasing) xem xét. PR trên SAP sẽ được tạo khi Bộ phận Mua sắm duyệt."
 	);
 	await notifyPurchasing(
 		record.PRId,
 		"Có đề nghị mới " + record.PRId + " từ " + requesterEmail
 		+ " — giá trị " + Number(record.TotalValue).toLocaleString("vi-VN") + " " + record.Currency
-		+ ". Vui lòng xem xét trên màn PR-02."
+		+ ". Vui lòng xem xét trên màn hình PR-02."
 	);
 
 	return res.status(201).json({
@@ -490,11 +490,11 @@ router.patch("/api/approval/:id", async (req, res) => {
 	if (sRole !== "PURCHASING") {
 		return res.status(403).json({
 			success: false,
-			message: "Chỉ Bộ phận mua sắm (Purchasing) duyệt đề nghị ở bước này. CFO/CEO duyệt đơn hàng trên màn PO-02."
+			message: "Chỉ Bộ phận Mua sắm (Purchasing) duyệt đề nghị ở bước này. CFO/CEO phê duyệt trên màn hình PO-02."
 		});
 	}
 	if (record.Status !== "PENDING_PURCHASING") {
-		return res.status(400).json({ success: false, message: "Đề nghị này không ở trạng thái chờ Purchasing duyệt." });
+		return res.status(400).json({ success: false, message: "Đề nghị này không ở trạng thái chờ Bộ phận Mua sắm duyệt." });
 	}
 
 	if (status === "REJECTED") {
@@ -536,8 +536,8 @@ router.patch("/api/approval/:id", async (req, res) => {
 
 		notifyRequester(
 			record,
-			"Đề nghị " + record.PRId + " bị Bộ phận mua sắm TỪ CHỐI. Lý do: " + comment
-			+ " — Bạn có thể lập đề nghị mới (màn chi tiết có nút điền sẵn dữ liệu cũ)."
+			"Đề nghị " + record.PRId + " bị Bộ phận Mua sắm từ chối. Lý do: " + comment
+			+ ". Bạn có thể lập đề nghị mới — màn hình chi tiết có nút điền sẵn dữ liệu cũ."
 		);
 		return res.json({ success: true, approval: record });
 	}
@@ -573,7 +573,7 @@ router.patch("/api/approval/:id", async (req, res) => {
 					? "Bộ phận này đã dùng hết ngân sách được cấp nên SAP không cho tạo đề nghị mua sắm.\n\n"
 						+ "Đề nghị vẫn được giữ ở trạng thái chờ. Bạn có thể xin cấp thêm ngân sách cho Internal Order (giao dịch KO22) rồi phê duyệt lại, hoặc từ chối đề nghị này."
 					: "Không tạo được đề nghị mua sắm trên SAP.\n\n"
-						+ "Đề nghị vẫn được giữ ở trạng thái chờ. Vui lòng xử lý nguyên nhân rồi bấm Phê duyệt lại.",
+						+ "Đề nghị vẫn được giữ ở trạng thái chờ. Vui lòng xử lý nguyên nhân rồi nhấn Phê duyệt lại.",
 				message: isBudgetBlock
 					? "Vượt ngân sách Internal Order."
 					: "Không tạo được PR trên SAP.",
@@ -633,12 +633,12 @@ router.patch("/api/approval/:id", async (req, res) => {
 
 		notifyRequester(
 			record,
-			"Đề nghị " + oldId + " đã được Bộ phận mua sắm duyệt. Số PR trên SAP: "
+			"Đề nghị " + oldId + " đã được Bộ phận Mua sắm duyệt. Số PR trên SAP: "
 			+ record.SapPRId + " (tra cứu ME53N). Tiếp theo: hỏi giá nhà cung cấp (RFQ)."
 		);
 		await notifyPurchasing(
 			record.PRId,
-			"PR " + record.PRId + " đã tạo trên SAP — tiếp tục tạo RFQ trên màn RFQ-01 để hỏi giá nhà cung cấp."
+			"PR " + record.PRId + " đã tạo trên SAP — tiếp tục tạo RFQ trên màn hình RFQ-01 để hỏi giá nhà cung cấp."
 		);
 
 		return res.json({

@@ -14,8 +14,8 @@
 					<Button icon="sap-icon://nav-back" press=".onNavBack" class="qdHeroBackBtn"/>
 					<VBox>
 						<Text text="Quy trình Mua sắm · Bước 2b" class="qdPageEyebrow"/>
-						<Title text="RFQ-02 · Nhập báo giá &amp; Chốt Nhà cung cấp" level="H1" class="qdPageTitle"/>
-						<Text text="Nhập báo giá nhận được qua email, so sánh cạnh nhau và chốt NCC thắng — trình CFO duyệt" class="qdPageSub"/>
+						<Title text="RFQ-02 · Nhập báo giá &amp; chốt nhà cung cấp" level="H1" class="qdPageTitle"/>
+						<Text text="Nhập báo giá nhận qua email, so sánh và chốt nhà cung cấp — trình CFO phê duyệt." class="qdPageSub"/>
 					</VBox>
 				</HBox>
 			</VBox>
@@ -81,7 +81,7 @@
 								growing="true"
 								growingThreshold="20"
 								growingScrollToLoad="true"
-								noDataText="Chưa có RFQ nào. Hãy tạo ở màn RFQ-01."
+								noDataText="Chưa có RFQ nào. Hãy tạo ở màn hình RFQ-01."
 							>
 								<columns>
 									<Column width="10rem"><Text text="Mã RFQ"/></Column>
@@ -120,7 +120,7 @@
 									<core:Icon src="sap-icon://request" class="sapUiSmallMarginEnd qdPrContextIcon"/>
 									<VBox>
 										<Title text="Nội dung yêu cầu — PR {= ${/pr/SapPRId} || ${/pr/PRId} }" level="H3" class="qdCardTitle"/>
-										<Text text="Người yêu cầu: {/pr/RequesterEmail} · Đây chính là những gì đã gửi NCC báo giá" class="qdCellHint"/>
+										<Text text="Người đề nghị: {/pr/RequesterEmail} · Đây là nội dung đã gửi nhà cung cấp báo giá" class="qdCellHint"/>
 									</VBox>
 								</HBox>
 								<ObjectNumber
@@ -292,7 +292,7 @@
 									<core:Icon src="sap-icon://pending" class="sapUiSmallMarginEnd"/>
 									<VBox>
 										<Title text="Nhà cung cấp chưa gửi báo giá ({= ${/pendingVendors}.length })" level="H3" class="qdCardTitle"/>
-										<Text text="Gửi nhắc qua email, hoặc sao chép link báo giá riêng của từng NCC để gửi qua Zalo/điện thoại" class="qdCellHint"/>
+										<Text text="Gửi nhắc qua email, hoặc sao chép link báo giá riêng của từng nhà cung cấp để gửi qua kênh khác (Zalo, điện thoại…)." class="qdCellHint"/>
 									</VBox>
 								</HBox>
 								<Button
@@ -304,7 +304,7 @@
 								/>
 							</HBox>
 
-							<Table items="{/pendingVendors}" noDataText="Tất cả NCC đã gửi báo giá.">
+							<Table items="{/pendingVendors}" noDataText="Tất cả nhà cung cấp đã gửi báo giá.">
 								<columns>
 									<Column><Text text="Nhà cung cấp"/></Column>
 									<Column><Text text="Email nhận thư mời"/></Column>
@@ -319,14 +319,14 @@
 											</VBox>
 											<VBox>
 												<ObjectStatus
-													text="{= ${VendorEmail} || 'Chưa có email trong master NCC' }"
+													text="{= ${VendorEmail} || 'Chưa có email trong dữ liệu chủ' }"
 													state="{= ${VendorEmail} ? (${EmailFromMaster} ? 'Warning' : 'None') : 'Error' }"
 												/>
 												<!-- Phan biet 2 ca rat khac nhau: NCC DA nhan thu moi, va NCC
 												     chua tung nhan gi (luc tao RFQ master chua co email) — cai
 												     sau bam "Gui nhac tat ca" moi la lan dau ho biet co RFQ. -->
 												<Text
-													text="Chưa từng nhận thư mời — bấm “Gửi nhắc tất cả” để gửi lần đầu"
+													text="Chưa từng nhận thư mời — nhấn “Gửi nhắc tất cả” để gửi lần đầu."
 													visible="{= !!${EmailFromMaster} }"
 													class="qdCellHint"
 												/>
@@ -349,12 +349,12 @@
 								<Text text="3" class="qdStepBadge"/>
 								<VBox>
 									<Title text="Nhập báo giá từ email NCC" level="H3" class="qdCardTitle"/>
-									<Text text="Bắt buộc ghi rõ căn cứ (email nào, ngày nào) — audit trail, không nhập vo" class="qdCellHint"/>
+									<Text text="Bắt buộc ghi rõ căn cứ (email nào, ngày nào) để lưu vết kiểm tra (audit trail)." class="qdCellHint"/>
 								</VBox>
 							</HBox>
 
 							<MessageStrip
-								text="Chỉ dùng khi NCC trả lời bằng email/điện thoại. NCC gửi qua link trong thư mời sẽ tự hiện ở bảng so sánh. Chọn NCC đã nộp để sửa khi họ báo lại giá; chọn NCC ngoài danh sách mời để thêm báo giá mới."
+								text="Chỉ dùng khi nhà cung cấp trả lời bằng email/điện thoại. Báo giá gửi qua link trong thư mời sẽ tự hiện ở bảng so sánh. Chọn nhà cung cấp đã nộp để sửa khi họ báo lại giá; chọn nhà cung cấp ngoài danh sách mời để thêm báo giá mới."
 								type="Information"
 								showIcon="true"
 								class="sapUiSmallMarginBottom"
@@ -380,7 +380,7 @@
 										id="selQuoteVendor"
 										width="22rem"
 										items="{/vendorChoices}"
-										placeholder="Gõ mã hoặc tên NCC để tìm"
+										placeholder="Nhập mã hoặc tên nhà cung cấp để tìm"
 										selectionChange=".onQuoteVendorChange"
 									>
 										<core:Item key="{VendorNo}" text="{ChoiceLabel}"/>
@@ -401,7 +401,7 @@
 										width="17rem"
 										forceSelection="false"
 										items="{/paymentTerms}"
-										tooltip="Sau khi nhận hàng/hoá đơn thì bao lâu công ty phải trả tiền cho NCC. Được trả càng chậm thì càng có lợi cho dòng tiền. Chọn đúng như NCC nêu trong email báo giá."
+										tooltip="Thời hạn công ty phải thanh toán cho nhà cung cấp sau khi nhận hàng/hóa đơn — thời hạn càng dài càng có lợi cho dòng tiền. Chọn đúng như nhà cung cấp nêu trong báo giá."
 									>
 										<core:Item key="{code}" text="{label}"/>
 									</Select>
@@ -415,7 +415,7 @@
 									<CheckBox
 										id="cbQuoteLegal"
 										text="Đã có đủ"
-										tooltip="Tick khi NCC đã gửi kèm đủ giấy tờ pháp lý: giấy phép kinh doanh, mã số thuế, và các chứng nhận/giấy uỷ quyền cần thiết cho mặt hàng này."
+										tooltip="Đánh dấu khi nhà cung cấp đã gửi kèm đủ giấy tờ pháp lý: giấy phép kinh doanh, mã số thuế và các chứng nhận/giấy ủy quyền cần thiết cho mặt hàng này."
 									/>
 								</VBox>
 							</HBox>
@@ -440,8 +440,8 @@
 								<HBox alignItems="Center">
 									<Text text="4" class="qdStepBadge"/>
 									<VBox>
-										<Title text="Chốt Nhà cung cấp thắng — trình CFO" level="H3" class="qdCardTitle"/>
-										<Text text="Giá trị PR sẽ được cập nhật theo giá báo thật; nếu chỉ có 1 báo giá phải nhập lý do chỉ định" class="qdCellHint"/>
+										<Title text="Chốt nhà cung cấp — trình CFO phê duyệt" level="H3" class="qdCardTitle"/>
+										<Text text="Giá trị PR sẽ được cập nhật theo giá báo thực tế; nếu chỉ có 1 báo giá, phải nhập lý do chỉ định thầu." class="qdCellHint"/>
 									</VBox>
 								</HBox>
 								<ObjectStatus
@@ -452,7 +452,7 @@
 							</HBox>
 
 							<MessageStrip
-								text="Chỉ chọn được Nhà cung cấp đã có báo giá ở bước 3. NCC chưa nộp báo giá sẽ không xuất hiện trong danh sách dưới đây."
+								text="Chỉ chọn được nhà cung cấp đã có báo giá ở bước 3. Nhà cung cấp chưa nộp báo giá sẽ không xuất hiện trong danh sách dưới đây."
 								type="Information"
 								showIcon="true"
 								class="sapUiSmallMarginBottom"
@@ -460,7 +460,7 @@
 
 							<HBox wrap="Wrap" alignItems="End" class="qdInfoRow">
 								<VBox class="sapUiSmallMarginEnd sapUiTinyMarginBottom">
-									<Label text="NCC thắng (chọn trong số đã có báo giá)" required="true"/>
+									<Label text="Nhà cung cấp được chọn (trong số đã có báo giá)" required="true"/>
 									<Select id="selAwardVendor" width="24rem" items="{/quotations}">
 										<core:Item key="{VendorNo}" text="{VendorName} ({VendorNo}) — {path: 'QuotedPrice', formatter: '.formatCurrency'} VND"/>
 									</Select>
@@ -476,7 +476,7 @@
 									<Input id="inSoleSourceReason" width="100%" placeholder="VD: NCC độc quyền phân phối, các NCC khác không phản hồi trước hạn"/>
 								</VBox>
 								<Button
-									text="Chốt NCC &amp; Trình CFO"
+									text="Chốt NCC &amp; trình CFO"
 									type="Accept"
 									icon="sap-icon://accept"
 									press=".onAwardPress"
@@ -490,13 +490,13 @@
 							<HBox alignItems="Center">
 								<core:Icon src="sap-icon://accept" color="Positive" class="sapUiSmallMarginEnd"/>
 								<VBox>
-									<Title text="Đã chốt NCC {/rfq/AwardedVendor} — giá {path: '/rfq/FinalValue', formatter: '.formatCurrency'} {/rfq/Currency}" level="H3" class="qdCardTitle"/>
+									<Title text="Đã chốt nhà cung cấp {/rfq/AwardedVendor} — giá {path: '/rfq/FinalValue', formatter: '.formatCurrency'} {/rfq/Currency}" level="H3" class="qdCardTitle"/>
 									<Text text="Lý do: {/rfq/AwardReason} · Người chốt: {/rfq/AwardedBy}" class="qdCellHint"/>
 									<Text text="{path: '/rfq/Status', formatter: '.formatAwardNextStep'}" class="qdCellHint"/>
 								</VBox>
 							</HBox>
 							<MessageStrip
-								text="RFQ này đã khoá: không nhập/sửa báo giá và không chốt lại NCC được nữa, vì đơn hàng đã phát hành theo báo giá hiện tại."
+								text="RFQ đã khóa: không thể nhập/sửa báo giá hay chốt lại nhà cung cấp, vì đơn hàng đã phát hành theo báo giá hiện tại."
 								type="Information"
 								showIcon="true"
 								class="sapUiSmallMarginTop"

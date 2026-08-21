@@ -59,7 +59,7 @@ function buildPoEmail(poNumber, data) {
 			const price = Number(it.netPrice) || 0;
 			const maVt = it.materialNo
 				? htmlEscape(it.materialNo)
-				: '<span style="color:' + BRAND.slate + '">Hàng hoá/dịch vụ mô tả tự do</span>';
+				: '<span style="color:' + BRAND.slate + '">Hàng hóa/dịch vụ mô tả tự do</span>';
 			return '<tr>'
 				+ '<td style="' + cellBase + 'color:' + BRAND.slate + ';text-align:center">' + (idx + 1) + '</td>'
 				+ '<td style="' + cellBase + 'color:' + BRAND.navy + '"><b>' + htmlEscape(it.description || "(không có mô tả)") + '</b><br>'
@@ -145,7 +145,7 @@ function buildPoEmail(poNumber, data) {
 		+ '<tr><td style="padding:10px 16px">'
 		+ '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">'
 		+ infoRow('Số đơn hàng', htmlEscape(poNumber), true)
-		+ (data.prNumber ? infoRow('Mã đề nghị mua hàng', htmlEscape(String(data.prNumber))) : '')
+		+ (data.prNumber ? infoRow('Mã đề nghị mua sắm', htmlEscape(String(data.prNumber))) : '')
 		+ (formatDateVi(data.docDate) ? infoRow('Ngày chứng từ', htmlEscape(formatDateVi(data.docDate))) : '')
 		+ infoRow('Tổng giá trị', '<span style="color:' + BRAND.blueDark + '">' + htmlEscape(formatMoney(total)) + ' ' + htmlEscape(currency) + '</span>', true)
 		+ '</table>'
@@ -158,7 +158,7 @@ function buildPoEmail(poNumber, data) {
 		+ '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">'
 		+ '<tr style="background:' + BRAND.navy + '">'
 		+ '<th style="padding:9px 8px;font-size:11px;letter-spacing:.6px;color:#fff;text-align:center;width:30px">#</th>'
-		+ '<th style="padding:9px 8px;font-size:11px;letter-spacing:.6px;color:#fff;text-align:left">HÀNG HOÁ / DỊCH VỤ</th>'
+		+ '<th style="padding:9px 8px;font-size:11px;letter-spacing:.6px;color:#fff;text-align:left">HÀNG HÓA / DỊCH VỤ</th>'
 		+ '<th style="padding:9px 8px;font-size:11px;letter-spacing:.6px;color:#fff;text-align:right;white-space:nowrap">SỐ LƯỢNG</th>'
 		+ '<th style="padding:9px 8px;font-size:11px;letter-spacing:.6px;color:#fff;text-align:right;white-space:nowrap">ĐƠN GIÁ</th>'
 		+ '<th style="padding:9px 8px;font-size:11px;letter-spacing:.6px;color:#fff;text-align:right;white-space:nowrap">THÀNH TIỀN</th>'
@@ -229,7 +229,7 @@ function buildPoEmail(poNumber, data) {
 		"QDAVY Global Group xác nhận đặt hàng theo báo giá đã thống nhất.",
 		"",
 		"Số đơn hàng: " + poNumber,
-		data.prNumber ? "Mã đề nghị mua hàng: " + data.prNumber : null,
+		data.prNumber ? "Mã đề nghị mua sắm: " + data.prNumber : null,
 		formatDateVi(data.docDate) ? "Ngày chứng từ: " + formatDateVi(data.docDate) : null,
 		"Tổng giá trị: " + formatMoney(total) + " " + currency,
 		"",

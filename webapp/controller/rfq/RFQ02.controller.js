@@ -39,10 +39,10 @@ sap.ui.define([
 	var RFQ_STATUS_HINTS = {
 		DRAFT: "RFQ mới tạo, chưa gửi cho nhà cung cấp nào.",
 		SENT: "Đã gửi thư mời báo giá — đang chờ nhà cung cấp trả lời.",
-		QUOTATIONS_RECEIVED: "Đã có báo giá — đến lượt Purchasing so sánh và chốt NCC.",
+		QUOTATIONS_RECEIVED: "Đã có báo giá — đến lượt Bộ phận Mua sắm so sánh và chốt nhà cung cấp.",
 		AWARDED: "Đã chốt nhà cung cấp — đề nghị đang chờ CFO/CEO phê duyệt trước khi tạo đơn hàng.",
-		PO_CREATED: "Đã tạo đơn hàng trên SAP và gửi cho nhà cung cấp. RFQ này đã khoá.",
-		PO_RELEASED: "PO đã được duyệt và gửi cho nhà cung cấp. RFQ này đã khoá.",
+		PO_CREATED: "Đã tạo đơn hàng trên SAP và gửi cho nhà cung cấp. RFQ này đã khóa.",
+		PO_RELEASED: "PO đã được duyệt và gửi cho nhà cung cấp. RFQ này đã khóa.",
 		PO_REJECTED: "Đơn hàng bị từ chối ở màn hình PO-02 — xem lý do tại đó."
 	};
 
@@ -74,7 +74,7 @@ sap.ui.define([
 			var sType = sMatType || "";
 			return sMatNo
 				? this.formatMatNo(sMatNo) + " · " + sType
-				: "Nhập tay (free-text) · " + sType;
+				: "Nhập tự do (không có mã vật tư) · " + sType;
 		},
 
 		onInit: function () {
@@ -458,8 +458,8 @@ sap.ui.define([
 				oView.byId("cbQuoteLegal").setSelected(oQuote.LegalDocsOk === "X" || oQuote.LegalDocsOk === true);
 				oView.byId("inQuoteSource").setValue("");
 				oModel.setProperty("/quoteModeText",
-					"Đang SỬA báo giá đã có của " + (oQuote.VendorName || sVendor)
-					+ " (giá cũ " + this.formatCurrency(oQuote.QuotedPrice) + " VND) — lưu sẽ GHI ĐÈ, không giữ lại giá cũ.");
+					"Đang sửa báo giá đã có của " + (oQuote.VendorName || sVendor)
+					+ " (giá cũ " + this.formatCurrency(oQuote.QuotedPrice) + " VND) — khi lưu, giá mới sẽ thay thế hẳn giá cũ.");
 				oModel.setProperty("/quoteModeState", "Warning");
 				return;
 			}
@@ -499,7 +499,7 @@ sap.ui.define([
 				return;
 			}
 			if (!sSource || !sSource.trim()) {
-				MessageBox.warning("Vui lòng nhập căn cứ của báo giá. Ví dụ: email nhà cung cấp gửi ngày 20/08/2026.");
+				MessageBox.warning("Vui lòng nhập căn cứ của báo giá. VD: email nhà cung cấp gửi ngày 20/08/2026.");
 				return;
 			}
 
@@ -801,7 +801,7 @@ sap.ui.define([
 				})
 				.catch(function () {
 					oModel.setProperty("/busyAi", false);
-					fnFillSlot("Không gọi được AI (lỗi kết nối). Bạn thử hỏi lại giúp tôi.");
+					fnFillSlot("Không kết nối được tới trợ lý AI. Vui lòng gửi lại câu hỏi.");
 					MessageToast.show("Không kết nối được tới trợ lý AI. Vui lòng thử lại.");
 				});
 		},
@@ -821,7 +821,7 @@ sap.ui.define([
 				: "";
 
 			if (!sVendor) {
-				MessageBox.warning("Vui lòng chọn nhà cung cấp trúng thầu.");
+				MessageBox.warning("Vui lòng chọn nhà cung cấp trong danh sách đã có báo giá.");
 				return;
 			}
 			if (!sReason || !sReason.trim()) {
@@ -835,7 +835,7 @@ sap.ui.define([
 
 			MessageBox.confirm(
 				"Chốt nhà cung cấp " + sVendor + " cho yêu cầu báo giá " + this._currentRfqId
-				+ "?\n\nSau khi tất cả các nhóm được chốt, Bộ phận Mua sắm sẽ tạo đơn hàng ở màn hình PO-01. CFO duyệt đơn hàng trước khi gửi cho nhà cung cấp.",
+				+ "?\n\nSau khi tất cả các nhóm được chốt, đề nghị sẽ được trình CFO/CEO phê duyệt. Duyệt xong, Bộ phận Mua sắm tạo đơn hàng ở màn hình PO-01 và hệ thống gửi ngay cho nhà cung cấp.",
 				{
 					title: "Xác nhận chốt nhà cung cấp",
 					onClose: function (sAction) {
@@ -860,14 +860,14 @@ sap.ui.define([
 								if (!oResult.body || !oResult.body.success) {
 									Msg.fail(oResult.body, {
 									title: "Không chốt được nhà cung cấp",
-									fallback: "Không chốt được nhà cung cấp trúng thầu. Yêu cầu báo giá vẫn giữ nguyên, vui lòng thử lại."
+									fallback: "Không chốt được nhà cung cấp. Yêu cầu báo giá vẫn giữ nguyên, vui lòng thử lại."
 								});
 									return;
 								}
 								MessageBox.success(
 									"Đã chốt nhà cung cấp " + oResult.body.awardedVendor + " với giá "
 									+ Number(oResult.body.finalValue).toLocaleString("vi-VN")
-									+ " VND.\n\nBước tiếp theo: tạo đơn hàng ở màn hình PO-01. CFO sẽ duyệt đơn hàng trước khi gửi cho nhà cung cấp.",
+									+ " VND.\n\nBước tiếp theo: đề nghị chờ CFO/CEO phê duyệt. Duyệt xong, Bộ phận Mua sắm tạo đơn hàng ở màn hình PO-01 và gửi nhà cung cấp.",
 									{
 										title: "Chốt RFQ thành công",
 										onClose: function () {

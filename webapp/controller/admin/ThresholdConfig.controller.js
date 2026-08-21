@@ -237,7 +237,7 @@ sap.ui.define([
 			var oModel = oView.getModel("thresholdModel");
 			var aRows = oModel.getProperty("/rows") || [];
 
-			// byIO: chuỗi rỗng = xoá ngưỡng (backend hiểu null/"" là delete key)
+			// byIO: chuỗi rỗng = xóa ngưỡng (backend hiểu null/"" là delete key)
 			var oByIO = {};
 			var iSet = 0;
 			var bInvalid = false;

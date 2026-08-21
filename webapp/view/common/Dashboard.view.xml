@@ -59,7 +59,7 @@
 				     khong?"). VBox khong co su kien press nen controller gan click qua
 				     attachBrowserEvent trong onAfterRendering — xem _wireKpiClicks(). -->
 				<HBox wrap="Wrap" class="qdKpiRow">
-					<VBox id="kpiPendingCard" class="qdKpiCard qdKpiAmber qdKpiClickable" tooltip="Bấm để mở danh sách đề nghị đang chờ">
+					<VBox id="kpiPendingCard" class="qdKpiCard qdKpiAmber qdKpiClickable" tooltip="Mở danh sách đề nghị đang chờ">
 						<HBox justifyContent="SpaceBetween" alignItems="Center">
 							<Text text="{dash>/kpiPendingLabel}" class="qdKpiLabel"/>
 							<core:Icon src="sap-icon://pending" class="qdKpiIcon"/>
@@ -68,7 +68,7 @@
 						<Text text="{i18n>dashKpiUnit}" class="qdKpiUnit"/>
 					</VBox>
 
-					<VBox id="kpiApprovedCard" class="qdKpiCard qdKpiGreen qdKpiClickable" tooltip="Bấm để xem các đề nghị đã duyệt">
+					<VBox id="kpiApprovedCard" class="qdKpiCard qdKpiGreen qdKpiClickable" tooltip="Xem các đề nghị đã duyệt">
 						<HBox justifyContent="SpaceBetween" alignItems="Center">
 							<Text text="{dash>/kpiApprovedLabel}" class="qdKpiLabel"/>
 							<core:Icon src="sap-icon://accept" class="qdKpiIcon"/>
@@ -77,7 +77,7 @@
 						<Text text="{i18n>dashKpiUnit}" class="qdKpiUnit"/>
 					</VBox>
 
-					<VBox id="kpiValueCard" class="qdKpiCard qdKpiBlue qdKpiClickable" tooltip="Bấm để xem chi tiết các đề nghị đang chờ">
+					<VBox id="kpiValueCard" class="qdKpiCard qdKpiBlue qdKpiClickable" tooltip="Xem chi tiết các đề nghị đang chờ">
 						<HBox justifyContent="SpaceBetween" alignItems="Center">
 							<Text text="{dash>/kpiValueLabel}" class="qdKpiLabel"/>
 							<core:Icon src="sap-icon://money-bills" class="qdKpiIcon"/>
@@ -117,7 +117,7 @@
 					<core:Icon src="sap-icon://sap-logo-shape" class="qdEmptyIcon"/>
 					<Title text="Kế toán làm việc trực tiếp trong SAP" level="H3" class="qdEmptyTitle"/>
 					<Text
-						text="Theo quy trình của công ty, phần việc của Kế toán nằm ở nhận hàng (MIGO) và kiểm tra hoá đơn (MIRO) — thực hiện trong SAP GUI chứ không qua ứng dụng này."
+						text="Theo quy trình của công ty, phần việc của Kế toán nằm ở nhận hàng (MIGO) và kiểm tra hóa đơn (MIRO) — thực hiện trong SAP GUI chứ không qua ứng dụng này."
 						class="qdEmptyText"
 						textAlign="Center"
 					/>
@@ -178,7 +178,7 @@
 							</VBox>
 							<Text text="RFQ-01" class="qdActionCode"/>
 						</HBox>
-						<Title text="Lập &amp; Gửi Yêu cầu báo giá" level="H3" class="qdActionTitle"/>
+						<Title text="Lập &amp; gửi yêu cầu báo giá" level="H3" class="qdActionTitle"/>
 						<Button
 							text="{i18n>dashTileOpen}"
 							icon="sap-icon://arrow-right"
@@ -199,7 +199,7 @@
 							</VBox>
 							<Text text="RFQ-02" class="qdActionCode"/>
 						</HBox>
-						<Title text="Nhập báo giá &amp; Chốt NCC" level="H3" class="qdActionTitle"/>
+						<Title text="Nhập báo giá &amp; chốt NCC" level="H3" class="qdActionTitle"/>
 						<Button
 							text="{i18n>dashTileOpen}"
 							icon="sap-icon://arrow-right"

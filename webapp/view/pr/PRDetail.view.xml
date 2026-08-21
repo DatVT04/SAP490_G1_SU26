@@ -93,7 +93,7 @@
 						<Text text="{path: '/CreatedAt', formatter: '.formatDateTime'}" class="qdInfoValue"/>
 					</VBox>
 					<VBox class="qdInfoCell" visible="{= !!${/SapPRId} }">
-						<Label text="Số PR thật trên SAP" class="qdInfoLabel"/>
+						<Label text="Số PR trên SAP" class="qdInfoLabel"/>
 						<Text text="{/SapPRId}" class="qdInfoValue"/>
 						<Text text="Tra cứu bằng ME53N" class="qdInfoHint"/>
 					</VBox>

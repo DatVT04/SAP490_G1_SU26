@@ -16,7 +16,7 @@
 					<VBox>
 						<Text text="Quy trình Mua sắm · Bước 3" class="qdPageEyebrow"/>
 						<Title text="Lập &amp; Phát hành Purchase Order (PO)" level="H1" class="qdPageTitle"/>
-						<Text text="Chuyển đổi PR đã duyệt từ SAP OData thành PO " class="qdPageSub"/>
+						<Text text="Chuyển đề nghị đã duyệt thành đơn hàng (PO) và gửi nhà cung cấp" class="qdPageSub"/>
 					</VBox>
 				</HBox>
 			</VBox>
@@ -35,7 +35,7 @@
 								<Text text="1" class="qdStepBadge qdStepBadgePurple"/>
 								<VBox>
 									<Title text="Danh sách PR đã duyệt" level="H3" class="qdCardTitle"/>
-									<Text text="Chọn một Yêu cầu mua hàng để lập PO" class="qdCellHint"/>
+									<Text text="Chọn một đề nghị đã duyệt để lập PO" class="qdCellHint"/>
 								</VBox>
 							</HBox>
 
@@ -59,7 +59,7 @@
 								growing="true"
 								growingThreshold="15"
 								growingScrollToLoad="true"
-								noDataText="Chưa có Yêu cầu mua hàng (PR) nào được tạo từ SAP Gateway."
+								noDataText="Chưa có đề nghị (PR) nào được duyệt trên SAP."
 							>
 								<columns>
 									<Column width="7rem"><Text text="Mã PR"/></Column>
@@ -96,7 +96,7 @@
 						<VBox class="qdContentCard qdCardAccentPurple">
 							<HBox alignItems="Center" class="sapUiSmallMarginBottom">
 								<Text text="2" class="qdStepBadge qdStepBadgePurple"/>
-								<Title text="Thông tin Yêu cầu mua hàng gốc (PR Reference)" level="H3" class="qdCardTitle"/>
+								<Title text="Thông tin đề nghị gốc (PR Reference)" level="H3" class="qdCardTitle"/>
 							</HBox>
 
 							<HBox wrap="Wrap" class="qdInfoRow">
@@ -105,7 +105,7 @@
 									<Text id="txtSelectedPR" text="--" class="qdInfoValue"/>
 								</VBox>
 								<VBox class="qdInfoCell">
-									<Label text="Người yêu cầu (Requester)" class="qdInfoLabel"/>
+									<Label text="Người đề nghị (Requester)" class="qdInfoLabel"/>
 									<Text id="txtRequester" text="--" class="qdInfoValue"/>
 								</VBox>
 								<VBox class="qdInfoCell">
@@ -129,7 +129,7 @@
 								<Text text="3" class="qdStepBadge qdStepBadgePurple"/>
 								<VBox>
 									<Title text="Dữ liệu Tổ chức &amp; Bên mua" level="H3" class="qdCardTitle"/>
-									<Text text="Loại chứng từ, đơn vị tổ chức mua hàng theo chuẩn SAP và thông tin đơn vị mua hàng" class="qdCellHint"/>
+									<Text text="Loại chứng từ, dữ liệu tổ chức mua hàng theo chuẩn SAP và thông tin người đại diện" class="qdCellHint"/>
 								</VBox>
 							</HBox>
 
@@ -212,7 +212,7 @@
 								<Text text="4" class="qdStepBadge qdStepBadgePurple"/>
 								<VBox>
 									<Title text="Nhà cung cấp &amp; Giá mua" level="H3" class="qdCardTitle"/>
-									<Text text="Chọn Nhà cung cấp từ SAP, mã số thuế xuất hóa đơn và thương lượng giá" class="qdCellHint"/>
+									<Text text="Nhà cung cấp lấy từ SAP, kèm mã số thuế và giá đã chốt ở bước báo giá" class="qdCellHint"/>
 								</VBox>
 							</HBox>
 
@@ -269,7 +269,7 @@
 									<ComboBox
 										id="inSelectedVendor"
 										width="100%"
-										placeholder="Chọn Nhà cung cấp từ SAP..."
+										placeholder="Chọn nhà cung cấp từ SAP..."
 										items="{/Vendors}"
 										selectionChange=".onVendorChange"
 										showSecondaryValues="true"
@@ -281,14 +281,14 @@
 										/>
 									</ComboBox>
 
-									<Label text="Mã số thuế Nhà cung cấp" required="true"/>
+									<Label text="Mã số thuế nhà cung cấp" required="true"/>
 									<Input
 										id="inVendorTaxCode"
-										placeholder="Tự động lấy từ trường Tax Code trong Business Partner (BP)"
+										placeholder="Tự động lấy từ dữ liệu Business Partner trên SAP"
 										editable="true"
 									/>
 
-									<Label text="Email gửi thông báo (Tự động lấy từ SAP Vendor)" required="true"/>
+									<Label text="Email nhận đơn hàng (tự động lấy từ SAP)" required="true"/>
 									<Input
 										id="inVendorEmail"
 										placeholder="Email nhà cung cấp sẽ tự động hiển thị tại đây"
@@ -297,11 +297,11 @@
 
 									<core:Title text="Giá mua (Pricing)" class="qdFormSectionTitle qdFormSectionTitlePurple"/>
 
-									<Label text="Đơn giá dòng đầu — 1 đơn vị (tham khảo)"/>
+									<Label text="Đơn giá dòng đầu (tham khảo, tính trên 1 đơn vị)"/>
 									<Input
 										id="inNetPrice"
 										editable="false"
-										placeholder="Đơn giá lấy từ giá trúng thầu đã chốt ở RFQ-02"
+										placeholder="Đơn giá lấy từ báo giá được chọn ở RFQ-02"
 									/>
 
 									<Label text="Loại tiền"/>
@@ -481,7 +481,7 @@
 							
 							<HBox justifyContent="End" alignItems="Center" class="sapUiMediumMarginTop">
 								<Text
-									text="Đề nghị đã được CFO/CEO phê duyệt. Tạo đơn hàng xong, hệ thống gửi email cho nhà cung cấp ngay."
+									text="Đề nghị đã được CFO/CEO phê duyệt. Ngay khi tạo đơn hàng, hệ thống sẽ gửi email cho nhà cung cấp."
 									class="qdInfoHint sapUiSmallMarginEnd"
 								/>
 								<Button

@@ -110,15 +110,15 @@ sap.ui.define([
 				oModel.setProperty("/pageTitle", "Lịch sử đề nghị của tôi");
 				oModel.setProperty("/historyTitle", "Toàn bộ đề nghị đã tạo");
 			} else if (sRole === "PURCHASING") {
-				oModel.setProperty("/pageTitle", "Purchasing — Pending & History");
-				oModel.setProperty("/pendingTitle", "Chờ Purchasing duyệt");
-				oModel.setProperty("/historyTitle", "Đã xử lý (Purchasing)");
+				oModel.setProperty("/pageTitle", "Bộ phận Mua sắm — Chờ xử lý & Lịch sử");
+				oModel.setProperty("/pendingTitle", "Chờ Bộ phận Mua sắm duyệt");
+				oModel.setProperty("/historyTitle", "Đã xử lý (Bộ phận Mua sắm)");
 			} else if (sRole === "CFO") {
-				oModel.setProperty("/pageTitle", "CFO — Pending & History");
+				oModel.setProperty("/pageTitle", "CFO — Chờ duyệt & Lịch sử");
 				oModel.setProperty("/pendingTitle", "Đề nghị chờ CFO phê duyệt");
 				oModel.setProperty("/historyTitle", "Đã xử lý (CFO)");
 			} else if (sRole === "CEO") {
-				oModel.setProperty("/pageTitle", "CEO — Pending & History");
+				oModel.setProperty("/pageTitle", "CEO — Chờ duyệt & Lịch sử");
 				oModel.setProperty("/pendingTitle", "Đề nghị chờ CEO phê duyệt");
 				oModel.setProperty("/historyTitle", "Đã xử lý (CEO)");
 			} else {
@@ -270,7 +270,7 @@ sap.ui.define([
 			s = String(s || "").toUpperCase();
 			var map = {
 				PENDING_PURCHASING: "Chờ Purchasing",
-				PENDING_RFQ: "Đã duyệt hợp lệ — chờ hỏi giá (RFQ)",
+				PENDING_RFQ: "Đã duyệt — chờ hỏi giá (RFQ)",
 				RFQ_SENT: "Đã gửi RFQ, chờ báo giá",
 				QUOTATIONS_RECEIVED: "Đã có báo giá",
 				AWARDED: "Đã chốt nhà cung cấp",

@@ -161,7 +161,7 @@ sap.ui.define([
 					}).addStyleClass("qdAssetCol"),
 					new VBox({
 						items: [
-							new Label({ text: "Ngày vốn hoá", required: true, labelFor: oDate })
+							new Label({ text: "Ngày vốn hóa", required: true, labelFor: oDate })
 								.addStyleClass("qdAssetFieldLabel"),
 							oDate,
 							new Text({ text: "Mặc định là hôm nay" }).addStyleClass("qdAssetFieldHint")
@@ -185,8 +185,8 @@ sap.ui.define([
 							new Text({ text: "Tối đa 50 ký tự" }).addStyleClass("qdAssetFieldHint"),
 							oShortRow,
 							new MessageStrip({
-								text: "Mã tài sản được sinh trên SAP ngay khi bấm nút, số do SAP tự đánh theo nhóm tài sản. "
-									+ "Thao tác này không hoàn tác được trong ứng dụng — muốn huỷ phải dùng AS06 trong SAP GUI.",
+								text: "Mã tài sản được sinh trên SAP ngay khi nhấn nút; số thẻ do SAP tự đánh theo nhóm tài sản. "
+									+ "Thao tác không hoàn tác được trong ứng dụng — muốn hủy phải dùng AS06 trong SAP GUI.",
 								type: "Warning",
 								showIcon: true
 							}).addStyleClass("qdAssetWarn")
@@ -213,7 +213,7 @@ sap.ui.define([
 					}
 				}),
 				endButton: new Button({
-					text: "Huỷ",
+					text: "Hủy",
 					press: function () { oDialog.close(); }
 				}),
 				afterClose: function () { oDialog.destroy(); }
@@ -264,7 +264,7 @@ sap.ui.define([
 					}
 					if (oResult.savedToSap === false) {
 						sMsg += "\n\nMã đã sinh trên SAP nhưng chưa ghi được vào đề nghị"
-							+ " — ứng dụng đang lưu tạm, hãy báo kỹ thuật kiểm tra PrDraftItemSet.";
+							+ " — ứng dụng đang lưu tạm, vui lòng báo quản trị hệ thống kiểm tra.";
 					}
 					MessageBox.success(sMsg, { title: "Đã gán mã tài sản" });
 					this._load();

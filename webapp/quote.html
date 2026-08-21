@@ -188,7 +188,7 @@
 				<thead>
 					<tr>
 						<th style="width:34px">#</th>
-						<th>Hàng hoá / Dịch vụ</th>
+						<th>Hàng hóa / Dịch vụ</th>
 						<th class="num">Số lượng</th>
 					</tr>
 				</thead>
@@ -214,13 +214,13 @@
 					<div class="field">
 						<label for="fLead">Thời gian giao hàng (số ngày)</label>
 						<input type="number" id="fLead" min="0" step="1" inputmode="numeric" placeholder="VD: 7">
-						<div class="hint">Tính từ ngày nhận đơn hàng. Điền 0 nếu giao ngay.</div>
+						<div class="hint">Tính từ ngày nhận đơn hàng. Ghi 0 nếu giao ngay.</div>
 					</div>
 
 					<div class="field">
 						<label for="fWarranty">Thời gian bảo hành (số tháng)</label>
 						<input type="number" id="fWarranty" min="0" step="1" inputmode="numeric" placeholder="VD: 12">
-						<div class="hint">Điền 0 nếu không có bảo hành.</div>
+						<div class="hint">Ghi 0 nếu không có bảo hành.</div>
 					</div>
 
 					<div class="field full">
@@ -228,7 +228,7 @@
 						<select id="fTerms">
 							<option value="">— Chọn điều khoản —</option>
 						</select>
-						<div class="hint">Sau khi nhận hàng/hoá đơn thì bao lâu QDAVY thanh toán cho Quý công ty.</div>
+						<div class="hint">Thời hạn QDAVY thanh toán cho Quý công ty sau khi nhận hàng/hóa đơn.</div>
 					</div>
 
 					<div class="field full">
@@ -236,7 +236,7 @@
 							<input type="checkbox" id="fLegal">
 							<label for="fLegal" style="font-weight:400;margin:0">
 								<b>Hồ sơ pháp lý đầy đủ</b><br>
-								<span class="hint" style="margin:0">Quý công ty có sẵn giấy phép kinh doanh, mã số thuế và chứng nhận/uỷ quyền phân phối cho mặt hàng này, sẵn sàng cung cấp khi được yêu cầu.</span>
+								<span class="hint" style="margin:0">Quý công ty có sẵn giấy phép kinh doanh, mã số thuế và chứng nhận/ủy quyền phân phối cho mặt hàng này, sẵn sàng cung cấp khi được yêu cầu.</span>
 							</label>
 						</div>
 					</div>
@@ -255,7 +255,7 @@
 				<div style="margin-top:22px">
 					<button type="submit" class="primary" id="btnSubmit">Gửi báo giá</button>
 					<div class="hint" style="text-align:center;margin-top:10px">
-						Báo giá gửi qua trang này được ghi nhận ngay vào hệ thống mua sắm của QDAVY, kèm thời điểm gửi.
+						Báo giá gửi qua trang này được ghi nhận ngay vào hệ thống mua sắm của QDAVY kèm thời điểm gửi.
 					</div>
 				</div>
 			</form>
@@ -328,7 +328,7 @@
 			+ " — QDAVY Global Group trân trọng mời Quý công ty báo giá cho nội dung dưới đây.");
 
 		fact("Mã yêu cầu báo giá", data.rfqId);
-		if (data.prLabel) { fact("Mã đề nghị mua hàng", data.prLabel); }
+		if (data.prLabel) { fact("Mã đề nghị mua sắm", data.prLabel); }
 		if (data.deadlineText) {
 			fact("Hạn nộp báo giá", data.deadlineText
 				+ (data.daysLeft != null

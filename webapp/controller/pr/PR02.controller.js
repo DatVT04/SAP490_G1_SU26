@@ -310,11 +310,11 @@ sap.ui.define([
 						+ " · Giao: " + (q.LeadTimeDays || 0) + " ngày"
 						+ " · Thanh toán: " + (q.PaymentTermsLabel || q.PaymentTerms || "—")
 						+ " · BH: " + (q.WarrantyMonths || 0) + " tháng"
-						+ " · Pháp lý: " + (q.LegalDocsOk === "X" ? "đủ hồ sơ" : "THIẾU hồ sơ")
+						+ " · Pháp lý: " + (q.LegalDocsOk === "X" ? "đủ hồ sơ" : "thiếu hồ sơ")
 						+ (q.SourceNote ? " · Căn cứ: " + q.SourceNote : ""),
 					icon: bAwarded ? "sap-icon://accept" : "sap-icon://supplier",
 					infoState: bAwarded ? "Success" : "None",
-					info: bAwarded ? "NCC thắng" : "",
+					info: bAwarded ? "NCC được chọn" : "",
 					wrapping: true
 				}));
 			});
@@ -330,7 +330,7 @@ sap.ui.define([
 			}
 			if (oRfq.AwardReason || oPR.RfqAwardReason) {
 				oContent.addItem(new Text({
-					text: "Lý do Purchasing chọn: " + (oRfq.AwardReason || oPR.RfqAwardReason)
+					text: "Lý do Bộ phận Mua sắm chọn: " + (oRfq.AwardReason || oPR.RfqAwardReason)
 				}).addStyleClass("sapUiTinyMarginTop"));
 			}
 
@@ -374,10 +374,10 @@ sap.ui.define([
 			var bIsApprove = sStatus === "APPROVED";
 
 			var sRoleHint = bIsApprove
-				? "\n\nSau khi duyệt, hệ thống TẠO PR THẬT trên SAP (tra được ở ME53N) và chuyển sang bước hỏi giá (RFQ-01)."
-				: "\n\nTừ chối là KẾT THÚC đề nghị này — người tạo nhận lý do và có thể lập đề nghị mới (dữ liệu được điền sẵn).";
+				? "\n\nSau khi duyệt, hệ thống tạo PR chính thức trên SAP (tra cứu bằng ME53N) và chuyển sang bước hỏi giá (RFQ-01)."
+				: "\n\nTừ chối sẽ kết thúc đề nghị này — người tạo nhận được lý do và có thể lập đề nghị mới với dữ liệu điền sẵn.";
 
-			var sAction = bIsApprove ? "PHÊ DUYỆT" : "TỪ CHỐI";
+			var sAction = bIsApprove ? "Phê duyệt" : "Từ chối";
 			var sSummary = "Đề nghị: " + sPRId
 				+ "\nGiá trị: " + Number(nTotalValue).toLocaleString("vi-VN") + " " + (sCurrency || "VND")
 				+ "\nHành động: " + sAction
@@ -530,10 +530,10 @@ sap.ui.define([
 				.catch(function (oError) {
 					if (iTimer) { clearTimeout(iTimer); }
 					if (oError && oError.name === "AbortError") {
-						throw new Error("Server phản hồi quá lâu. Vui lòng kiểm tra mạng và thử lại.");
+						throw new Error("Máy chủ phản hồi quá lâu. Vui lòng kiểm tra mạng rồi thử lại.");
 					}
 					if (oError instanceof TypeError) {
-						throw new Error("Không thể kết nối tới máy chủ. Vui lòng kiểm tra server đang chạy.");
+						throw new Error("Không thể kết nối tới máy chủ. Vui lòng kiểm tra kết nối mạng rồi thử lại.");
 					}
 					throw oError;
 				});

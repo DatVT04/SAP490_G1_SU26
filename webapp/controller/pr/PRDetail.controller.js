@@ -11,10 +11,10 @@ sap.ui.define([
 	var REQUEST_TIMEOUT_MS = 15000;
 
 	var STATUS_LABELS = {
-		PENDING_PURCHASING: "Đang chờ Purchasing duyệt",
-		PENDING_RFQ: "Đã duyệt hợp lệ — đang ở bước hỏi giá (RFQ)",
+		PENDING_PURCHASING: "Đang chờ Bộ phận Mua sắm duyệt",
+		PENDING_RFQ: "Đã duyệt — đang ở bước hỏi giá (RFQ)",
 		RFQ_SENT: "Đã gửi RFQ tới nhà cung cấp, chờ báo giá",
-		QUOTATIONS_RECEIVED: "Đã nhận báo giá, chờ Purchasing chốt nhà cung cấp",
+		QUOTATIONS_RECEIVED: "Đã nhận báo giá, chờ Bộ phận Mua sắm chốt nhà cung cấp",
 		AWARDED: "Đã chốt nhà cung cấp",
 		PENDING_CFO: "Đã chốt nhà cung cấp — chờ CFO phê duyệt",
 		PENDING_CEO: "Vượt ngưỡng IO — chờ CEO phê duyệt",
@@ -96,7 +96,7 @@ sap.ui.define([
 		}
 
 		steps.push({
-			title: "Purchasing",
+			title: "Mua sắm duyệt",
 			icon: pr.PurchasingAction === "REJECTED" ? "sap-icon://decline" : "sap-icon://cart",
 			timeText: formatViTime(purchasingTime),
 			sub: purchasingSub,
@@ -232,7 +232,7 @@ sap.ui.define([
 			finalIcon = "sap-icon://sales-order";
 		} else if (isApproved) {
 			finalTitle = "Đã phê duyệt";
-			finalSub = (pr.SapPRId ? ("SAP: " + pr.SapPRId) : "Đã duyệt") + " — chờ Purchasing tạo đơn hàng";
+			finalSub = (pr.SapPRId ? ("SAP: " + pr.SapPRId) : "Đã duyệt") + " — chờ Bộ phận Mua sắm tạo đơn hàng";
 			finalIcon = "sap-icon://accept";
 		} else if (isRejected) {
 			finalTitle = "Từ chối";
@@ -255,22 +255,22 @@ sap.ui.define([
 	function buildStatusHint(pr) {
 		var st = String((pr && pr.Status) || "").toUpperCase();
 		if (st === "PENDING_PURCHASING") {
-			return { text: "Đang chờ Bộ phận mua sắm (Purchasing) xem xét.", type: "Warning" };
+			return { text: "Đang chờ Bộ phận Mua sắm (Purchasing) xem xét.", type: "Warning" };
 		}
 		if (st === "PENDING_RFQ") {
-			return { text: "Purchasing đang lập yêu cầu báo giá (RFQ) cho đề nghị này.", type: "Warning" };
+			return { text: "Bộ phận Mua sắm đang lập yêu cầu báo giá (RFQ) cho đề nghị này.", type: "Warning" };
 		}
 		if (st === "RFQ_SENT") {
 			return { text: "RFQ đã được gửi tới nhà cung cấp, đang chờ báo giá.", type: "Warning" };
 		}
 		if (st === "QUOTATIONS_RECEIVED") {
-			return { text: "Đã nhận được báo giá, đang chờ Purchasing chốt nhà cung cấp.", type: "Warning" };
+			return { text: "Đã nhận được báo giá, đang chờ Bộ phận Mua sắm chốt nhà cung cấp.", type: "Warning" };
 		}
 		if (st === "AWARDED") {
 			return { text: "Đã chốt nhà cung cấp.", type: "Warning" };
 		}
 		if (st === "PENDING_CFO") {
-			return { text: "Đã chốt nhà cung cấp và có giá thật — đang chờ CFO phê duyệt. Chưa có đơn hàng nào được tạo.", type: "Warning" };
+			return { text: "Đã chốt nhà cung cấp và có giá thực tế — đang chờ CFO phê duyệt. Chưa có đơn hàng nào được tạo.", type: "Warning" };
 		}
 		if (st === "PENDING_CEO") {
 			return { text: "Giá trị vượt ngưỡng ngân sách Internal Order — đang chờ CEO phê duyệt.", type: "Warning" };
@@ -284,7 +284,7 @@ sap.ui.define([
 		}
 		if (st === "REJECTED" || st === "RETURNED") {
 			return {
-				text: "Đề nghị bị " + (pr.DecidedByRole === "CFO" || pr.DecidedByRole === "CEO" ? pr.DecidedByRole : "Purchasing")
+				text: "Đề nghị bị " + (pr.DecidedByRole === "CFO" || pr.DecidedByRole === "CEO" ? pr.DecidedByRole : "Bộ phận Mua sắm")
 					+ " từ chối" + (pr.Comment ? (": " + pr.Comment) : ".")
 					+ " Bạn có thể lập đề nghị mới (dữ liệu điền sẵn) bằng nút bên dưới.",
 				type: "Error"
@@ -491,7 +491,7 @@ sap.ui.define([
 				.catch(function (oError) {
 					if (iTimer) { clearTimeout(iTimer); }
 					if (oError && oError.name === "AbortError") {
-						throw new Error("Server phản hồi quá lâu. Vui lòng thử lại.");
+						throw new Error("Máy chủ phản hồi quá lâu. Vui lòng thử lại.");
 					}
 					if (oError instanceof TypeError) {
 						throw new Error("Không thể kết nối tới máy chủ. Vui lòng thử lại.");

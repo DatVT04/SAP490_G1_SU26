@@ -125,7 +125,7 @@ sap.ui.define([
 			} else if (bIsApprove) {
 				sHint = "\n\nDuyệt xong, Bộ phận Mua sắm sẽ tạo đơn hàng trên SAP và hệ thống gửi email cho nhà cung cấp.";
 			} else {
-				sHint = "\n\nNếu từ chối, đề nghị kết thúc tại đây. Chưa có đơn hàng nào được tạo nên không cần xử lý gì thêm trên SAP.";
+				sHint = "\n\nNếu từ chối, đề nghị kết thúc tại đây. Chưa có đơn hàng nào được tạo nên không phát sinh xử lý trên SAP.";
 			}
 
 			var sSummary = "PR: " + (oPR.DisplayId || oPR.PRId)
@@ -254,7 +254,7 @@ sap.ui.define([
 		},
 
 		formatPriceRange: function (nLowest, nHighest, nChosen) {
-			if (!Number(nChosen)) { return "Chưa đọc được giá của nhà cung cấp thắng."; }
+			if (!Number(nChosen)) { return "Chưa đọc được giá của nhà cung cấp được chọn."; }
 			var s = "Thấp nhất " + this._money(nLowest);
 			if (Number(nHighest) > Number(nLowest)) {
 				s += " · cao nhất " + this._money(nHighest);
@@ -267,7 +267,7 @@ sap.ui.define([
 		// thap nhat (khong con gi de hoi).
 		formatPriceVerdict: function (bIsLowest, nExtra, bSingle) {
 			if (bSingle) {
-				return "Chỉ có 1 báo giá — không có cạnh tranh, cần lý do chỉ định thầu";
+				return "Chỉ có 1 báo giá — không có cạnh tranh giá, cần lý do chỉ định thầu";
 			}
 			if (bIsLowest) { return "Đã chọn báo giá thấp nhất"; }
 			return "Không chọn báo giá thấp nhất — cao hơn " + this._money(nExtra) + " VND";
@@ -280,7 +280,7 @@ sap.ui.define([
 
 		formatVendorTerms: function (bLegalOk, sPaymentTerms, nLeadTime, nWarranty) {
 			var a = [];
-			a.push("Hồ sơ pháp lý: " + (bLegalOk ? "đủ" : "CHƯA đủ"));
+			a.push("Hồ sơ pháp lý: " + (bLegalOk ? "đủ" : "chưa đủ"));
 			if (sPaymentTerms) { a.push("Thanh toán: " + sPaymentTerms); }
 			if (Number(nLeadTime) > 0) { a.push("Giao trong " + nLeadTime + " ngày"); }
 			if (Number(nWarranty) > 0) { a.push("Bảo hành " + nWarranty + " tháng"); }
@@ -348,7 +348,7 @@ sap.ui.define([
 				.catch(function (oError) {
 					if (iTimer) { clearTimeout(iTimer); }
 					if (oError && oError.name === "AbortError") {
-						throw new Error("Server phản hồi quá lâu. Vui lòng kiểm tra mạng và thử lại.");
+						throw new Error("Máy chủ phản hồi quá lâu. Vui lòng kiểm tra mạng rồi thử lại.");
 					}
 					if (oError instanceof TypeError) {
 						throw new Error("Không thể kết nối tới máy chủ. Vui lòng thử lại.");

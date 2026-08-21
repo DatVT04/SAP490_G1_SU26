@@ -36,7 +36,7 @@ function buildRfqEmail(opts) {
 	const buyerEmail = String(opts.buyerEmail || process.env.EMAIL_USER || "");
 
 	const subject = (isReminder ? "[Nhắc lần " + (opts.reminderCount || 1) + "] " : "")
-		+ "Mời báo giá " + rfqId
+		+ "Thư mời báo giá " + rfqId
 		+ (deadlineVi ? " — hạn nộp " + deadlineVi : "");
 
 	const deadlineNote = deadlineVi
@@ -57,15 +57,15 @@ function buildRfqEmail(opts) {
 				+ '<td style="padding:10px 8px;border-bottom:1px solid ' + BRAND.line + ';font-size:14px;color:' + BRAND.navy + ';text-align:right;white-space:nowrap"><b>' + htmlEscape(Number(it.Quantity || 0).toLocaleString("vi-VN")) + '</b> ' + htmlEscape(it.UoM || "") + '</td>'
 				+ '</tr>';
 		}).join("")
-		: '<tr><td colspan="3" style="padding:14px 8px;color:' + BRAND.slate + ';font-size:13px">Chi tiết hàng hoá/dịch vụ sẽ được gửi trong thư trả lời. Vui lòng liên hệ đầu mối bên dưới.</td></tr>';
+		: '<tr><td colspan="3" style="padding:14px 8px;color:' + BRAND.slate + ';font-size:13px">Chi tiết hàng hóa/dịch vụ sẽ được gửi trong thư trả lời. Vui lòng liên hệ đầu mối bên dưới.</td></tr>';
 
 	// ── Bang cac truong bat buoc trong bao gia ───────────────────────────
 	const fieldRows = [
 		["Tổng giá báo (VND, đã gồm VAT)", "Bắt buộc. Ghi rõ đơn giá từng dòng nếu có nhiều dòng."],
 		["Thời gian giao hàng (số ngày)", "Tính từ ngày ký hợp đồng/nhận PO. Ghi 0 nếu giao ngay."],
 		["Điều khoản thanh toán", PAYMENT_TERMS.map(function (t) { return t.label; }).join(" · ")],
-		["Thời gian bảo hành (số tháng)", "Ghi 0 nếu hàng hoá/dịch vụ không có bảo hành."],
-		["Hồ sơ pháp lý", "Giấy phép kinh doanh, mã số thuế, chứng nhận/uỷ quyền phân phối (nếu có)."]
+		["Thời gian bảo hành (số tháng)", "Ghi 0 nếu hàng hóa/dịch vụ không có bảo hành."],
+		["Hồ sơ pháp lý", "Giấy phép kinh doanh, mã số thuế, chứng nhận/ủy quyền phân phối (nếu có)."]
 	].map(function (row) {
 		return '<tr>'
 			+ '<td style="padding:9px 10px;border-bottom:1px solid ' + BRAND.line + ';font-size:13px;color:' + BRAND.navy + ';white-space:nowrap"><b>' + row[0] + '</b></td>'
@@ -84,7 +84,7 @@ function buildRfqEmail(opts) {
 		+ '<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + htmlEscape(subject) + '</title></head>'
 		+ '<body style="margin:0;padding:0;background:' + BRAND.bg + ';">'
 		+ '<div style="display:none;max-height:0;overflow:hidden;opacity:0">'
-		+ 'Mời báo giá ' + htmlEscape(rfqId) + (deadlineVi ? ' — hạn nộp ' + deadlineVi : '') + '. Quý vị có thể gửi báo giá trực tuyến chỉ trong 1 phút.'
+		+ 'Thư mời báo giá ' + htmlEscape(rfqId) + (deadlineVi ? ' — hạn nộp ' + deadlineVi : '') + '. Quý công ty có thể gửi báo giá trực tuyến chỉ trong 1 phút.'
 		+ '</div>'
 		+ '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:' + BRAND.bg + ';padding:24px 12px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Arial,sans-serif">'
 		+ '<tr><td align="center">'
@@ -120,7 +120,7 @@ function buildRfqEmail(opts) {
 		+ '<tr><td style="padding:10px 16px">'
 		+ '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">'
 		+ infoRow('Mã yêu cầu báo giá', htmlEscape(rfqId), true)
-		+ (prLabel ? infoRow('Mã đề nghị mua hàng', htmlEscape(prLabel)) : '')
+		+ (prLabel ? infoRow('Mã đề nghị mua sắm', htmlEscape(prLabel)) : '')
 		+ (deadlineVi
 			? infoRow('Hạn nộp báo giá',
 				'<span style="color:' + (daysLeft != null && daysLeft < 0 ? '#C0392B' : BRAND.navy) + '">' + deadlineVi + '</span>'
@@ -137,7 +137,7 @@ function buildRfqEmail(opts) {
 		+ '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">'
 		+ '<tr style="background:' + BRAND.navy + '">'
 		+ '<th style="padding:9px 8px;font-size:11px;letter-spacing:.6px;color:#fff;text-align:center;width:34px">#</th>'
-		+ '<th style="padding:9px 8px;font-size:11px;letter-spacing:.6px;color:#fff;text-align:left">HÀNG HOÁ / DỊCH VỤ</th>'
+		+ '<th style="padding:9px 8px;font-size:11px;letter-spacing:.6px;color:#fff;text-align:left">HÀNG HÓA / DỊCH VỤ</th>'
 		+ '<th style="padding:9px 8px;font-size:11px;letter-spacing:.6px;color:#fff;text-align:right;white-space:nowrap">SỐ LƯỢNG</th>'
 		+ '</tr>'
 		+ itemRows
@@ -152,7 +152,7 @@ function buildRfqEmail(opts) {
 			+ '<div style="font-size:15px;font-weight:700;color:' + BRAND.navy + '">Gửi báo giá trực tuyến — nhanh hơn trả lời email</div>'
 			+ '<div style="font-size:13px;color:' + BRAND.slate + ';padding:6px 0 16px;line-height:1.6">Không cần tạo tài khoản. Link dưới đây dành riêng cho Quý công ty và chỉ dùng cho yêu cầu ' + htmlEscape(rfqId) + '.</div>'
 			+ '<a href="' + htmlEscape(quoteLink) + '" style="display:inline-block;background:' + BRAND.blueDark + ';color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 30px;border-radius:9px">Nhập báo giá ngay &rarr;</a>'
-			+ '<div style="font-size:11px;color:' + BRAND.slate + ';padding-top:14px;word-break:break-all;line-height:1.5">Nếu nút trên không bấm được, sao chép đường dẫn sau vào trình duyệt:<br><span style="color:' + BRAND.blueDark + '">' + htmlEscape(quoteLink) + '</span></div>'
+			+ '<div style="font-size:11px;color:' + BRAND.slate + ';padding-top:14px;word-break:break-all;line-height:1.5">Nếu không nhấn được nút trên, sao chép đường dẫn sau vào trình duyệt:<br><span style="color:' + BRAND.blueDark + '">' + htmlEscape(quoteLink) + '</span></div>'
 			+ '</td></tr></table>'
 			+ '</td></tr>'
 			: '')
@@ -160,7 +160,7 @@ function buildRfqEmail(opts) {
 		// Bang truong bat buoc
 		+ '<tr><td style="padding:26px 32px 0">'
 		+ '<div style="font-size:13px;font-weight:700;color:' + BRAND.navy + '">NẾU QUÝ CÔNG TY TRẢ LỜI BẰNG EMAIL</div>'
-		+ '<div style="font-size:13px;color:' + BRAND.slate + ';padding:6px 0 10px;line-height:1.6">Vui lòng nêu đủ các mục sau để chúng tôi đưa vào bảng so sánh; thiếu mục nào chúng tôi sẽ phải hỏi lại và báo giá bị chậm xét.</div>'
+		+ '<div style="font-size:13px;color:' + BRAND.slate + ';padding:6px 0 10px;line-height:1.6">Vui lòng nêu đủ các mục sau để chúng tôi đưa vào bảng so sánh; nếu thiếu, chúng tôi sẽ phải hỏi lại và việc xét báo giá của Quý công ty có thể bị chậm.</div>'
 		+ '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border-top:2px solid ' + BRAND.line + '">'
 		+ fieldRows
 		+ '</table>'
@@ -203,7 +203,7 @@ function buildRfqEmail(opts) {
 			: "QDAVY Global Group tran trong kinh moi Quy cong ty gui bao gia cho yeu cau mua sam duoi day.",
 		"",
 		"Ma yeu cau bao gia: " + rfqId,
-		prLabel ? "Ma de nghi mua hang: " + prLabel : "",
+		prLabel ? "Ma de nghi mua sam: " + prLabel : "",
 		deadlineVi ? "Han nop bao gia: " + deadlineVi + (deadlineNote ? " (" + deadlineNote + ")" : "") : "",
 		"Dau moi lien he: " + buyerEmail,
 		"",

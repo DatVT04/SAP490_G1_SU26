@@ -15,7 +15,7 @@
 					<VBox>
 						<Text text="Bước 1 · Đề nghị mua sắm" class="qdPageEyebrow"/>
 						<Title text="{i18n>tilePr01Title}" level="H1" class="qdPageTitle"/>
-						<Text text="Khai báo vật tư / dịch vụ cần mua — Purchasing duyệt xong hệ thống mới tạo Purchase Requisition trên SAP" class="qdPageSub"/>
+						<Text text="Khai báo vật tư / dịch vụ cần mua — sau khi Bộ phận Mua sắm duyệt, hệ thống mới tạo Purchase Requisition trên SAP." class="qdPageSub"/>
 					</VBox>
 				</HBox>
 				<HBox class="qdFlowSteps">
@@ -45,7 +45,7 @@
 							text="{= ${user>/costCenter} ? ${user>/costCenter} : 'Chưa được gán bộ phận' }"
 							class="qdInfoValue"
 						/>
-						<Text text="Chỉ điền sẵn cho dòng mới — mỗi dòng chọn bộ phận riêng được" class="qdInfoHint"/>
+						<Text text="Tự điền theo tài khoản của bạn cho các dòng vật tư" class="qdInfoHint"/>
 					</VBox>
 					<VBox class="qdInfoCell">
 						<Label text="{i18n>prCurrencyLabel}" class="qdInfoLabel"/>
@@ -121,7 +121,7 @@
 						fixedLayout="false"
 						sticky="ColumnHeaders"
 						class="qdItemsTable"
-						noDataText="Chưa có dòng nào — bấm Thêm dòng"
+						noDataText="Chưa có dòng nào — nhấn “Thêm dòng” để bắt đầu."
 					>
 						<columns>
 							<Column width="16%"><Text text="Vật tư / Dịch vụ *"/></Column>
@@ -199,7 +199,7 @@
 									/>
 
 									<!-- Bộ phận (CC) — bắt buộc mọi dòng, kể cả ZAST.
-									     Khoá theo bộ phận của chính tài khoản đang đăng nhập: không ai
+									     Khóa theo bộ phận của chính tài khoản đang đăng nhập: không ai
 									     được lập đề nghị hộ phòng ban khác. Chỉ hiện ô chọn khi tài khoản
 									     chưa có Cost Center trên SAP (xem /costCenterHint). -->
 									<VBox width="100%">
@@ -241,7 +241,7 @@
 
 				<!-- Hướng dẫn đủ nghiệp vụ -->
 				<Text
-					text="Vật tư / dịch vụ và Bộ phận chọn từ danh sách SAP. Bộ phận bắt buộc trên mọi dòng. Cột Ngân sách áp dụng tự hiện Internal Order của phòng — không chọn tay; vượt ngưỡng thì sau CFO cần CEO duyệt. Vật tư là tài sản khai giống vật tư thường: mã thẻ tài sản được gán sau khi nhận hàng, không nhập ở bước này. GL Account hệ thống tự xác định."
+					text="Vật tư / dịch vụ và Bộ phận chọn từ danh mục SAP; Bộ phận là bắt buộc trên mọi dòng. Cột “Ngân sách áp dụng” tự hiển thị Internal Order của phòng, không chọn tay — nếu vượt ngưỡng, sau CFO sẽ cần CEO phê duyệt. Vật tư là tài sản khai như vật tư thường (mã thẻ tài sản được gán sau khi nhận hàng). GL Account do hệ thống tự xác định."
 					class="qdInfoHint sapUiTinyMarginTop"
 				/>
 

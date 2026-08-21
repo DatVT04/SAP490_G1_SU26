@@ -35,7 +35,7 @@ sap.ui.define([
 			// Tạo model 1 lần duy nhất ở đây. Trước đây _loadApprovedPRs() gọi
 			// setModel(new JSONModel(...)) nên nếu /api/vendors trả về TRƯỚC thì
 			// danh sách vendor vừa nạp bị ghi đè mất — ComboBox NCC rỗng ngẫu nhiên
-			// tuỳ tốc độ mạng. Giờ 2 request chỉ setProperty vào cùng 1 model.
+			// tùy tốc độ mạng. Giờ 2 request chỉ setProperty vào cùng 1 model.
 			this.getView().setModel(new JSONModel({
 				PurchaseRequisitions: [],
 				poItems: [],
@@ -569,7 +569,7 @@ sap.ui.define([
 					+ oGroup.Text + ".")
 				: "";
 			if (oGroup.Done) {
-				sHint += " LƯU Ý: nhóm này đã có PO rồi — tạo lại sẽ bị SAP từ chối vì dòng PR đã được chuyển thành PO.";
+				sHint += " Lưu ý: nhóm này đã có PO — nếu tạo lại, SAP sẽ từ chối vì dòng PR đã được chuyển thành PO.";
 			}
 			oModel.setProperty("/groupHint", sHint);
 
@@ -723,7 +723,7 @@ sap.ui.define([
 					? (oVendor.VendorName + " (" + sVendorNo + ")")
 					: sVendorNo;
 				oStrip.setText(
-					"Đã tự điền từ báo giá thắng của RFQ " + (oPRData.RfqId || "")
+					"Đã tự điền từ báo giá được chọn của RFQ " + (oPRData.RfqId || "")
 					+ ": " + sVendorLabel
 					+ " — tổng giá chốt " + this.formatCurrency(fBaseValue)
 					+ " " + (oPRData.Currency || "")
@@ -911,11 +911,11 @@ sap.ui.define([
 			}
 
 			if (!this._isValidPhone(sReceiverPhone)) {
-				MessageBox.error("Số điện thoại người nhận hàng không hợp lệ. Ví dụ hợp lệ: 0912345678 hoặc +84912345678.");
+				MessageBox.error("Số điện thoại người nhận hàng không hợp lệ. VD: 0912345678 hoặc +84912345678.");
 				return;
 			}
 			if (!this._isValidPhone(sBuyerPhone)) {
-				MessageBox.error("Số điện thoại người đại diện không hợp lệ. Ví dụ hợp lệ: 0912345678 hoặc +84912345678.");
+				MessageBox.error("Số điện thoại người đại diện không hợp lệ. VD: 0912345678 hoặc +84912345678.");
 				return;
 			}
 
@@ -947,7 +947,7 @@ sap.ui.define([
 				// Don gia gio chi xem — khong the bao nguoi dung "nhap don gia" nua.
 				MessageBox.error("Các dòng sau chưa có đơn giá: "
 					+ aZeroLines.map(function (it) { return it.LineNo; }).join(", ")
-					+ ".\n\nĐơn giá được lấy từ giá trúng thầu đã chốt ở RFQ-02. "
+					+ ".\n\nĐơn giá được lấy từ báo giá được chọn ở RFQ-02. "
 					+ "Vui lòng kiểm tra lại kết quả chốt nhà cung cấp của đề nghị này.");
 				return;
 			}
@@ -1017,7 +1017,7 @@ sap.ui.define([
 						// la gui mail cho NCC ngay — khong con buoc release rieng.
 						var sMailInfo = res.emailSent
 							? "\nĐã gửi email đơn hàng cho nhà cung cấp."
-							: "\nLƯU Ý: chưa gửi được email cho nhà cung cấp. Kiểm tra lại email trong dữ liệu chủ rồi gửi thủ công.";
+							: "\nLưu ý: chưa gửi được email cho nhà cung cấp. Vui lòng kiểm tra email trong dữ liệu chủ rồi gửi thủ công.";
 
 						// PR tach nhieu nhom: tao xong nhom nay van con nhom khac chua co don
 						// hang. Khong roi man hinh nua ma tai lai danh sach de lam tiep nhom sau —
@@ -1051,7 +1051,7 @@ sap.ui.define([
 						if (/already converted to PO/i.test(sRaw)) {
 							var aPo = sRaw.match(/\b\d{10}\b/);
 							MessageBox.information(
-								"Yêu cầu mua hàng này đã được chuyển thành đơn hàng trên SAP"
+								"Đề nghị mua sắm này đã được chuyển thành đơn hàng trên SAP"
 								+ (aPo ? " (PO " + aPo[0] + ")" : "")
 								+ ". Không cần tạo lại.",
 								{ title: "Đã có đơn hàng" }
@@ -1066,7 +1066,7 @@ sap.ui.define([
 						Msg.fail(res, {
 							title: "Không tạo được đơn hàng",
 							fallback: "Không tạo được đơn hàng trên SAP. Đề nghị mua sắm vẫn giữ nguyên,"
-								+ " bạn có thể kiểm tra lại thông tin rồi bấm Tạo PO lần nữa."
+								+ " bạn có thể kiểm tra lại thông tin rồi nhấn Tạo PO lần nữa."
 						});
 					}
 				}.bind(this))

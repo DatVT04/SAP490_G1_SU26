@@ -15,7 +15,7 @@
 						<VBox>
 							<Text text="Bước 2 · Phê duyệt" class="qdPageEyebrow"/>
 							<Title text="Phê duyệt đề nghị mua sắm" level="H1" class="qdPageTitle"/>
-							<Text text="Duyệt = tạo PR thật trên SAP (ME51N) rồi chuyển sang bước hỏi giá. Từ chối = kết thúc kèm lý do, người tạo lập đề nghị mới." class="qdPageSub"/>
+							<Text text="Duyệt: hệ thống tạo PR chính thức trên SAP (ME51N) và chuyển sang bước hỏi giá. Từ chối: đề nghị kết thúc kèm lý do; người tạo có thể lập đề nghị mới." class="qdPageSub"/>
 						</VBox>
 					</HBox>
 				</HBox>
@@ -89,7 +89,7 @@
 										<ObjectIdentifier title="{DisplayId}" text="Người đề nghị: {RequesterEmail}"/>
 										<Text text="Gửi lúc: {path: 'CreatedAt', formatter: '.formatDateTime'}" class="qdCellHint sapUiTinyMarginTop"/>
 										<Text
-											text="{= ${SapPRId} ? ('SAP: ' + ${SapPRId}) : 'Chưa phải chứng từ SAP — PR thật sẽ được tạo ngay khi bạn duyệt' }"
+											text="{= ${SapPRId} ? ('SAP: ' + ${SapPRId}) : 'Chưa phải chứng từ SAP — PR chính thức sẽ được tạo khi bạn duyệt.' }"
 											class="qdCellHint"
 										/>
 									</VBox>
@@ -104,14 +104,14 @@
 										class="qdBadgeDanger sapUiTinyMarginEnd"
 									/>
 									<ObjectStatus
-										text="Giá trị lớn — xem kỹ"
+										text="Giá trị lớn — cần xem xét kỹ"
 										state="Warning"
 										visible="{= ${needsLegalReview} &amp;&amp; !${needsProcurementHeadReview} }"
 										icon="sap-icon://warning"
 										class="qdBadgeWarning sapUiTinyMarginEnd"
 									/>
 									<ObjectStatus
-										text="Trong ngưỡng thường"
+										text="Trong ngưỡng thông thường"
 										state="Success"
 										visible="{= !${needsLegalReview} &amp;&amp; !${needsProcurementHeadReview} }"
 										icon="sap-icon://accept"
@@ -175,7 +175,7 @@
 									class="qdAwardValue"
 								/>
 								<Text
-									text="Lý do chọn: {= ${RfqAwardReason} || '(Purchasing chưa ghi lý do)' }"
+									text="Lý do chọn: {= ${RfqAwardReason} || '(Bộ phận Mua sắm chưa ghi lý do)' }"
 									class="qdCellHint sapUiTinyMarginTop"
 								/>
 								<Text
@@ -187,7 +187,7 @@
 								     13/08: "muon ghi ro chi tiet so sanh nhan vien de xuat the nao, NCC tra
 								     loi the nao de CFO duyet"). -->
 								<Button
-									text="Xem so sánh báo giá chi tiết"
+									text="Xem bảng so sánh báo giá"
 									icon="sap-icon://compare-2"
 									type="Transparent"
 									press=".onViewComparePress"
@@ -212,7 +212,7 @@
 													<HBox>
 														<Text text="{path: 'MaterialNo', formatter: '.formatMatNo'}" class="qdCellHint"/>
 														<Text
-															text="{= ${MaterialType} === 'ZAST' ? ' · Tài sản (Cat.A)' : ' · Vật tư/DV (Cat.K)' }"
+															text="{= ${MaterialType} === 'ZAST' ? ' · Vật tư/Tài sản' : ' · Vật tư/DV' }"
 															class="qdCellHint"
 														/>
 													</HBox>
@@ -220,7 +220,7 @@
 												<VBox class="qdNestedItemSide" alignItems="End">
 													<Text text="{Quantity} {UoM}" class="qdNestedQty"/>
 													<Text
-														text="{= ${MaterialType} === 'ZAST' ? ('Asset: ' + (${AssetNo} || 'chưa điền')) : ('CC: ' + (${CostCenter} || ${InternalOrder} || 'chưa điền')) }"
+														text="{= 'CC: ' + (${CostCenter} || ${InternalOrder} || '—') }"
 														class="qdCellHint"
 													/>
 													<Text

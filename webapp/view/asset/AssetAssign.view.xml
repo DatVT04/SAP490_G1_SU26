@@ -15,7 +15,7 @@
 						<VBox>
 							<Text text="Mua sắm · Sau khi nhận hàng" class="qdPageEyebrow"/>
 							<Title text="Gán mã tài sản" level="H1" class="qdPageTitle"/>
-							<Text text="Vật tư đã đặt mua nhưng chưa có mã tài sản. Gán mã ở đây, hệ thống ghi thẳng lên SAP — mỗi đơn vị số lượng một mã riêng." class="qdPageSub"/>
+							<Text text="Vật tư đã đặt mua nhưng chưa có mã tài sản. Gán mã tại đây, hệ thống ghi nhận trực tiếp trên SAP — mỗi đơn vị số lượng một mã riêng." class="qdPageSub"/>
 						</VBox>
 					</HBox>
 				</HBox>

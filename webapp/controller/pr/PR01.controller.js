@@ -43,7 +43,7 @@ sap.ui.define([
 		// Kiem "qua dai" TRUOC "qua ngan"/"it tu": chuoi 260 ky tu lien khong dau
 		// cach chi co 1 tu, neu de sau se bao nham "can it nhat 4 tu".
 		if (s.length > REASON_MAX_LEN) {
-			return { ok: false, message: "Lý do tối đa " + REASON_MAX_LEN + " ký tự (đang "
+			return { ok: false, message: "Lý do tối đa " + REASON_MAX_LEN + " ký tự (hiện tại "
 				+ s.length + ")." };
 		}
 		if (s.length < REASON_MIN_LEN) {
@@ -213,7 +213,7 @@ sap.ui.define([
 			MessageBox.information(
 				"Đề nghị " + oData.prId + " đã bị Bộ phận Mua sắm trả lại."
 				+ (oData.returnReason ? ("\n\nLý do trả lại: " + oData.returnReason) : "")
-				+ "\n\nDữ liệu cũ đã được điền sẵn. Vui lòng chỉnh sửa rồi bấm Gửi đề nghị.",
+				+ "\n\nDữ liệu cũ đã được điền sẵn. Vui lòng chỉnh sửa rồi nhấn Gửi đề nghị.",
 				{ title: "Sửa & gửi lại đề nghị" }
 			);
 		},
@@ -380,7 +380,7 @@ sap.ui.define([
 						oModel.setProperty("/lockCostCenter", false);
 						oModel.setProperty("/costCenterHint",
 							"Tài khoản của bạn chưa được gán Bộ phận (Cost Center) trên SAP — "
-							+ "vui lòng báo quản trị bổ sung trong EmployeeSet trước khi lập đề nghị.");
+							+ "vui lòng liên hệ quản trị hệ thống để bổ sung trước khi lập đề nghị.");
 						if (aCC.length > 0 && !that._defaultCC) {
 							that._defaultCC = aCC[0].CostCenter || "";
 						}
@@ -730,7 +730,7 @@ sap.ui.define([
 		onResetPress: function () {
 			var aItems = this.getView().getModel().getProperty("/items") || [];
 			if (aItems.length === 0) { return; }
-			MessageBox.confirm("Xoá toàn bộ dòng đã nhập và bắt đầu lại? Thao tác này không thể hoàn tác.", {
+			MessageBox.confirm("Xóa toàn bộ dòng đã nhập và bắt đầu lại? Thao tác này không thể hoàn tác.", {
 				actions: [MessageBox.Action.YES, MessageBox.Action.NO],
 				emphasizedAction: MessageBox.Action.NO,
 				onClose: function (sAction) {
@@ -849,7 +849,7 @@ sap.ui.define([
 						+ (bIsResubmit ? " (bản gửi lại)" : "") + "\n\n"
 						+ "Gồm " + iItemCount + " dòng, tổng "
 						+ nTotalPRValue.toLocaleString("vi-VN") + " " + sCurrency + ".\n"
-						+ "Đang chờ Purchasing xem xét — PR trên SAP sẽ được tạo khi Purchasing duyệt.";
+						+ "Đang chờ Bộ phận Mua sắm xem xét — PR trên SAP sẽ được tạo sau khi duyệt.";
 					if (aWarnings.length) {
 						sMsg += "\n\nLưu ý: " + aWarnings.join(" ");
 					}
@@ -896,7 +896,7 @@ sap.ui.define([
 				.catch(function (oError) {
 					if (iTimer) { clearTimeout(iTimer); }
 					if (oError && oError.name === "AbortError") {
-						throw new Error("Server phản hồi quá lâu.");
+						throw new Error("Máy chủ phản hồi quá lâu.");
 					}
 					if (oError instanceof TypeError) {
 						throw new Error("Không thể kết nối tới máy chủ. Vui lòng thử lại.");

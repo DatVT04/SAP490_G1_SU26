@@ -48,8 +48,8 @@ async function notifyCfo(prId, message) {
 async function notifyPurchasingNewQuote(rfqId, prLabel, quotation) {
 	const priceText = Number(quotation.QuotedPrice || 0).toLocaleString("vi-VN") + " " + (quotation.Currency || "VND");
 	const vendorText = (quotation.VendorName || "") + " (" + quotation.VendorNo + ")";
-	const message = "NCC " + vendorText + " vừa gửi báo giá " + priceText + " cho RFQ " + rfqId
-		+ (prLabel ? " (PR " + prLabel + ")" : "") + " — vào RFQ-02 để so sánh và chốt.";
+	const message = "Nhà cung cấp " + vendorText + " vừa gửi báo giá " + priceText + " cho RFQ " + rfqId
+		+ (prLabel ? " (PR " + prLabel + ")" : "") + ". Mở màn hình RFQ-02 để so sánh và chốt.";
 
 	let emails = [];
 	try {

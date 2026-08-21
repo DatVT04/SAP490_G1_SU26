@@ -48,7 +48,7 @@
                             <Column><Text text="Tên / Mô tả"/></Column>
                             <Column width="9rem"><Text text="Cost Center"/></Column>
                             <Column width="16rem" hAlign="End"><Text text="Ngưỡng ngân sách (VND)"/></Column>
-                            <Column width="7rem" hAlign="Center"><Text text="Xoá ngưỡng"/></Column>
+                            <Column width="7rem" hAlign="Center"><Text text="Xóa ngưỡng"/></Column>
                         </columns>
                         <items>
                             <ColumnListItem>
@@ -66,7 +66,7 @@
                                     <Button
                                         icon="sap-icon://decline"
                                         type="Transparent"
-                                        tooltip="Xoá ngưỡng của Internal Order này"
+                                        tooltip="Xóa ngưỡng của Internal Order này"
                                         press=".onClearRow"
                                     />
                                 </cells>
@@ -89,7 +89,7 @@
                 </HBox>
 
                 <MessageStrip
-                    text="Ô Mã tài sản là KHO MÃ CÒN TRỐNG: mỗi tài sản mua về là một thẻ riêng nên mỗi mã chỉ dùng được một lần; PR-01 lấy mã chưa dùng, tạo PR thật xong thì mã đó chuyển sang Đã dùng. Kế toán tạo mã mới bằng AS01 theo đúng Nhóm tài sản rồi khai thêm vào đây. Giá vật tư không khai ở đây — nhập trong MM02, view Accounting 1."
+                    text="Ô “Mã tài sản” là kho mã còn trống: mỗi tài sản mua về là một thẻ riêng nên mỗi mã chỉ dùng được một lần; PR-01 lấy mã chưa dùng, tạo PR chính thức xong thì mã đó chuyển sang Đã dùng. Kế toán tạo mã mới bằng AS01 theo đúng Nhóm tài sản rồi khai thêm vào đây. Giá vật tư không khai ở đây — nhập trong MM02, view Accounting 1."
                     type="Information"
                     showIcon="true"
                     class="sapUiSmallMarginBeginEnd sapUiSmallMarginBottom"
@@ -107,7 +107,7 @@
                         <Column width="7rem"><Text text="Loại"/></Column>
                         <Column width="8rem"><Text text="Nhóm tài sản"/></Column>
                         <Column width="20rem"><Text text="Mã tài sản còn trống"/></Column>
-                        <Column width="6rem" hAlign="Center"><Text text="Xoá"/></Column>
+                        <Column width="6rem" hAlign="Center"><Text text="Xóa"/></Column>
                     </columns>
                     <items>
                         <ColumnListItem>
@@ -142,7 +142,7 @@
                                 <Button
                                     icon="sap-icon://decline"
                                     type="Transparent"
-                                    tooltip="Xoá mã tài sản đã khai cho vật tư này"
+                                    tooltip="Xóa mã tài sản đã khai cho vật tư này"
                                     press=".onClearAssetRow"
                                 />
                             </cells>
@@ -165,11 +165,11 @@
                         <Title text="Quy tắc leo thang đang áp dụng" level="H3" class="qdCardTitle"/>
                     </HBox>
                     <Text
-                        text="Khi Purchasing duyệt xong, PR chuyển sang CFO. Tại bước CFO, hệ thống so tổng giá trị PR với ngưỡng của các Internal Order gắn trên từng dòng vật tư: chỉ cần vượt ngưỡng của một IO bất kỳ thì PR bắt buộc phải qua CEO phê duyệt, ngược lại CFO duyệt là ghi thẳng lên SAP."
+                        text="Khi Bộ phận Mua sắm duyệt xong, PR chuyển sang CFO. Tại bước CFO, hệ thống so tổng giá trị PR với ngưỡng của các Internal Order gắn trên từng dòng vật tư: chỉ cần vượt ngưỡng của một IO bất kỳ thì PR bắt buộc phải qua CEO phê duyệt, ngược lại CFO duyệt là ghi thẳng lên SAP."
                         class="qdCellHint"
                     />
                     <Text
-                        text="Nếu PR đi qua luồng hỏi giá (RFQ), ngưỡng sẽ được tính lại trên giá thật của báo giá thắng thay vì giá ước tính lúc lập PR."
+                        text="Nếu PR đi qua luồng hỏi giá (RFQ), ngưỡng sẽ được tính lại trên giá thực tế của báo giá được chọn thay vì giá ước tính lúc lập PR."
                         class="qdCellHint sapUiSmallMarginTop"
                     />
                 </VBox>
