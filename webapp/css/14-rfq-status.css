@@ -18,7 +18,10 @@
 	align-items: center;
 	border-radius: 999px;
 	padding: 0.2rem 0.7rem;
-	white-space: nowrap;
+	/* 21/08/2026: doi tu nowrap -> normal. Cot "Trang thai" rong co dinh 10.5rem,
+	   nhan dai hon la bi CAT CUT chu khong xuong dong (VD "Da phat hanh PO (luong cu)"
+	   chi hien duoc mot nua). Cho xuong dong thi dai may cung khong mat chu. */
+	white-space: normal;
 	line-height: 1.35;
 	background: rgba(100, 116, 139, 0.12);
 }

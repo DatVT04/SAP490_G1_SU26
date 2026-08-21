@@ -27,8 +27,11 @@ sap.ui.define([
 		PO_CREATED: "Đã tạo đơn hàng",
 		// Hai trang thai nay chi con tren ban ghi cu cua luong 2 cua duyet (18-20/08);
 		// tu 21/08 khong sinh moi nua — giu nhan de bang lich su khong hien ma tho.
-		PO_RELEASED: "Đã phát hành PO (luồng cũ)",
-		PO_REJECTED: "PO bị từ chối (luồng cũ)"
+		// 21/08/2026: bo phan "(luong cu)" khoi nhan hien thi theo yeu cau — nguoi dung
+		// khong biet "luong cu" la gi, doc vao chi thay kho hieu. Day van la trang thai
+		// LEGACY, dung tuong la trang thai binh thuong khi doc code.
+		PO_RELEASED: "Đã phát hành PO",
+		PO_REJECTED: "PO bị từ chối"
 	};
 
 	// Cau giai thich hien khi ro chuot vao trang thai — noi thang buoc tiep theo

@@ -15,14 +15,14 @@ sap.ui.define([
 		PENDING_RFQ: "Đã duyệt hợp lệ — đang ở bước hỏi giá (RFQ)",
 		RFQ_SENT: "Đã gửi RFQ tới nhà cung cấp, chờ báo giá",
 		QUOTATIONS_RECEIVED: "Đã nhận báo giá, chờ Purchasing chốt nhà cung cấp",
-		AWARDED: "Đã chốt nhà cung cấp (luồng cũ)",
+		AWARDED: "Đã chốt nhà cung cấp",
 		PENDING_CFO: "Đã chốt nhà cung cấp — chờ CFO phê duyệt",
 		PENDING_CEO: "Vượt ngưỡng IO — chờ CEO phê duyệt",
 		APPROVED: "Đã phê duyệt — chờ tạo đơn hàng",
 		REJECTED: "Bị từ chối — có thể lập đề nghị mới",
 		// 2 trang thai cu (truoc 18/08/2026) — chi de hien ban ghi cu, khong sinh moi.
-		RETURNED: "Bị trả lại (luồng cũ)",
-		CANCELLED: "Đã hủy (luồng cũ)",
+		RETURNED: "Bị trả lại",
+		CANCELLED: "Đã hủy",
 		PO_CREATED: "Đã tạo đơn hàng và gửi nhà cung cấp",
 		PO_RELEASED: "PO đã duyệt và gửi nhà cung cấp",
 		PO_REJECTED: "PO bị từ chối — chưa gửi nhà cung cấp",
@@ -267,7 +267,7 @@ sap.ui.define([
 			return { text: "Đã nhận được báo giá, đang chờ Purchasing chốt nhà cung cấp.", type: "Warning" };
 		}
 		if (st === "AWARDED") {
-			return { text: "Đã chốt nhà cung cấp (bản ghi luồng cũ).", type: "Warning" };
+			return { text: "Đã chốt nhà cung cấp.", type: "Warning" };
 		}
 		if (st === "PENDING_CFO") {
 			return { text: "Đã chốt nhà cung cấp và có giá thật — đang chờ CFO phê duyệt. Chưa có đơn hàng nào được tạo.", type: "Warning" };
