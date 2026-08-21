@@ -15,7 +15,7 @@
 						<VBox>
 							<Text text="Mua sắm · Sau khi nhận hàng" class="qdPageEyebrow"/>
 							<Title text="Gán mã tài sản" level="H1" class="qdPageTitle"/>
-							<Text text="Vật tư đã đặt mua nhưng chưa có thẻ tài sản. Tạo thẻ ở đây, hệ thống ghi thẳng lên SAP — mỗi đơn vị số lượng một thẻ riêng." class="qdPageSub"/>
+							<Text text="Vật tư đã đặt mua nhưng chưa có mã tài sản. Gán mã ở đây, hệ thống ghi thẳng lên SAP — mỗi đơn vị số lượng một mã riêng." class="qdPageSub"/>
 						</VBox>
 					</HBox>
 				</HBox>
@@ -32,11 +32,11 @@
 			<VBox class="qdContentCard qdCardTight">
 				<HBox alignItems="Center" class="sapUiSmallMargin">
 					<core:Icon src="sap-icon://add-product" class="qdCardIcon sapUiTinyMarginEnd"/>
-					<Title text="Vật tư chờ gán thẻ ({/openCount})" level="H3" class="qdCardTitle"/>
+					<Title text="Vật tư chờ gán mã ({/openCount})" level="H3" class="qdCardTitle"/>
 				</HBox>
 
 				<MessageStrip
-					text="Chỉ vật tư loại Tài sản (ZAST) của những đề nghị đã tạo đơn hàng mới hiện ở đây. Dịch vụ (ZSRV) không lên thẻ tài sản."
+					text="Chỉ vật tư loại Tài sản (ZAST) của những đề nghị đã tạo đơn hàng mới hiện ở đây. Dịch vụ (ZSRV) không có mã tài sản."
 					type="Information"
 					showIcon="true"
 					class="sapUiSmallMarginBeginEnd sapUiSmallMarginBottom"
@@ -44,8 +44,8 @@
 
 				<VBox class="qdEmptyState" alignItems="Center" visible="{= ${/rows}.length === 0 }">
 					<core:Icon src="sap-icon://complete" class="qdEmptyIcon"/>
-					<Title text="Không có vật tư nào chờ gán thẻ" level="H3" class="qdEmptyTitle"/>
-					<Text text="Mọi vật tư tài sản đã có thẻ." class="qdEmptyText" textAlign="Center"/>
+					<Title text="Không có vật tư nào chờ gán mã" level="H3" class="qdEmptyTitle"/>
+					<Text text="Mọi vật tư tài sản đã có mã." class="qdEmptyText" textAlign="Center"/>
 				</VBox>
 
 				<Table
@@ -60,7 +60,7 @@
 						<Column><Text text="Vật tư"/></Column>
 						<Column width="6rem" hAlign="Center"><Text text="Số lượng"/></Column>
 						<Column width="8rem"><Text text="Bộ phận"/></Column>
-						<Column width="16rem"><Text text="Thẻ tài sản đã gán"/></Column>
+						<Column width="16rem"><Text text="Mã tài sản đã gán"/></Column>
 						<Column width="9rem" hAlign="End"><Text text=""/></Column>
 					</columns>
 					<items>
@@ -82,12 +82,12 @@
 										class="qdCellStrong"
 									/>
 									<ObjectStatus
-										text="{= ${Remaining} > 0 ? ('còn thiếu ' + ${Remaining} + ' thẻ') : 'đã đủ' }"
+										text="{= ${Remaining} > 0 ? ('còn thiếu ' + ${Remaining} + ' mã') : 'đã đủ' }"
 										state="{= ${Remaining} > 0 ? 'Warning' : 'Success' }"
 									/>
 								</VBox>
 								<Button
-									text="Tạo thẻ tài sản"
+									text="Gán mã tài sản"
 									type="Emphasized"
 									icon="sap-icon://add"
 									press=".onCreatePress"

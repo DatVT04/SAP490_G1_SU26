@@ -43,7 +43,7 @@ router.post("/api/asset-assignment/create", async (req, res) => {
 	// Chan o backend chu khong chi an tile: tao the tai san la buoc sinh chung tu
 	// tren SAP, goi thang bang Postman van phai dung vai tro.
 	if (String(role || "").toUpperCase() !== "PURCHASING") {
-		return res.status(403).json({ success: false, message: "Chỉ Bộ phận Mua sắm được tạo thẻ tài sản." });
+		return res.status(403).json({ success: false, message: "Chỉ Bộ phận Mua sắm được gán mã tài sản." });
 	}
 	if (!prId || lineNo == null || lineNo === "") {
 		return res.status(400).json({ success: false, message: "Thieu prId hoac lineNo." });
@@ -70,7 +70,7 @@ router.post("/api/asset-assignment/create", async (req, res) => {
 					notifyRequester(
 						pr,
 						"Vật tư trong đề nghị " + pr.PRId + " đã được ghi nhận thành tài sản của công ty. "
-						+ "Mã thẻ tài sản: " + result.created.map(function (c) { return c.assetNo; }).join(", ") + "."
+						+ "Mã tài sản: " + result.created.map(function (c) { return c.assetNo; }).join(", ") + "."
 					);
 				}
 			} catch (e) {

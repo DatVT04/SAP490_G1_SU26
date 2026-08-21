@@ -1,0 +1,65 @@
+/* ==========================================================================
+   16-asset-assign.css
+   Man "Gan ma tai san" — chu yeu la hop thoai gan ma.
+
+   Truoc 21/08/2026 hop thoai duoc dung bang code (Dialog + Label + Input roi
+   nhau) khong co style rieng, nen nhan va o nhap dinh sat nhau, khoi thong tin
+   boi canh chi la mot doan Text 3 dong xuong hang bang \n -> nhin rat tho.
+   File nay lam cho no ra hinh mot bieu mau: khoi boi canh co nen, nhan dam
+   nho, hint xam, hai o "So ma" / "Ngay von hoa" nam canh nhau.
+   THU TU NAP: them cuoi danh sach css trong manifest.json (so 16).
+   ========================================================================== */
+
+.qdAssetDialogBody {
+	padding: 0.25rem 0.25rem 0.5rem;
+}
+
+/* Khoi boi canh: dang mua gi, cua de nghi nao */
+.qdAssetCtxBox {
+	background: rgba(100, 116, 139, 0.07);
+	border: 1px solid rgba(100, 116, 139, 0.18);
+	border-radius: 10px;
+	padding: 0.7rem 0.85rem;
+	margin-bottom: 1.15rem;
+}
+
+.qdAssetCtxTitle {
+	font-size: 0.95rem !important;
+	font-weight: 700 !important;
+	line-height: 1.35 !important;
+}
+
+.qdAssetCtxLine {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.76rem !important;
+	line-height: 1.5 !important;
+}
+
+/* Nhan cua tung o nhap */
+.qdAssetFieldLabel {
+	font-size: 0.8rem !important;
+	font-weight: 700 !important;
+	margin-bottom: 0.3rem !important;
+}
+
+.qdAssetFieldHint {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.72rem !important;
+	line-height: 1.4 !important;
+	margin-top: 0.25rem;
+}
+
+/* Hai o ngan nam canh nhau cho hop thoai bot dai */
+.qdAssetRow {
+	gap: 1rem;
+	margin-top: 1.1rem;
+}
+
+.qdAssetCol {
+	flex: 1 1 0;
+	min-width: 0;
+}
+
+.qdAssetWarn {
+	margin-top: 1.15rem;
+}

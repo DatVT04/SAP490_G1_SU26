@@ -110,6 +110,9 @@
         },
         {
           "uri": "css/15-decision-context.css"
+        },
+        {
+          "uri": "css/16-asset-assign.css"
         }
       ]
     },

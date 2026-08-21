@@ -11,6 +11,8 @@ sap.ui.define([
 	"sap/m/DatePicker",
 	"sap/m/StepInput",
 	"sap/m/VBox",
+	"sap/m/HBox",
+	"sap/m/MessageStrip",
 	"sap/m/Label",
 	"sap/m/Text",
 	"com/qdavy/procurement/model/Config",
@@ -18,7 +20,7 @@ sap.ui.define([
 ], function (
 	Controller, JSONModel, MessageBox, MessageToast,
 	Dialog, DialogType, Button, ButtonType,
-	Input, DatePicker, StepInput, VBox, Label, Text,
+	Input, DatePicker, StepInput, VBox, HBox, MessageStrip, Label, Text,
 	Config, Msg
 ) {
 	"use strict";
@@ -70,7 +72,7 @@ sap.ui.define([
 				.then(function (oResult) {
 					oView.setBusy(false);
 					if (!oResult || !oResult.success) {
-						MessageBox.error((oResult && oResult.message) || "Không tải được danh sách vật tư chờ gán thẻ.");
+						MessageBox.error((oResult && oResult.message) || "Không tải được danh sách vật tư chờ gán mã.");
 						return;
 					}
 					oModel.setProperty("/rows", oResult.data || []);
@@ -95,66 +97,111 @@ sap.ui.define([
 			this._openCreateDialog(oRow);
 		},
 
+		/**
+		 * Hop thoai gan ma tai san.
+		 *
+		 * 21/08/2026 dung lai giao dien: ban cu la Label/Input xep thang khong co
+		 * style nen nhan dinh sat o nhap, va khoi boi canh chi la 1 the Text 3 dong
+		 * noi bang "\n" — nhin nhu form chua lam xong. Nay: khoi boi canh co nen
+		 * rieng, moi o co nhan dam + dong goi y xam, 2 o ngan xep canh nhau, va canh
+		 * bao "khong hoan tac duoc" doi tu chu xam sang MessageStrip mau vang cho de
+		 * thay. Style o webapp/css/16-asset-assign.css.
+		 */
 		_openCreateDialog: function (oRow) {
 			var that = this;
 
 			var oDesc = new Input({
 				value: oRow.Description,
 				maxLength: 50,
-				width: "100%"
+				width: "100%",
+				// Xoa vien do ngay khi nguoi dung bat dau sua, khong bat cho den luc bam nut.
+				liveChange: function (oEvent) {
+					if (String(oEvent.getParameter("value") || "").trim()) {
+						oDesc.setValueState("None");
+						oDesc.setValueStateText("");
+					}
+				}
 			});
 			var oCount = new StepInput({
 				value: oRow.Remaining,
 				min: 1,
 				max: oRow.Remaining,
 				step: 1,
-				width: "8rem"
+				width: "100%"
 			});
 			var oDate = new DatePicker({
 				valueFormat: "yyyy-MM-dd",
 				displayFormat: "dd/MM/yyyy",
 				dateValue: new Date(),
-				width: "12rem"
+				width: "100%"
 			});
+
+			var oCtxBox = new VBox({
+				items: [
+					new Text({ text: oRow.Description || oRow.MaterialNo }).addStyleClass("qdAssetCtxTitle"),
+					new Text({
+						text: (oRow.MaterialNo || "") + " · " + (oRow.CostCenter || "—")
+					}).addStyleClass("qdAssetCtxLine"),
+					new Text({
+						text: "Đề nghị " + (oRow.DisplayId || oRow.PRId)
+							+ (oRow.PoNumber ? (" · PO " + oRow.PoNumber) : "")
+					}).addStyleClass("qdAssetCtxLine")
+				]
+			}).addStyleClass("qdAssetCtxBox");
+
+			var oShortRow = new HBox({
+				items: [
+					new VBox({
+						items: [
+							new Label({ text: "Số mã cần tạo", required: true, labelFor: oCount })
+								.addStyleClass("qdAssetFieldLabel"),
+							oCount,
+							new Text({ text: "Mỗi đơn vị số lượng một mã" }).addStyleClass("qdAssetFieldHint")
+						]
+					}).addStyleClass("qdAssetCol"),
+					new VBox({
+						items: [
+							new Label({ text: "Ngày vốn hoá", required: true, labelFor: oDate })
+								.addStyleClass("qdAssetFieldLabel"),
+							oDate,
+							new Text({ text: "Mặc định là hôm nay" }).addStyleClass("qdAssetFieldHint")
+						]
+					}).addStyleClass("qdAssetCol")
+				]
+			}).addStyleClass("qdAssetRow");
 
 			var oDialog = new Dialog({
 				type: DialogType.Standard,
-				title: "Tạo thẻ tài sản",
-				contentWidth: "28rem",
+				title: "Gán mã tài sản",
+				contentWidth: "32rem",
+				stretchOnPhone: true,
 				content: [
 					new VBox({
-						class: "sapUiSmallMargin",
 						items: [
-							new Text({
-								text: "Đề nghị " + (oRow.DisplayId || oRow.PRId)
-									+ (oRow.PoNumber ? (" · PO " + oRow.PoNumber) : "")
-									+ "\nVật tư: " + oRow.MaterialNo
-									+ "\nBộ phận: " + (oRow.CostCenter || "—"),
-								wrapping: true
-							}).addStyleClass("sapUiSmallMarginBottom"),
-							new Label({ text: "Tên thẻ tài sản:", required: true }),
+							oCtxBox,
+							new Label({ text: "Tên tài sản", required: true, labelFor: oDesc })
+								.addStyleClass("qdAssetFieldLabel"),
 							oDesc,
-							new Label({ text: "Số thẻ cần tạo (mỗi đơn vị một thẻ):", required: true })
-								.addStyleClass("sapUiTinyMarginTop"),
-							oCount,
-							new Label({ text: "Ngày vốn hoá:", required: true })
-								.addStyleClass("sapUiTinyMarginTop"),
-							oDate,
-							new Text({
-								text: "Thẻ được tạo trên SAP ngay khi bấm nút, số thẻ do SAP tự đánh theo nhóm tài sản. Thao tác này không hoàn tác được trong ứng dụng — muốn huỷ phải dùng AS06 trong SAP GUI.",
-								wrapping: true
-							}).addStyleClass("sapUiSmallMarginTop qdCellHint")
+							new Text({ text: "Tối đa 50 ký tự" }).addStyleClass("qdAssetFieldHint"),
+							oShortRow,
+							new MessageStrip({
+								text: "Mã tài sản được sinh trên SAP ngay khi bấm nút, số do SAP tự đánh theo nhóm tài sản. "
+									+ "Thao tác này không hoàn tác được trong ứng dụng — muốn huỷ phải dùng AS06 trong SAP GUI.",
+								type: "Warning",
+								showIcon: true
+							}).addStyleClass("qdAssetWarn")
 						]
-					})
+					}).addStyleClass("qdAssetDialogBody sapUiSmallMargin")
 				],
 				beginButton: new Button({
-					text: "Tạo thẻ",
+					text: "Gán mã tài sản",
 					type: ButtonType.Emphasized,
 					press: function () {
 						var sDesc = String(oDesc.getValue() || "").trim();
 						if (!sDesc) {
 							oDesc.setValueState("Error");
-							oDesc.setValueStateText("Vui lòng nhập tên thẻ tài sản.");
+							oDesc.setValueStateText("Vui lòng nhập tên tài sản.");
+							oDesc.focus();
 							return;
 						}
 						oDialog.close();
@@ -201,25 +248,25 @@ sap.ui.define([
 
 					if (!oResult || (!oResult.success && aCreated.length === 0)) {
 						Msg.fail(oResult, {
-							title: "Không tạo được thẻ tài sản",
-							fallback: "Không tạo được thẻ tài sản trên SAP. Vật tư vẫn giữ nguyên, bạn có thể thử lại."
+							title: "Không gán được mã tài sản",
+							fallback: "Không gán được mã tài sản trên SAP. Vật tư vẫn giữ nguyên, bạn có thể thử lại."
 						});
 						return;
 					}
 
 					var sNums = aCreated.map(function (c) { return c.assetNo; }).join(", ");
-					var sMsg = "Đã tạo " + aCreated.length + " thẻ tài sản trên SAP.\nMã thẻ: " + sNums;
+					var sMsg = "Đã gán " + aCreated.length + " mã tài sản trên SAP.\nMã: " + sNums;
 					if (Number(oResult.remaining) > 0) {
-						sMsg += "\n\nDòng này còn thiếu " + oResult.remaining + " thẻ.";
+						sMsg += "\n\nDòng này còn thiếu " + oResult.remaining + " mã.";
 					}
 					if (oResult.message) {
 						sMsg += "\n\nLưu ý: " + oResult.message;
 					}
 					if (oResult.savedToSap === false) {
-						sMsg += "\n\nThẻ đã tạo trên SAP nhưng chưa ghi được mã vào đề nghị"
+						sMsg += "\n\nMã đã sinh trên SAP nhưng chưa ghi được vào đề nghị"
 							+ " — ứng dụng đang lưu tạm, hãy báo kỹ thuật kiểm tra PrDraftItemSet.";
 					}
-					MessageBox.success(sMsg, { title: "Đã tạo thẻ tài sản" });
+					MessageBox.success(sMsg, { title: "Đã gán mã tài sản" });
 					this._load();
 				}.bind(this))
 				.catch(function (oError) {
@@ -236,7 +283,7 @@ sap.ui.define([
 					if (bDone) { return; }
 					bDone = true;
 					reject(new Error("Máy chủ không phản hồi sau " + (REQUEST_TIMEOUT_MS / 1000)
-						+ " giây. Thẻ tài sản có thể đã được tạo — tải lại trang (F5) để kiểm tra trước khi thử lại."));
+						+ " giây. Mã tài sản có thể đã được sinh — tải lại trang (F5) để kiểm tra trước khi thử lại."));
 				}, REQUEST_TIMEOUT_MS);
 
 				fetch(sUrl, oOptions || {})
