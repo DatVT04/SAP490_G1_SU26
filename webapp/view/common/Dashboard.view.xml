@@ -222,7 +222,7 @@
 						/>
 					</VBox>
 
-					<!-- PO-02: CFO/CEO duyet don hang truoc khi gui NCC (18/08/2026) -->
+					<!-- PO-02: CFO/CEO duyet DE NGHI sau khi chot NCC, truoc khi tao PO (21/08/2026) -->
 					<VBox
 						class="qdActionCard qdAccentPurple"
 						visible="{= ['CFO','CEO'].indexOf(${user>/role}) !== -1 }"
@@ -233,8 +233,8 @@
 							</VBox>
 							<Text text="PO-02" class="qdActionCode"/>
 						</HBox>
-						<Title text="Duyệt đơn hàng (PO)" level="H3" class="qdActionTitle"/>
-						<Text text="Xem giá chốt so với dự toán, duyệt PO trước khi hệ thống gửi nhà cung cấp." class="qdActionDesc"/>
+						<Title text="Duyệt đề nghị mua sắm" level="H3" class="qdActionTitle"/>
+						<Text text="Xem giá chốt so với dự toán và căn cứ chọn nhà cung cấp, duyệt trước khi tạo đơn hàng." class="qdActionDesc"/>
 						<Button
 							text="{i18n>dashTileOpen}"
 							icon="sap-icon://arrow-right"

@@ -11,7 +11,7 @@ const { describePaymentTerms } = require("../config/payment-terms");
 const { extractSapErrorMessage, odataEscape, sapFetchCsrfToken, sapRead, sapWrite } = require("../lib/sap-client");
 const { boolToSapX, normalizeSapDeadline, rfqTimesToIso, sapDateOnly, sapTimestamp } = require("../lib/sap-format");
 const { buildApprovalFlagsByCostCenter } = require("../services/approval.service");
-const { notifyPurchasing, notifyRequester } = require("../services/notify.service");
+const { notifyCfo, notifyPurchasing, notifyRequester } = require("../services/notify.service");
 const { fetchPrDraftById, fetchPrDraftByRfq, updatePrDraft } = require("../services/pr.service");
 const { sendRfqInviteEmails } = require("../services/rfq-mail.service");
 const { appBaseUrl, rfqQuoteLink } = require("../services/rfq-portal.service");
@@ -579,7 +579,8 @@ router.get("/api/rfq/:id/compare", async (req, res) => {
 });
 
 // 5) Chot NCC thang — bat buoc >=2 bao gia RECEIVED + ly do. Moi nhom chot xong
-// -> PR sang AWARDED de PO-01 tao don hang; CFO chi duyet SAU khi PO da tao.
+// -> PR sang PENDING_CFO: CFO/CEO duyet DE NGHI truoc (buoc 9-11 so do TO-BE),
+// PO-01 chi tao don hang sau khi da duyet xong (buoc 12).
 router.post("/api/rfq/:id/award", async (req, res) => {
 	const { id } = req.params;
 	const { vendorNo, awardReason, awardedBy, soleSourceReason } = req.body || {};
@@ -639,8 +640,8 @@ router.post("/api/rfq/:id/award", async (req, res) => {
 			session
 		);
 
-		// Cap nhat trang thai PR goc sang AWARDED tren PrDraftSet (18/08/2026 —
-		// truoc day la PENDING_CFO; nay CFO duyet o cap PO, sau khi PO da tao).
+		// Cap nhat trang thai PR goc sang PENDING_CFO tren PrDraftSet (21/08/2026 —
+		// quay ve dung so do TO-BE: duyet DE NGHI xong moi tao don hang).
 		const rfqResp = await sapRead(`RfqSet('${odataEscape(id)}')`);
 		const rfq = rfqResp.data && rfqResp.data.d;
 		const prRecord = rfq && await fetchPrDraftByRfq(rfq);
@@ -701,7 +702,7 @@ router.post("/api/rfq/:id/award", async (req, res) => {
 			prRecord.ioThreshold = recalculatedFlags.ioThreshold;
 			prRecord.escalationIO = recalculatedFlags.escalationIO;
 
-			prRecord.Status = "AWARDED";
+			prRecord.Status = "PENDING_CFO";
 			prRecord.UpdatedAt = new Date().toISOString();
 			prRecord.RfqId = id;
 			// PR nhieu nhom = nhieu NCC thang thau khac nhau -> 1 field RfqAwardedVendor
@@ -721,7 +722,7 @@ router.post("/api/rfq/:id/award", async (req, res) => {
 				NeedsLegalReview: boolToSapX(recalculatedFlags.needsLegalReview),
 				IoThreshold: recalculatedFlags.ioThreshold != null ? String(recalculatedFlags.ioThreshold) : "0",
 				EscalationIO: recalculatedFlags.escalationIO || "",
-				Status: "AWARDED",
+				Status: "PENDING_CFO",
 				RfqId: id,
 				RfqAwardedVendor: isMultiGroup ? "" : String(vendorNo),
 				RfqFinalValue: String(prFinalValue)
@@ -734,13 +735,20 @@ router.post("/api/rfq/:id/award", async (req, res) => {
 			notifyRequester(
 				prRecord,
 				"RFQ " + id + " đã chọn nhà cung cấp " + vendorNo + ". Đề nghị " + prRecord.PRId
-				+ " chuyển sang bước tạo đơn hàng (PO)" + groupNote + " — CFO sẽ duyệt đơn hàng trước khi gửi NCC."
+				+ " đã chuyển sang CFO phê duyệt" + groupNote + " — duyệt xong Bộ phận Mua sắm mới tạo đơn hàng."
 			);
 			await notifyPurchasing(
 				prRecord.PRId,
 				"RFQ " + id + " đã chốt NCC " + vendorNo + " — giá "
 				+ Number(prFinalValue).toLocaleString("vi-VN") + " " + finalCurrency + groupNote
-				+ ". Vào màn PO-01 tạo đơn hàng; CFO duyệt PO trước khi gửi NCC."
+				+ ". Đề nghị đang chờ CFO duyệt; duyệt xong mới vào màn PO-01 tạo đơn hàng."
+			);
+			await notifyCfo(
+				prRecord.PRId,
+				"Đề nghị " + prRecord.PRId + " đã chốt nhà cung cấp — giá "
+				+ Number(prFinalValue).toLocaleString("vi-VN") + " " + finalCurrency + groupNote
+				+ ", đang chờ bạn phê duyệt."
+				+ (recalculatedFlags.needsProcurementHeadReview ? " Lưu ý: vượt ngưỡng IO — sau CFO sẽ cần CEO duyệt." : "")
 			);
 		} else {
 			console.error(`[POST /api/rfq/${id}/award] Khong tim thay PR tuong ung tren SAP de cap nhat trang thai.`);

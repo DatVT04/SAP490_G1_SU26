@@ -14,8 +14,8 @@
 						<Button icon="sap-icon://nav-back" press=".onNavBack" class="qdHeroBackBtn"/>
 						<VBox>
 							<Text text="{/pageEyebrow}" class="qdPageEyebrow"/>
-							<Title text="Duyệt đơn hàng (PO)" level="H1" class="qdPageTitle"/>
-							<Text text="PO đã tạo trên SAP nhưng CHƯA gửi nhà cung cấp. Duyệt xong hệ thống mới gửi email đơn hàng." class="qdPageSub"/>
+							<Title text="Duyệt đề nghị mua sắm" level="H1" class="qdPageTitle"/>
+							<Text text="Nhà cung cấp đã chốt, giá đã là giá thật. Duyệt xong Bộ phận Mua sắm mới tạo đơn hàng và gửi nhà cung cấp." class="qdPageSub"/>
 						</VBox>
 					</HBox>
 					<Button
@@ -29,16 +29,16 @@
 				<HBox class="qdFlowSteps">
 					<Text text="RFQ Chốt NCC" class="qdFlowStep"/>
 					<core:Icon src="sap-icon://navigation-right-arrow" class="qdFlowArrow"/>
-					<Text text="PO-01 Tạo đơn hàng" class="qdFlowStep"/>
+					<Text text="Duyệt đề nghị" class="qdFlowStep qdFlowStepActive"/>
 					<core:Icon src="sap-icon://navigation-right-arrow" class="qdFlowArrow"/>
-					<Text text="PO-02 Duyệt &amp; gửi NCC" class="qdFlowStep qdFlowStepActive"/>
+					<Text text="PO-01 Tạo đơn &amp; gửi NCC" class="qdFlowStep"/>
 				</HBox>
 			</VBox>
 
 			<VBox class="qdContentCard qdCardTight">
 				<HBox alignItems="Center" class="sapUiSmallMargin">
 					<core:Icon src="sap-icon://order-status" class="qdCardIcon sapUiTinyMarginEnd"/>
-					<Title text="Đơn hàng đang chờ duyệt ({= ${/pending}.length })" level="H3" class="qdCardTitle"/>
+					<Title text="Đề nghị đang chờ duyệt ({= ${/pending}.length })" level="H3" class="qdCardTitle"/>
 				</HBox>
 
 				<VBox
@@ -47,8 +47,8 @@
 					visible="{= ${/pending}.length === 0 }"
 				>
 					<core:Icon src="sap-icon://complete" class="qdEmptyIcon"/>
-					<Title text="Không có đơn hàng nào đang chờ" level="H3" class="qdEmptyTitle"/>
-					<Text text="Tất cả PO đã được xử lý. Bấm Tải lại để cập nhật." class="qdEmptyText" textAlign="Center"/>
+					<Title text="Không có đề nghị nào đang chờ" level="H3" class="qdEmptyTitle"/>
+					<Text text="Tất cả đề nghị đã được xử lý. Bấm Tải lại để cập nhật." class="qdEmptyText" textAlign="Center"/>
 				</VBox>
 
 				<ScrollContainer
@@ -131,15 +131,15 @@
 							<VBox class="qdAwardBox sapUiTinyMarginTopBottom">
 								<HBox alignItems="Center" class="sapUiTinyMarginBottom">
 									<core:Icon src="sap-icon://supplier" class="qdAwardIcon sapUiTinyMarginEnd"/>
-									<Text text="Đơn hàng chờ duyệt trong đề nghị này" class="qdInfoLabel"/>
+									<Text text="Nhà cung cấp đã chốt trong đề nghị này" class="qdInfoLabel"/>
 								</HBox>
-								<List items="{PoGroups}" showSeparators="Inner">
+								<List items="{AwardGroups}" showSeparators="Inner">
 									<CustomListItem>
 										<VBox class="qdPoGroupRow">
 											<HBox justifyContent="SpaceBetween" alignItems="Center" wrap="Wrap">
 												<VBox>
 													<Text
-														text="{= 'PO ' + (${PoNumber} || '(chưa đọc được số)') + ' — ' + (${AwardedVendorName} || ${AwardedVendor} || 'NCC ?') }"
+														text="{= (${AwardedVendorName} || ${AwardedVendor} || 'NCC ?') }"
 														class="qdDecisionValue"
 													/>
 													<Text
@@ -149,7 +149,7 @@
 												</VBox>
 												<ObjectStatus
 													text="{parts: ['FinalValue','Currency'], formatter: '.formatValue'}"
-													state="{= ${Status} === 'PO_RELEASED' ? 'Success' : (${Status} === 'PO_REJECTED' ? 'Error' : 'Warning') }"
+													state="Information"
 												/>
 											</HBox>
 
@@ -184,7 +184,7 @@
 
 											<!-- Nhom khong di qua RFQ: noi thang la khong co bang chung so sanh -->
 											<MessageStrip
-												text="Đơn hàng này không đi qua vòng hỏi giá nên không có báo giá để so sánh — cần hỏi rõ Purchasing trước khi duyệt."
+												text="Nhóm này không đi qua vòng hỏi giá nên không có báo giá để so sánh — cần hỏi rõ Purchasing trước khi duyệt."
 												type="Warning"
 												showIcon="true"
 												visible="{= !${Evidence} }"
@@ -211,7 +211,7 @@
 									class="sapUiSmallMarginEnd"
 								/>
 								<Button
-									text="Duyệt &amp; gửi NCC"
+									text="Duyệt đề nghị"
 									type="Accept"
 									icon="sap-icon://accept"
 									press=".onApprovePress"

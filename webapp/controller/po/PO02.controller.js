@@ -25,19 +25,20 @@ sap.ui.define([
 	var REQUEST_TIMEOUT_MS = 15000;
 
 	/**
-	 * PO-02 — CUA DUYET 2 (18/08/2026, mo phong PO Release ME29N).
+	 * PO-02 — CFO/CEO DUYET DE NGHI MUA SAM (21/08/2026, buoc 9-11 so do TO-BE).
 	 *
-	 * "PR duyet nhu cau, PO duyet tien": Purchasing da duyet nhu cau va tao PR
-	 * that o PR-02; toi day PO da duoc tao that tren SAP (PO-01) nhung CHUA gui
-	 * cho NCC. CFO xem gia chot so voi du toan roi moi release — duyet xong he
-	 * thong moi gui mail don hang. Vuot nguong IO thi CFO chuyen tiep CEO.
+	 * Purchasing da duyet nhu cau va tao PR that o PR-02, da hoi gia va chot NCC
+	 * o RFQ-02. Toi day gia da la GIA THAT nen CFO doi chieu voi du toan roi
+	 * quyet; vuot nguong IO thi chuyen tiep CEO. Duyet xong Purchasing moi vao
+	 * PO-01 tao don hang — CHUA co PO nao ton tai o man nay, nen tu choi la dong
+	 * de nghi lai, khong de lai chung tu mo coi tren SAP.
 	 */
 	return Controller.extend("com.qdavy.procurement.controller.po.PO02", {
 
 		onInit: function () {
 			this.getView().setModel(new JSONModel({
 				pending: [],
-				pageEyebrow: "Bước cuối · Duyệt đơn hàng",
+				pageEyebrow: "Phê duyệt · Đề nghị mua sắm",
 				loading: false
 			}));
 
@@ -49,13 +50,13 @@ sap.ui.define([
 		_onRouteMatched: function () {
 			var sRole = String(this.getOwnerComponent().getModel("user").getProperty("/role") || "").toUpperCase();
 			if (sRole !== "CFO" && sRole !== "CEO") {
-				MessageBox.error("Chỉ CFO hoặc CEO được phép duyệt đơn hàng.");
+				MessageBox.error("Chỉ CFO hoặc CEO được phép duyệt đề nghị ở bước này.");
 				this.getOwnerComponent().getRouter().navTo("dashboard");
 				return;
 			}
 			this.getView().getModel().setProperty(
 				"/pageEyebrow",
-				sRole === "CEO" ? "Bước cuối · CEO duyệt đơn vượt ngưỡng" : "Bước cuối · CFO duyệt đơn hàng"
+				sRole === "CEO" ? "Phê duyệt · CEO duyệt đề nghị vượt ngưỡng" : "Phê duyệt · CFO duyệt đề nghị"
 			);
 			this._loadPending();
 		},
@@ -69,12 +70,12 @@ sap.ui.define([
 			oModel.setProperty("/loading", true);
 			oView.setBusy(true);
 
-			this._fetchWithTimeout(BACKEND + "/api/po/pending-approval?role=" + encodeURIComponent(sRole))
+			this._fetchWithTimeout(BACKEND + "/api/pr-approval/pending?role=" + encodeURIComponent(sRole))
 				.then(function (oResult) {
 					oView.setBusy(false);
 					oModel.setProperty("/loading", false);
 					if (!oResult || !oResult.success) {
-						MessageBox.error((oResult && oResult.message) || "Không tải được danh sách đơn hàng chờ duyệt. Vui lòng thử lại.");
+						MessageBox.error((oResult && oResult.message) || "Không tải được danh sách đề nghị chờ duyệt. Vui lòng thử lại.");
 						return;
 					}
 					var aData = (oResult.data || []).sort(function (a, b) {
@@ -115,21 +116,21 @@ sap.ui.define([
 			var sRole = String(this.getOwnerComponent().getModel("user").getProperty("/role") || "").toUpperCase();
 			var bWillEscalate = bIsApprove && sRole === "CFO" && !!oPR.needsProcurementHeadReview;
 
-			var aPoNums = (oPR.PoGroups || [])
-				.map(function (g) { return g.PoNumber; })
+			var aVendors = (oPR.AwardGroups || [])
+				.map(function (g) { return g.AwardedVendorName || g.AwardedVendor; })
 				.filter(Boolean);
 
 			var sHint;
 			if (bWillEscalate) {
-				sHint = "\n\nĐơn hàng này vượt ngưỡng phê duyệt của Internal Order. Sau khi bạn duyệt, đơn sẽ được chuyển tiếp lên CEO và chưa gửi cho nhà cung cấp.";
+				sHint = "\n\nĐề nghị này vượt ngưỡng phê duyệt của Internal Order. Sau khi bạn duyệt, đề nghị sẽ được chuyển tiếp lên CEO. Chưa có đơn hàng nào được tạo.";
 			} else if (bIsApprove) {
-				sHint = "\n\nDuyệt xong hệ thống GỬI EMAIL đơn hàng cho nhà cung cấp ngay.";
+				sHint = "\n\nDuyệt xong, Bộ phận Mua sắm sẽ tạo đơn hàng trên SAP và hệ thống gửi email cho nhà cung cấp.";
 			} else {
-				sHint = "\n\nNếu từ chối, đơn hàng sẽ không được gửi cho nhà cung cấp. Bộ phận Mua sắm sẽ chọn lại nhà cung cấp hoặc điều chỉnh rồi tạo đơn hàng mới.";
+				sHint = "\n\nNếu từ chối, đề nghị kết thúc tại đây. Chưa có đơn hàng nào được tạo nên không cần xử lý gì thêm trên SAP.";
 			}
 
 			var sSummary = "PR: " + (oPR.DisplayId || oPR.PRId)
-				+ (aPoNums.length ? "\nPO: " + aPoNums.join(", ") : "")
+				+ (aVendors.length ? "\nNhà cung cấp: " + aVendors.join(", ") : "")
 				+ "\nGiá ước tính: " + this.formatValue(oPR.EstimatedTotalValue != null ? oPR.EstimatedTotalValue : oPR.TotalValue, oPR.Currency)
 				+ "\nGiá chốt: " + this.formatValue(oPR.TotalValue, oPR.Currency)
 				+ " (" + this.formatDiff(oPR.EstimatedTotalValue, oPR.TotalValue) + ")"
@@ -145,8 +146,8 @@ sap.ui.define([
 			var oDialog = new Dialog({
 				type: DialogType.Message,
 				title: bIsApprove
-					? (bWillEscalate ? "Duyệt — sẽ chuyển CEO" : "Xác nhận duyệt và gửi nhà cung cấp")
-					: "Xác nhận từ chối đơn hàng",
+					? (bWillEscalate ? "Duyệt — sẽ chuyển CEO" : "Xác nhận phê duyệt đề nghị")
+					: "Xác nhận từ chối đề nghị",
 				content: [
 					new VBox({
 						items: [
@@ -160,7 +161,7 @@ sap.ui.define([
 					})
 				],
 				beginButton: new Button({
-					text: bIsApprove ? (bWillEscalate ? "Duyệt & chuyển CEO" : "Duyệt & gửi NCC") : "Từ chối",
+					text: bIsApprove ? (bWillEscalate ? "Duyệt & chuyển CEO" : "Duyệt đề nghị") : "Từ chối",
 					type: bIsApprove ? ButtonType.Accept : ButtonType.Reject,
 					press: function () {
 						var sComment = oTextArea.getValue().trim();
@@ -191,7 +192,7 @@ sap.ui.define([
 
 			oView.setBusy(true);
 
-			this._fetchWithTimeout(BACKEND + "/api/po/" + encodeURIComponent(oPR.PRId) + "/approval", {
+			this._fetchWithTimeout(BACKEND + "/api/pr-approval/" + encodeURIComponent(oPR.PRId), {
 				method: "PATCH",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
@@ -205,8 +206,8 @@ sap.ui.define([
 					oView.setBusy(false);
 					if (!oResult || !oResult.success) {
 						Msg.fail(oResult, {
-							title: "Không cập nhật được đơn hàng",
-							fallback: "Không cập nhật được trạng thái đơn hàng. Đơn hàng vẫn ở trạng thái chờ duyệt, vui lòng thử lại."
+							title: "Không cập nhật được đề nghị",
+							fallback: "Không cập nhật được trạng thái đề nghị. Đề nghị vẫn ở trạng thái chờ duyệt, vui lòng thử lại."
 						});
 						return;
 					}
@@ -215,27 +216,19 @@ sap.ui.define([
 						MessageBox.information(
 							"Đề nghị " + oPR.PRId + " đã được chuyển lên CEO phê duyệt.\n"
 							+ (oResult.reason || "Giá trị vượt ngưỡng phê duyệt của CFO.")
-							+ "\nHệ thống chưa gửi đơn hàng cho nhà cung cấp.",
+							+ "\nChưa có đơn hàng nào được tạo.",
 							{ title: "Đã chuyển CEO" }
 						);
 					} else if (sAction === "APPROVED") {
-						var aReleased = oResult.released || [];
-						var aPoNums = aReleased.map(function (r) { return r.poNumber; }).filter(Boolean);
-						var iSent = Number(oResult.emailsSent) || 0;
-						var sMailLine = iSent >= aReleased.length && aReleased.length > 0
-							? "Đã gửi email đơn hàng cho nhà cung cấp."
-							: "Lưu ý: " + (aReleased.length - iSent) + "/" + aReleased.length
-								+ " email chưa gửi được. Vui lòng kiểm tra email nhà cung cấp trong dữ liệu chủ rồi gửi lại thủ công.";
 						MessageBox.success(
-							"Đã duyệt đơn hàng của đề nghị " + oPR.PRId + "."
-							+ (aPoNums.length ? "\nPO: " + aPoNums.join(", ") : "")
-							+ "\n" + sMailLine,
-							{ title: "PO đã duyệt" }
+							"Đã phê duyệt đề nghị " + oPR.PRId + "."
+							+ "\nBộ phận Mua sắm đã nhận được thông báo để tạo đơn hàng ở màn hình PO-01.",
+							{ title: "Đã phê duyệt" }
 						);
 					} else {
 						MessageBox.warning(
-							"Đã từ chối đơn hàng của đề nghị " + oPR.PRId
-							+ ".\nĐơn hàng không được gửi cho nhà cung cấp. Bộ phận Mua sắm đã nhận được thông báo để xử lý lại.",
+							"Đã từ chối đề nghị " + oPR.PRId
+							+ ".\nChưa có đơn hàng nào được tạo. Bộ phận Mua sắm đã nhận được thông báo.",
 							{ title: "Đã từ chối" }
 						);
 					}

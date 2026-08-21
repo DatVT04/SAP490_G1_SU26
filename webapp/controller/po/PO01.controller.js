@@ -1018,8 +1018,11 @@ sap.ui.define([
 					oView.setBusy(false);
 					if (res && res.success) {
 						var sPoNum = res.poNumber || (res.po && res.po.PoNumber) || "PO_SUCCESS";
-						// 18/08/2026: PO tao xong CHUA gui NCC — cho CFO/CEO duyet (PO-02).
-						var sMailInfo = "\nĐơn hàng chưa được gửi cho nhà cung cấp. CFO duyệt ở màn hình PO-02, duyệt xong hệ thống mới gửi email.";
+						// 21/08/2026: de nghi da duyet tu truoc (buoc 10-11), nen tao PO xong
+						// la gui mail cho NCC ngay — khong con buoc release rieng.
+						var sMailInfo = res.emailSent
+							? "\nĐã gửi email đơn hàng cho nhà cung cấp."
+							: "\nLƯU Ý: chưa gửi được email cho nhà cung cấp. Kiểm tra lại email trong dữ liệu chủ rồi gửi thủ công.";
 
 						// PR tach nhieu nhom: tao xong nhom nay van con nhom khac chua co don
 						// hang. Khong roi man hinh nua ma tai lai danh sach de lam tiep nhom sau —

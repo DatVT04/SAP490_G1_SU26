@@ -15,7 +15,7 @@ sap.ui.define([
 	// dung model, 8 handler view goi khong ton tai trong controller) nen man do chua bao gio
 	// chay dung. Tien trinh cua PR xem o "Lich su de nghi" (History + timeline PRDetail).
 	// Can lay lai thi checkout tu git truoc commit nay.
-	// 18/08/2026: CFO/CEO khong duyet PR nua — ho duyet DON HANG o PO-02.
+	// 21/08/2026: CFO/CEO duyet DE NGHI o man PO-02 (sau khi chot NCC, truoc khi tao PO).
 	var TILES_BY_ROLE = {
 		REQUESTER:  ["pr01", "history"],
 		PURCHASING: ["materialCreate", "pr02", "rfq01", "rfq02", "po01", "history"],
@@ -116,7 +116,7 @@ sap.ui.define([
 				oModel.setProperty("/kpiApprovedLabel", "Đã chốt nhà cung cấp — chờ tạo đơn hàng");
 				oModel.setProperty("/kpiValueLabel", "Giá trị chờ duyệt");
 			} else if (sUpper === "CFO" || sUpper === "CEO") {
-				oModel.setProperty("/kpiPendingLabel", "Đơn hàng (PO) chờ tôi duyệt");
+				oModel.setProperty("/kpiPendingLabel", "Đề nghị chờ tôi duyệt");
 				oModel.setProperty("/kpiApprovedLabel", "PR tôi đã xử lý");
 				oModel.setProperty("/kpiValueLabel", "Giá trị chờ duyệt");
 			} else {

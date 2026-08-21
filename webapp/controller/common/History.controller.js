@@ -108,11 +108,11 @@ sap.ui.define([
 				oModel.setProperty("/historyTitle", "Đã xử lý (Purchasing)");
 			} else if (sRole === "CFO") {
 				oModel.setProperty("/pageTitle", "CFO — Pending & History");
-				oModel.setProperty("/pendingTitle", "Đơn hàng (PO) chờ CFO duyệt");
+				oModel.setProperty("/pendingTitle", "Đề nghị chờ CFO phê duyệt");
 				oModel.setProperty("/historyTitle", "Đã xử lý (CFO)");
 			} else if (sRole === "CEO") {
 				oModel.setProperty("/pageTitle", "CEO — Pending & History");
-				oModel.setProperty("/pendingTitle", "Đơn hàng (PO) chờ CEO duyệt");
+				oModel.setProperty("/pendingTitle", "Đề nghị chờ CEO phê duyệt");
 				oModel.setProperty("/historyTitle", "Đã xử lý (CEO)");
 			} else {
 				oModel.setProperty("/pageTitle", "Lịch sử đề nghị");
@@ -268,14 +268,14 @@ sap.ui.define([
 				PENDING_RFQ: "Đã duyệt hợp lệ — chờ hỏi giá (RFQ)",
 				RFQ_SENT: "Đã gửi RFQ, chờ báo giá",
 				QUOTATIONS_RECEIVED: "Đã có báo giá",
-				AWARDED: "Đã chốt nhà cung cấp — chờ tạo đơn hàng",
-				PENDING_CFO: "Chờ CFO duyệt PO",
-				PENDING_CEO: "Chờ CEO duyệt PO",
-				APPROVED: "Đã duyệt",
+				AWARDED: "Đã chốt nhà cung cấp (luồng cũ)",
+				PENDING_CFO: "Chờ CFO phê duyệt",
+				PENDING_CEO: "Chờ CEO phê duyệt",
+				APPROVED: "Đã duyệt — chờ tạo đơn hàng",
 				REJECTED: "Từ chối — có thể lập lại",
 				RETURNED: "Bị trả lại (luồng cũ)",
 				CANCELLED: "Đã hủy (luồng cũ)",
-				PO_CREATED: "Đã tạo PO — chờ duyệt",
+				PO_CREATED: "Đã tạo đơn hàng và gửi nhà cung cấp",
 				PO_RELEASED: "Đơn hàng đã duyệt và gửi nhà cung cấp",
 				PO_REJECTED: "PO bị từ chối",
 				OPENED: "Đã mở",

@@ -24,11 +24,11 @@ sap.ui.define([
 		// mot cot toan tieng Viet (bug 16/08).
 		// Nhan noi VIEC DANG CHO AI chu khong ke lai viec da xong: nhin cot trang
 		// thai la biet ai phai lam gi tiep.
-		PO_CREATED: "Chờ duyệt PO",
-		// Hai trang thai nay do /api/po/:prId/approval ghi len (luong 2 cua duyet
-		// 18/08) — thieu o day thi cot Trang thai hien nguyen ma "PO_RELEASED".
-		PO_RELEASED: "Đã phát hành PO",
-		PO_REJECTED: "PO bị từ chối"
+		PO_CREATED: "Đã tạo đơn hàng",
+		// Hai trang thai nay chi con tren ban ghi cu cua luong 2 cua duyet (18-20/08);
+		// tu 21/08 khong sinh moi nua — giu nhan de bang lich su khong hien ma tho.
+		PO_RELEASED: "Đã phát hành PO (luồng cũ)",
+		PO_REJECTED: "PO bị từ chối (luồng cũ)"
 	};
 
 	// Cau giai thich hien khi ro chuot vao trang thai — noi thang buoc tiep theo
@@ -37,8 +37,8 @@ sap.ui.define([
 		DRAFT: "RFQ mới tạo, chưa gửi cho nhà cung cấp nào.",
 		SENT: "Đã gửi thư mời báo giá — đang chờ nhà cung cấp trả lời.",
 		QUOTATIONS_RECEIVED: "Đã có báo giá — đến lượt Purchasing so sánh và chốt NCC.",
-		AWARDED: "Đã chốt nhà cung cấp — bước tiếp theo là tạo đơn hàng ở màn hình PO-01.",
-		PO_CREATED: "Đã tạo đơn hàng trên SAP — đang chờ CFO/CEO duyệt ở màn hình PO-02.",
+		AWARDED: "Đã chốt nhà cung cấp — đề nghị đang chờ CFO/CEO phê duyệt trước khi tạo đơn hàng.",
+		PO_CREATED: "Đã tạo đơn hàng trên SAP và gửi cho nhà cung cấp. RFQ này đã khoá.",
 		PO_RELEASED: "PO đã được duyệt và gửi cho nhà cung cấp. RFQ này đã khoá.",
 		PO_REJECTED: "Đơn hàng bị từ chối ở màn hình PO-02 — xem lý do tại đó."
 	};
@@ -930,8 +930,8 @@ sap.ui.define([
 		// (CFO duyet PO chu khong duyet PR nua).
 		formatAwardNextStep: function (s) {
 			switch (String(s || "").toUpperCase()) {
-				case "AWARDED": return "Bước tiếp theo: tạo đơn hàng ở màn hình PO-01";
-				case "PO_CREATED": return "Đã tạo đơn hàng — đang chờ CFO/CEO duyệt ở màn hình PO-02";
+				case "AWARDED": return "Bước tiếp theo: CFO/CEO phê duyệt đề nghị";
+				case "PO_CREATED": return "Đã tạo đơn hàng và gửi cho nhà cung cấp";
 				case "PO_RELEASED": return "PO đã được duyệt và gửi cho nhà cung cấp";
 				case "PO_REJECTED": return "Đơn hàng đã bị từ chối — xem lý do ở màn hình PO-02";
 				default: return "";
@@ -947,7 +947,7 @@ sap.ui.define([
 				case "PO_REJECTED": return "Error";
 				case "PO_RELEASED": return "Success";
 				case "SENT":
-				case "PO_CREATED": return "Warning";
+				case "PO_CREATED": return "Success";
 				case "QUOTATIONS_RECEIVED":
 				case "AWARDED": return "Information";
 				default: return "None";

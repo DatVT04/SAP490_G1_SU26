@@ -298,11 +298,12 @@ router.get("/api/approval/approved", async (req, res) => {
 		return res.status(503).json({ success: false, message: "He thong SAP chua duoc cau hinh (thieu SAP_HOST)." });
 	}
 	try {
-		// 18/08/2026: PO-01 tao don hang tu PR da CHOT NCC (Status=AWARDED) — khong
-		// con trang thai APPROVED trong luong moi (CFO/CEO duyet o cap PO, sau khi
-		// PO da tao). Loc lai o Node — xem ghi chu cung loai o /api/approval/pending.
-		const data = (await fetchPrDraftList(`Status eq 'AWARDED'`))
-			.filter((pr) => String(pr.Status || "").toUpperCase() === "AWARDED");
+		// 21/08/2026: PO-01 chi tao don hang tu PR DA DUOC CFO/CEO DUYET
+		// (Status=APPROVED) — dung thu tu so do TO-BE: duyet (buoc 10-11) truoc,
+		// tao PO (buoc 12) sau. Loc lai o Node — xem ghi chu cung loai o
+		// /api/approval/pending.
+		const data = (await fetchPrDraftList(`Status eq 'APPROVED'`))
+			.filter((pr) => String(pr.Status || "").toUpperCase() === "APPROVED");
 		// Gan them RfqGroups (moi nhom = 1 RFQ da chot = 1 NCC = 1 PO se tao). PO-01
 		// dua vao day de tao dung N don hang thay vi gop het vao 1 PO 1 NCC.
 		await enrichWithRfqAward(data);

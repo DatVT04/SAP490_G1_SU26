@@ -20,11 +20,14 @@ const AGING_STATUS_BY_ROLE = {
 		PENDING_RFQ: "đã có PR SAP nhưng chưa tạo RFQ",
 		RFQ_SENT: "đã gửi RFQ, chờ nhập báo giá",
 		QUOTATIONS_RECEIVED: "đã có báo giá, chờ chốt NCC",
-		AWARDED: "đã chốt NCC, chưa tạo đơn hàng (PO)"
+		// 21/08/2026: chot NCC xong PR di thang sang PENDING_CFO, khong dung o
+		// AWARDED nua. Viec cua Purchasing quay lai o APPROVED — de nghi da duoc
+		// duyet ma chua ai tao don hang thi phai nhac, day la cho de bi quen nhat.
+		APPROVED: "đã được duyệt, chưa tạo đơn hàng (PO)"
 	},
-	// 18/08/2026: PENDING_CFO/CEO gio nghia la "PO da tao, cho duyet don hang".
-	CFO: { PENDING_CFO: "chờ CFO duyệt đơn hàng (PO)" },
-	CEO: { PENDING_CEO: "chờ CEO duyệt đơn hàng (PO)" }
+	// 21/08/2026: CFO/CEO duyet DE NGHI (sau khi chot NCC, truoc khi tao PO).
+	CFO: { PENDING_CFO: "chờ CFO phê duyệt đề nghị" },
+	CEO: { PENDING_CEO: "chờ CEO phê duyệt đề nghị" }
 };
 
 // So ngay truoc han nop bao gia thi bat dau canh bao "sap het han".

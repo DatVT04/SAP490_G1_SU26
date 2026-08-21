@@ -15,15 +15,15 @@ sap.ui.define([
 		PENDING_RFQ: "Đã duyệt hợp lệ — đang ở bước hỏi giá (RFQ)",
 		RFQ_SENT: "Đã gửi RFQ tới nhà cung cấp, chờ báo giá",
 		QUOTATIONS_RECEIVED: "Đã nhận báo giá, chờ Purchasing chốt nhà cung cấp",
-		AWARDED: "Đã chốt nhà cung cấp — chờ tạo đơn hàng",
-		PENDING_CFO: "PO đã tạo — chờ CFO duyệt đơn hàng",
-		PENDING_CEO: "PO vượt ngưỡng IO — chờ CEO duyệt đơn hàng",
-		APPROVED: "Đã phê duyệt",
-		REJECTED: "Bị Purchasing từ chối — có thể lập đề nghị mới",
+		AWARDED: "Đã chốt nhà cung cấp (luồng cũ)",
+		PENDING_CFO: "Đã chốt nhà cung cấp — chờ CFO phê duyệt",
+		PENDING_CEO: "Vượt ngưỡng IO — chờ CEO phê duyệt",
+		APPROVED: "Đã phê duyệt — chờ tạo đơn hàng",
+		REJECTED: "Bị từ chối — có thể lập đề nghị mới",
 		// 2 trang thai cu (truoc 18/08/2026) — chi de hien ban ghi cu, khong sinh moi.
 		RETURNED: "Bị trả lại (luồng cũ)",
 		CANCELLED: "Đã hủy (luồng cũ)",
-		PO_CREATED: "Đã tạo Purchase Order",
+		PO_CREATED: "Đã tạo đơn hàng và gửi nhà cung cấp",
 		PO_RELEASED: "PO đã duyệt và gửi nhà cung cấp",
 		PO_REJECTED: "PO bị từ chối — chưa gửi nhà cung cấp",
 		OPENED: "Đã mở",
@@ -159,7 +159,7 @@ sap.ui.define([
 			}
 
 			steps.push({
-				title: "CFO duyệt PO",
+				title: "CFO duyệt",
 				icon: pr.CfoAction === "REJECTED"
 					? "sap-icon://decline"
 					: (pr.CfoAction === "ESCALATED" ? "sap-icon://arrow-top" : "sap-icon://customer-financial-fact-sheet"),
@@ -193,7 +193,7 @@ sap.ui.define([
 			}
 
 			steps.push({
-				title: "CEO duyệt PO",
+				title: "CEO duyệt",
 				icon: pr.CeoAction === "REJECTED" ? "sap-icon://decline" : "sap-icon://manager",
 				timeText: formatViTime(ceoTime),
 				sub: ceoSub,
@@ -227,12 +227,12 @@ sap.ui.define([
 			finalSub = pr.Comment || "Bộ phận Mua sắm cần chọn lại nhà cung cấp hoặc tạo đơn hàng mới";
 			finalIcon = "sap-icon://decline";
 		} else if (isPoCreated) {
-			finalTitle = "Hoàn tất — Đã tạo PO";
+			finalTitle = "Hoàn tất — đã tạo đơn hàng và gửi nhà cung cấp";
 			finalSub = pr.SapPRId ? ("PR SAP: " + pr.SapPRId) : "Đã tạo Purchase Order";
 			finalIcon = "sap-icon://sales-order";
 		} else if (isApproved) {
 			finalTitle = "Đã phê duyệt";
-			finalSub = (pr.SapPRId ? ("SAP: " + pr.SapPRId) : "Đã duyệt") + " — chờ tạo PO";
+			finalSub = (pr.SapPRId ? ("SAP: " + pr.SapPRId) : "Đã duyệt") + " — chờ Purchasing tạo đơn hàng";
 			finalIcon = "sap-icon://accept";
 		} else if (isRejected) {
 			finalTitle = "Từ chối";
@@ -267,25 +267,25 @@ sap.ui.define([
 			return { text: "Đã nhận được báo giá, đang chờ Purchasing chốt nhà cung cấp.", type: "Warning" };
 		}
 		if (st === "AWARDED") {
-			return { text: "Đã chốt nhà cung cấp — Purchasing đang tạo đơn hàng (PO).", type: "Warning" };
+			return { text: "Đã chốt nhà cung cấp (bản ghi luồng cũ).", type: "Warning" };
 		}
 		if (st === "PENDING_CFO") {
-			return { text: "Đơn hàng (PO) đã tạo trên SAP — đang chờ CFO duyệt trước khi gửi nhà cung cấp.", type: "Warning" };
+			return { text: "Đã chốt nhà cung cấp và có giá thật — đang chờ CFO phê duyệt. Chưa có đơn hàng nào được tạo.", type: "Warning" };
 		}
 		if (st === "PENDING_CEO") {
-			return { text: "Đơn hàng vượt ngưỡng ngân sách IO — đang chờ CEO duyệt.", type: "Warning" };
+			return { text: "Giá trị vượt ngưỡng ngân sách Internal Order — đang chờ CEO phê duyệt.", type: "Warning" };
 		}
 		if (st === "APPROVED" || st === "OPENED" || st === "OPEN") {
 			return {
-				text: pr.SapPRId
-					? ("Đã phê duyệt. Số PR SAP: " + pr.SapPRId + " (ME53N).")
-					: "Đã phê duyệt.",
+				text: "Đã phê duyệt — Bộ phận Mua sắm đang tạo đơn hàng gửi nhà cung cấp."
+					+ (pr.SapPRId ? (" Số PR SAP: " + pr.SapPRId + " (ME53N).") : ""),
 				type: "Success"
 			};
 		}
 		if (st === "REJECTED" || st === "RETURNED") {
 			return {
-				text: "Đề nghị bị Purchasing từ chối" + (pr.Comment ? (": " + pr.Comment) : ".")
+				text: "Đề nghị bị " + (pr.DecidedByRole === "CFO" || pr.DecidedByRole === "CEO" ? pr.DecidedByRole : "Purchasing")
+					+ " từ chối" + (pr.Comment ? (": " + pr.Comment) : ".")
 					+ " Bạn có thể lập đề nghị mới (dữ liệu điền sẵn) bằng nút bên dưới.",
 				type: "Error"
 			};
@@ -298,7 +298,7 @@ sap.ui.define([
 		}
 		if (st === "PO_CREATED") {
 			return {
-				text: "Đã tạo Purchase Order từ đề nghị này"
+				text: "Đã tạo Purchase Order từ đề nghị này và gửi cho nhà cung cấp"
 					+ (pr.SapPRId ? (" (PR SAP: " + pr.SapPRId + ")") : "") + ".",
 				type: "Success"
 			};

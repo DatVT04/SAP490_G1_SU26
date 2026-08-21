@@ -244,9 +244,9 @@ async function buildQuotationEvidence(group) {
 	};
 }
 
-/** Gan Evidence vao tung PoGroups cua 1 PR. Loi doc KHONG lam hong man duyet. */
+/** Gan Evidence vao tung AwardGroups cua 1 PR. Loi doc KHONG lam hong man duyet. */
 async function attachQuotationEvidence(pr) {
-	const groups = (pr && pr.PoGroups) || [];
+	const groups = (pr && pr.AwardGroups) || [];
 	for (const group of groups) {
 		try {
 			group.Evidence = await buildQuotationEvidence(group);
