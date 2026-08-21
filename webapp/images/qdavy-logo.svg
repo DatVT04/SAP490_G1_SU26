@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-16 -16 252 252" role="img" aria-label="QDAVY">
+	<!-- Logo nhom QDAVY - phan huy hieu (owl badge) boc ra tu QDAVY-owl-light.svg.
+	     Chi lay huy hieu, KHONG lay chu "QDAVY GLOBAL GROUP" vi chu do mau xanh dam
+	     (#0B1F3F) se chim nghim tren nen xanh cua man dang nhap. Dung SVG thay PNG de
+	     net o moi kich thuoc va chi nang ~1KB thay vi 108KB nhu LogoCty.png.
+	     viewBox rong hon 220x220 mot chut de khong cat mat bong do. -->
+	<defs>
+		<linearGradient id="qdBadgeGrad" x1="0" y1="0" x2="1" y2="1">
+			<stop offset="0%" stop-color="#123E8F"/>
+			<stop offset="100%" stop-color="#2E7CF6"/>
+		</linearGradient>
+		<filter id="qdBadgeShadow" x="-50%" y="-50%" width="200%" height="200%">
+			<feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#0B1F3F" flood-opacity="0.35"/>
+		</filter>
+	</defs>
+	<g filter="url(#qdBadgeShadow)">
+		<rect x="0" y="0" width="220" height="220" rx="52" fill="url(#qdBadgeGrad)"/>
+		<path d="M 62 78 L 42 32 L 92 66 Z" fill="#FFFFFF"/>
+		<path d="M 158 78 L 178 32 L 128 66 Z" fill="#FFFFFF"/>
+		<path d="M 110 60 C 155 60 182 90 182 130 C 182 168 150 192 110 192 C 70 192 38 168 38 130 C 38 90 65 60 110 60 Z" fill="#FFFFFF"/>
+		<path d="M 38 130 C 25 150 25 175 40 190 C 50 178 52 155 55 138 Z" fill="#FFFFFF" opacity="0.85"/>
+		<path d="M 182 130 C 195 150 195 175 180 190 C 170 178 168 155 165 138 Z" fill="#FFFFFF" opacity="0.85"/>
+		<circle cx="82" cy="122" r="28" fill="url(#qdBadgeGrad)"/>
+		<circle cx="138" cy="122" r="28" fill="url(#qdBadgeGrad)"/>
+		<circle cx="82" cy="122" r="9" fill="#0B1F3F"/>
+		<circle cx="138" cy="122" r="9" fill="#0B1F3F"/>
+		<path d="M 100 150 L 120 150 L 110 172 Z" fill="#F5A623"/>
+	</g>
+</svg>

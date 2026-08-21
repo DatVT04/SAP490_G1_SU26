@@ -60,30 +60,34 @@
 	pointer-events: none;
 }
 
+/* 21/08/2026: can giua ca khoi (logo + tieu de + mo ta + 3 the tinh nang) trong
+   panel xanh. margin auto hoat dong duoc vi day la flex item cua .qdLoginLeft. */
 .qdLoginLeftInner {
 	position: relative;
 	z-index: 1;
 	max-width: 29rem;
+	margin-left: auto;
+	margin-right: auto;
+	text-align: center;
 }
 
-.qdLoginBrandMark {
-	font-size: 1.25rem !important;
-	font-weight: 700 !important;
-	letter-spacing: 0.12em;
-	color: #fff !important;
+/* .qdLoginBrandMark / .qdLoginBrandSub da xoa 21/08/2026 cung luc bo 2 dong
+   chu "QDAVY / Procurement" khoi Login.view.xml. */
+
+/* Logo nhom o goc trai tren man dang nhap. Thay cho .qdBrandIcon cu (icon xe tai
+   sap-icon://shipping-status) - da bo ngay 21/08/2026. */
+.qdBrandLogo {
+	height: 5rem;
+	width: auto;
+	flex-shrink: 0;
 }
 
-.qdLoginBrandSub {
-	font-size: 0.75rem !important;
-	opacity: 0.75;
-	letter-spacing: 0.2em;
-	text-transform: uppercase;
-	color: #cfefff !important;
-}
-
-.qdBrandIcon {
-	color: #7dd3fc !important;
-	filter: drop-shadow(0 0 12px rgba(125, 211, 252, 0.5));
+/* sap.m.Image boc anh trong 1 the <img>; ep kich thuoc o ca 2 cap de khong bi
+   sap.m keo gian theo kich thuoc that cua file. */
+.qdBrandLogo.sapMImg,
+.qdBrandLogo img {
+	height: 5rem;
+	width: auto;
 }
 
 .qdLoginHeading.sapMTitle {
@@ -98,6 +102,17 @@
 	font-size: 0.98rem !important;
 	line-height: 1.5 !important;
 	max-width: 27rem;
+	margin-left: auto;
+	margin-right: auto;
+	/* sap.m.Text tu dat text-align: left o class .sapMText (textAlign="Begin"), nen
+	   text-align: center thua ke tu .qdLoginLeftInner khong an -> phai !important. */
+	text-align: center !important;
+}
+
+/* Rieng 3 the tinh nang van de chu can trai - can giua ca icon lan chu trong the
+   se lam moi the lech nhau, kho doc. */
+.qdLoginFeatureItem {
+	text-align: left;
 }
 
 .qdLoginFeatureList {

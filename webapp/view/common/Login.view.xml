@@ -12,12 +12,12 @@
 				<!-- LEFT: branding + heading + tinh nang + footer -->
 				<VBox class="qdLoginLeft" justifyContent="Center">
 					<VBox class="qdLoginLeftInner">
-						<HBox alignItems="Center" class="qdLoginBrandRow">
-							<core:Icon src="sap-icon://shipping-status" size="2.5rem" class="qdBrandIcon"/>
-							<VBox class="sapUiSmallMarginBegin">
-								<Text text="QDAVY" class="qdLoginBrandMark"/>
-								<Text text="Procurement" class="qdLoginBrandSub"/>
-							</VBox>
+						<!-- Chi con logo con cu, can giua. Bo 2 dong chu "QDAVY / Procurement"
+							 ngay 21/08/2026 vi tieu de H1 ngay ben duoi da la "QDAVY Procurement"
+							 roi -> doc bi lap. densityAware=false de UI5 khong di tim bien the
+							 @2/@3 (VD qdavy-logo@2.svg) roi bao 404. -->
+						<HBox alignItems="Center" justifyContent="Center" class="qdLoginBrandRow">
+							<Image src="images/qdavy-logo.svg" alt="QDAVY" densityAware="false" class="qdBrandLogo"/>
 						</HBox>
 
 						<Title text="QDAVY Procurement" level="H1" class="qdLoginHeading sapUiLargeMarginTop"/>
