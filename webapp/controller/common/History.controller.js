@@ -54,6 +54,13 @@ sap.ui.define([
 		},
 
 		_onRouteMatched: function () {
+			// 21/08/2026: ACC khong con man nao tren app (lam viec trong SAP GUI).
+			// Chan ca duong go thang #/history tren thanh dia chi, khong chi an tile.
+			var sRole = String(this.getOwnerComponent().getModel("user").getProperty("/role") || "").toUpperCase();
+			if (sRole === "ACC") {
+				this.getOwnerComponent().getRouter().navTo("dashboard");
+				return;
+			}
 			this._loadHistory();
 		},
 

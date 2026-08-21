@@ -183,6 +183,11 @@
           "name": "materialCreate",
           "pattern": "material-create",
           "target": "materialCreate"
+        },
+        {
+          "name": "assetAssign",
+          "pattern": "assign-asset",
+          "target": "assetAssign"
         }
       ],
       "targets": {
@@ -245,6 +250,11 @@
         "materialCreate": {
           "viewName": "admin.MaterialCreate",
           "viewId": "materialCreate",
+          "viewLevel": 2
+        },
+        "assetAssign": {
+          "viewName": "asset.AssetAssign",
+          "viewId": "assetAssign",
           "viewLevel": 2
         }
       }

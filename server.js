@@ -33,6 +33,7 @@ app.use(require("./src/routes/ai.routes.js"));
 app.use(require("./src/routes/approval.routes.js"));
 app.use(require("./src/routes/notification.routes.js"));
 app.use(require("./src/routes/po.routes.js"));
+app.use(require("./src/routes/asset.routes.js"));
 app.use(require("./src/routes/rfq-public.routes.js"));
 app.use(require("./src/routes/rfq.routes.js"));
 app.use(require("./src/routes/cron.routes.js"));

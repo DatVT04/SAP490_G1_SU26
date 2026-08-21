@@ -18,10 +18,13 @@ sap.ui.define([
 	// 21/08/2026: CFO/CEO duyet DE NGHI o man PO-02 (sau khi chot NCC, truoc khi tao PO).
 	var TILES_BY_ROLE = {
 		REQUESTER:  ["pr01", "history"],
-		PURCHASING: ["materialCreate", "pr02", "rfq01", "rfq02", "po01", "history"],
+		PURCHASING: ["materialCreate", "pr02", "rfq01", "rfq02", "po01", "assetAssign", "history"],
 		CFO:        ["po02", "history"],
 		CEO:        ["po02", "config", "history"],
-		ACC:        ["history"]
+		// 21/08/2026: ACC KHONG co man nao tren web. Theo luong cua nhom, ke toan
+		// lam viec truc tiep trong SAP GUI (MIGO nhan hang, MIRO kiem hoa don) —
+		// khong phai chua kip lam man cho ho, ma la co y khong lam.
+		ACC:        []
 	};
 
 	var oValueFormat = NumberFormat.getIntegerInstance({
@@ -152,6 +155,10 @@ sap.ui.define([
 			var oModel = this.getView().getModel("dash");
 			var oUser = this.getOwnerComponent().getModel("user").getData() || {};
 			var sRole = String(oUser.role || "").toUpperCase();
+
+			// ACC khong hien khoi KPI nao (xem Dashboard.view.xml) — goi API chi ton
+			// mot vong tuong tac voi SAP roi vut ket qua di.
+			if (sRole === "ACC") { return; }
 
 			// Trang thai "dang xu ly" tren duong di cua 1 PR (chua ket thuc)
 			var A_INFLIGHT = ["PENDING_PURCHASING", "PENDING_RFQ", "RFQ_SENT", "QUOTATIONS_RECEIVED", "PENDING_CFO", "PENDING_CEO"];
@@ -391,6 +398,10 @@ sap.ui.define([
 
 		onNavToHistory: function () {
 			this.getOwnerComponent().getRouter().navTo("history");
+		},
+
+		onNavToAssetAssign: function () {
+			this.getOwnerComponent().getRouter().navTo("assetAssign");
 		},
 
 		onNavToThresholdConfig: function () {

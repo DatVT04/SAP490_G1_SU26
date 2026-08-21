@@ -51,8 +51,10 @@
 				</HBox>
 			</VBox>
 
-			<!-- ================= KPI OVERVIEW ================= -->
-			<VBox class="qdSection">
+			<!-- ================= KPI OVERVIEW =================
+			     An voi ACC: ke toan khong theo doi de nghi tren app nen 3 con so
+			     nay luon bang 0, hien ra chi gay hieu nham la he thong hong. -->
+			<VBox class="qdSection" visible="{= ${user>/role} !== 'ACC' }">
 				<VBox class="qdSectionHeading">
 					<Text text="{i18n>dashOverviewEyebrow}" class="qdEyebrow"/>
 					<Title text="{i18n>dashOverviewTitle}" level="H2" class="qdSectionH2"/>
@@ -103,11 +105,28 @@
 				<VBox
 					class="qdEmptyState"
 					alignItems="Center"
-					visible="{= ${dash>/tileCount} === 0 }"
+					visible="{= ${dash>/tileCount} === 0 &amp;&amp; ${user>/role} !== 'ACC' }"
 				>
 					<core:Icon src="sap-icon://locked" class="qdEmptyIcon"/>
 					<Title text="{i18n>dashEmptyTitle}" level="H3" class="qdEmptyTitle"/>
 					<Text text="{i18n>dashEmptyText}" class="qdEmptyText" textAlign="Center"/>
+				</VBox>
+
+				<!-- ACC: khong co man nghiep vu nao tren app — noi ro la CO Y, khong
+				     phai thieu quyen. Cau chu chung "chua duoc cap quyen" o tren se
+				     lam nguoi xem tuong he thong cau hinh sai. -->
+				<VBox
+					class="qdEmptyState"
+					alignItems="Center"
+					visible="{= ${user>/role} === 'ACC' }"
+				>
+					<core:Icon src="sap-icon://sap-logo-shape" class="qdEmptyIcon"/>
+					<Title text="Kế toán làm việc trực tiếp trong SAP" level="H3" class="qdEmptyTitle"/>
+					<Text
+						text="Theo quy trình của công ty, phần việc của Kế toán nằm ở nhận hàng (MIGO) và kiểm tra hoá đơn (MIRO) — thực hiện trong SAP GUI chứ không qua ứng dụng này."
+						class="qdEmptyText"
+						textAlign="Center"
+					/>
 				</VBox>
 
 				<HBox wrap="Wrap" class="qdActionGrid">
@@ -222,6 +241,28 @@
 						/>
 					</VBox>
 
+					<!-- GAN THE TAI SAN: Mua sam lap the cho vat tu da mua ve (21/08/2026) -->
+					<VBox
+						class="qdActionCard qdAccentPurple"
+						visible="{= ${user>/role} === 'PURCHASING' }"
+					>
+						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
+							<VBox class="qdActionIconBox">
+								<core:Icon src="sap-icon://add-product" class="qdActionIcon"/>
+							</VBox>
+							<Text text="TÀI SẢN" class="qdActionCode"/>
+						</HBox>
+						<Title text="Gán thẻ tài sản" level="H3" class="qdActionTitle"/>
+						<Text text="Vật tư đã mua về nhưng chưa có thẻ tài sản — lập thẻ trên SAP, mỗi đơn vị một thẻ." class="qdActionDesc"/>
+						<Button
+							text="{i18n>dashTileOpen}"
+							icon="sap-icon://arrow-right"
+							iconFirst="false"
+							press=".onNavToAssetAssign"
+							class="qdActionBtn"
+						/>
+					</VBox>
+
 					<!-- PO-02: CFO/CEO duyet DE NGHI sau khi chot NCC, truoc khi tao PO (21/08/2026) -->
 					<VBox
 						class="qdActionCard qdAccentPurple"
@@ -269,7 +310,7 @@
 					<!-- HISTORY -->
 					<VBox
 						class="qdActionCard qdAccentSlate"
-						visible="{= ['REQUESTER','PURCHASING','CEO','CFO','ACC'].indexOf(${user>/role}) !== -1 }"
+						visible="{= ['REQUESTER','PURCHASING','CEO','CFO'].indexOf(${user>/role}) !== -1 }"
 					>
 						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
 							<VBox class="qdActionIconBox">

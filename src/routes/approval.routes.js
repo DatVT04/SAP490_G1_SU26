@@ -52,14 +52,10 @@ router.post("/api/approval/submit", async (req, res) => {
 		if (it.estimatedValue == null || it.estimatedValue === "" || Number(it.estimatedValue) <= 0) {
 			return res.status(400).json({ success: false, message: "Dong " + (i + 1) + ": Bat buoc nhap don gia (lon hon 0)." });
 		}
-		// Account assignment chi con 2 loai: ZAST -> bat buoc AssetNo (Cat 'A');
-		// con lai bat buoc Cost Center (Cat 'K'). Internal Order khong phai input
-		// cua nguoi dung nua nen khong validate.
-		if (it.materialType === "ZAST") {
-			if (!String(it.assetNo || "").trim()) {
-				return res.status(400).json({ success: false, message: "Dong " + (i + 1) + ": Vat tu Tai san (ZAST) bat buoc nhap Asset No." });
-			}
-		} else if (!String(it.costCenter || "").trim()) {
+		// 21/08/2026: khong con Cat 'A' o buoc lap de nghi. MOI dong — ke ca vat tu
+		// tai san (ZAST) — hach toan vao Cost Center cua phong (Cat 'K'); the tai san
+		// duoc gan sau khi nhan hang chu khong khai o day nua.
+		if (!String(it.costCenter || "").trim()) {
 			return res.status(400).json({ success: false, message: "Dong " + (i + 1) + ": Bat buoc chon bo phan (Cost Center)." });
 		}
 	}
@@ -109,7 +105,8 @@ router.post("/api/approval/submit", async (req, res) => {
 	}
 
 	// ── LOAI HACH TOAN ──────────────────────────────────────────────────────
-	// Vat tu Tai san (ZAST) -> Cat 'A'.
+	// 21/08/2026: khong con Cat 'A'. Vat tu tai san (ZAST) di chung duong voi vat tu
+	// thuong — the tai san duoc gan o buoc sau khi nhan hang, khong phai luc lap PR.
 	// Dong chi phi -> Cat 'F' (Internal Order) khi BUDGET_ACCT_CAT = 'F': chi phi
 	// ghi vao IO ngan sach cua phong nen SAP tu ghi commitment va Availability
 	// Control tu chan khi vuot ngan sach. Day la co che "tru dan tien theo tung
@@ -130,9 +127,7 @@ router.post("/api/approval/submit", async (req, res) => {
 		var sMaterialType = item.materialType || "ZSRV";
 		var sBudgetIO = ioByCostCenter[String(item.costCenter || "").trim()] || "";
 		var sCat;
-		if (sMaterialType === "ZAST") {
-			sCat = "A";
-		} else if (BUDGET_ACCT_CAT === "F" && sBudgetIO) {
+		if (BUDGET_ACCT_CAT === "F" && sBudgetIO) {
 			sCat = "F";
 		} else {
 			sCat = "K";
@@ -152,7 +147,8 @@ router.post("/api/approval/submit", async (req, res) => {
 			// createPRInSAP moi bo di theo dung quy tac cua tung Cat.
 			CostCenter: item.costCenter || "",
 			InternalOrder: sCat === "F" ? sBudgetIO : "",
-			AssetNo: sCat === "A" ? (item.assetNo || "") : "",
+			// Luon rong: khong con khai tai san o buoc lap de nghi.
+			AssetNo: "",
 			isFreeText: item.isFreeText || false
 		};
 	});

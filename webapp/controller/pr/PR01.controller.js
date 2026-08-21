@@ -37,33 +37,16 @@ sap.ui.define([
 			costCenter: defaults.costCenter || "",
 			internalOrder: "",
 			internalOrderText: "",
-			filteredInternalOrders: [],
-			assetNumbers: []
+			filteredInternalOrders: []
 		};
 	}
 
-	// Tai san (ZAST): moi don vi so luong can 1 ma Asset rieng (khong gop chung
-	// 1 ma cho ca dong nhieu so luong) — moi ma se thanh 1 dong PR rieng (Quantity=1)
-	// khi gui len SAP, xem _expandItemsForSubmit.
-	//
-	// aMapped = cac ma tai san da khai san cho vat tu nay (danh muc anh xa, xem
-	// /api/material-config). Dien lan luot vao cac o; o nao vuot qua so ma da khai
-	// de trong cho nguoi de nghi nhap tay.
-	function buildAssetNumbers(sMaterialType, nQuantity, sFirstAssetNo, aMapped) {
-		if (sMaterialType !== "ZAST") { return []; }
-		var n = Math.max(1, Math.floor(Number(nQuantity) || 0));
-		var aMap = aMapped || [];
-		var aResult = [];
-		for (var i = 0; i < n; i++) {
-			var sValue = (i === 0 && sFirstAssetNo) ? sFirstAssetNo : (aMap[i] || "");
-			aResult.push({ value: sValue });
-		}
-		return aResult;
-	}
-
+	// 21/08/2026: da BO han o nhap ma tai san khoi PR-01. Nguoi de nghi khong con
+	// khai bao tai san luc lap de nghi — moi dong deu hach toan vao Cost Center cua
+	// phong (Cat 'K'). Viec gan the tai san chuyen sang buoc sau khi nhan hang.
 	function syncAcctAssignCat(aItems) {
 		(aItems || []).forEach(function (it) {
-			it.acctAssignCat = it.materialType === "ZAST" ? "A" : "K";
+			it.acctAssignCat = "K";
 		});
 	}
 
@@ -158,7 +141,7 @@ sap.ui.define([
 					isFreeText: !!it.isFreeText,
 					materialNo: it.MaterialNo || "",
 					materialType: sMaterialType,
-					acctAssignCat: it.AcctAssignCat || (sMaterialType === "ZAST" ? "A" : "K"),
+					acctAssignCat: "K",
 					description: it.Description || "",
 					uom: it.UoM || "",
 					quantity: nQuantity,
@@ -166,8 +149,7 @@ sap.ui.define([
 					costCenter: it.CostCenter || "",
 					internalOrder: it.InternalOrder || "",
 					internalOrderText: "",
-					filteredInternalOrders: [],
-					assetNumbers: buildAssetNumbers(sMaterialType, nQuantity, it.AssetNo || "")
+					filteredInternalOrders: []
 				};
 			});
 			if (aOldItems.length === 0) {
@@ -541,13 +523,12 @@ sap.ui.define([
 			if (!oMaterial) { return; }
 
 			var sType = String(oMaterial.MaterialType || "").trim().toUpperCase();
-			var bAsset = (sType === "ZAST");
 
 			oModel.setProperty(sPath + "/materialNo", oMaterial.MaterialNo);
 			oModel.setProperty(sPath + "/materialType", sType);
 			oModel.setProperty(sPath + "/description", oMaterial.Description || "");
 			oModel.setProperty(sPath + "/uom", oMaterial.BaseUoM || "PC");
-			oModel.setProperty(sPath + "/acctAssignCat", bAsset ? "A" : "K");
+			oModel.setProperty(sPath + "/acctAssignCat", "K");
 
 			// ZAST và hàng thường: đều giữ / gán CC + IO
 			if (!oModel.getProperty(sPath + "/costCenter") && this._defaultCC) {
@@ -555,11 +536,6 @@ sap.ui.define([
 			}
 			var oItem = oModel.getProperty(sPath);
 			this._refreshIOListOfItem(oItem);
-			// Doi sang vat tu khac: xoa cac ma tai san cua vat tu CU truoc, neu
-			// khong _syncAssetNumbers se coi chung la "nguoi dung tu nhap" va giu
-			// lai — dong PR se mang ma tai san cua mat hang khac.
-			oItem.assetNumbers = [];
-			this._syncAssetNumbers(oItem);
 			oModel.setProperty(sPath, oItem);
 
 			// Don gia lay tu MATERIAL MASTER (MM02 -> Accounting 1 -> Standard
@@ -576,37 +552,16 @@ sap.ui.define([
 			var nMasterPrice = Number(oMaterial.StandardPrice || oMaterial.MovingPrice || 0);
 			oModel.setProperty(sPath + "/estimatedValue", nMasterPrice > 0 ? nMasterPrice : 0);
 
-			// Canh bao dung viec: het ma trong kho khac han voi chua khai bao gio.
-			var oCfg = this._configOfMaterial(oItem.materialNo);
-			var aFree = this._assetsOfMaterial(oItem.materialNo);
-			var aMissing = [];
-			if (nMasterPrice <= 0) { aMissing.push("giá trong material master (MM02)"); }
-			if (bAsset && oCfg.assets.length === 0) {
-				aMissing.push("mã tài sản (AS01)");
-			} else if (bAsset && aFree.length === 0) {
+			if (nMasterPrice <= 0) {
 				MessageToast.show("Vật tư " + oItem.materialNo
-					+ ": đã dùng hết mã tài sản khả dụng. Kế toán cần tạo thẻ tài sản mới bằng AS01"
-					+ (oCfg.assetClass ? " (nhóm " + oCfg.assetClass + ")" : "")
-					+ " rồi khai vào màn hình Cấu hình hệ thống.");
-			}
-			if (aMissing.length) {
-				MessageToast.show("Vật tư " + oItem.materialNo + " chưa có "
-					+ aMissing.join(" và ") + " — vui lòng nhập tay.");
+					+ " chưa có giá trong material master (MM02) — vui lòng nhập tay.");
 			}
 
 			this._recalcTotal();
 		},
 
-		// Goi khi nguoi dung go xong So luong va roi khoi o (Enter/Tab): tu dong
-		// sinh du so o Asset theo so luong (chi ap dung cho vat tu Tai san ZAST).
-		onQuantityChange: function (oEvent) {
-			var oCtx = oEvent.getSource().getBindingContext();
-			if (!oCtx) { return; }
-			var sPath = oCtx.getPath();
-			var oModel = this.getView().getModel();
-			var oItem = oModel.getProperty(sPath);
-			this._syncAssetNumbers(oItem);
-			oModel.setProperty(sPath, oItem);
+		// Goi khi nguoi dung go xong So luong va roi khoi o (Enter/Tab).
+		onQuantityChange: function () {
 			this._recalcTotal();
 		},
 
@@ -653,56 +608,16 @@ sap.ui.define([
 		// CHI cac ma CHUA DUNG. Moi tai san vat ly la 1 the rieng: ma da gan cho
 		// lan mua truoc khong duoc dung lai cho lan mua sau (xem kho ma trong
 		// src/services/material-config.service.js).
-		_assetsOfMaterial: function (sMaterialNo) {
-			return this._configOfMaterial(sMaterialNo).assets
-				.filter(function (a) { return !a.used; })
-				.map(function (a) { return a.no; });
-		},
-
-		// Giu lai gia tri Asset da nhap theo dung vi tri khi resize mang assetNumbers
-		// (khong xoa sach roi nhap lai khi nguoi dung sua so luong). O nao con
-		// trong thi dien tiep tu danh muc anh xa.
-		_syncAssetNumbers: function (item) {
-			if (item.materialType !== "ZAST") {
-				item.assetNumbers = [];
-				return;
-			}
-			var n = Math.max(1, Math.floor(Number(item.quantity) || 0));
-			var aOld = item.assetNumbers || [];
-			var aMapped = this._assetsOfMaterial(item.materialNo);
-			var aNew = [];
-			for (var i = 0; i < n; i++) {
-				var sOld = (aOld[i] && String(aOld[i].value || "").trim()) || "";
-				// Nguoi dung da sua tay thi TON TRONG gia tri do, khong ghi de bang
-				// danh muc — danh muc chi dien vao o dang trong.
-				aNew.push({ value: sOld || (aMapped[i] || "") });
-			}
-			item.assetNumbers = aNew;
-		},
-
-		// Vat tu Tai san (ZAST) so luong > 1: moi ma Asset thanh 1 dong PR rieng
-		// (Quantity=1) de SAP luu dung 1 Asset / 1 dong, khong gop nhieu Asset vao
-		// chung 1 dong. Backend (approval.routes.js) khong doi gi — van nhan
-		// items[].assetNo nhu truoc, chi la gio co the co nhieu dong hon input.
+		// 21/08/2026: PR-01 khong con tach dong theo ma tai san (o nhap Asset da bo).
+		// Giu ten ham de cho goi khong phai doi; nay chi tra ban sao danh sach dong
+		// va don not truong asset con sot lai tu draft cua luong cu.
 		_expandItemsForSubmit: function (aItems) {
-			var aResult = [];
-			aItems.forEach(function (item) {
-				if (item.materialType === "ZAST" && item.assetNumbers && item.assetNumbers.length > 1) {
-					item.assetNumbers.forEach(function (oAsset) {
-						var oSplit = Object.assign({}, item);
-						oSplit.quantity = 1;
-						oSplit.assetNo = oAsset.value;
-						delete oSplit.assetNumbers;
-						aResult.push(oSplit);
-					});
-				} else {
-					var oCopy = Object.assign({}, item);
-					oCopy.assetNo = (item.assetNumbers && item.assetNumbers[0] && item.assetNumbers[0].value) || "";
-					delete oCopy.assetNumbers;
-					aResult.push(oCopy);
-				}
+			return (aItems || []).map(function (item) {
+				var oCopy = Object.assign({}, item);
+				delete oCopy.assetNumbers;
+				delete oCopy.assetNo;
+				return oCopy;
 			});
-			return aResult;
 		},
 
 		onResetPress: function () {
@@ -776,16 +691,6 @@ sap.ui.define([
 					MessageBox.error("Dòng " + idx + ": bạn chỉ được lập đề nghị cho bộ phận "
 						+ this._userCC + ". Vui lòng tải lại trang rồi nhập lại.");
 					return;
-				}
-				// ZAST thêm bắt buộc đủ Asset No cho từng đơn vị số lượng
-				if (item.materialType === "ZAST") {
-					var aAssets = item.assetNumbers || [];
-					if (aAssets.length !== Number(item.quantity)
-						|| aAssets.some(function (a) { return !String(a.value || "").trim(); })) {
-						MessageBox.warning("Dòng " + idx + ": vật tư Tài sản (ZAST) phải nhập đủ "
-							+ item.quantity + " mã tài sản — mỗi đơn vị số lượng tương ứng một mã.");
-						return;
-					}
 				}
 			}
 

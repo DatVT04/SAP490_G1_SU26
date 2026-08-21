@@ -35,7 +35,7 @@ async function createPRInSAP(record) {
 		// AcctAssignCat da duoc luu tren draft luc submit (mapClientItemToSapDeep) - doc lai, khong doan lai
 		// tu CostCenter nhu code cu (bug cu: CostCenter luon co gia tri nen luon roi vao Cat 'K', InternalOrder
 		// khong bao gio duoc dung that du UI bat buoc nhap).
-		const sCat = item.AcctAssignCat || (item.MaterialType === "ZAST" ? "A" : (item.InternalOrder ? "F" : "K"));
+		const sCat = item.AcctAssignCat || (item.InternalOrder ? "F" : "K");
 		return {
 			PreqItem: preqItem,
 			MaterialNo: item.isFreeText ? "" : (item.MaterialNo || ""),
@@ -131,7 +131,8 @@ function deriveAcctAssignCat(sapItem) {
 	if (sapItem && sapItem.AssetNo) { return "A"; }
 	if (sapItem && sapItem.InternalOrder) { return "F"; }
 	if (sapItem && sapItem.CostCenter) { return "K"; }
-	if (String((sapItem && sapItem.MaterialType) || "").toUpperCase() === "ZAST") { return "A"; }
+	// 21/08/2026: BO suy ZAST -> "A". Tu nay ZAST cung hach toan Cat "K"; ban ghi
+	// cu cua luong truoc van nhan dung nho 2 dong AssetNo/InternalOrder o tren.
 	return "K";
 }
 
@@ -164,7 +165,7 @@ function mapClientItemToSapDeep(item) {
 	const sMaterialType = item.MaterialType || "ZSRV";
 	// Loai hach toan da duoc quyet dinh o /api/approval/submit (theo BUDGET_ACCT_CAT
 	// va viec cost center co IO ngan sach hay khong) — doc lai, KHONG doan lai o day.
-	const sCat = item.AcctAssignCat || (sMaterialType === "ZAST" ? "A" : "K");
+	const sCat = item.AcctAssignCat || "K";
 	return {
 		MaterialNo: item.isFreeText ? "" : (item.MaterialNo || ""),
 		MaterialType: sMaterialType,

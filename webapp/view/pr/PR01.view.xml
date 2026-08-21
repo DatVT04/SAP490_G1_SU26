@@ -118,7 +118,6 @@
 							<Column width="7.5rem" hAlign="End"><Text text="Đơn giá *"/></Column>
 							<Column width="14%"><Text text="Bộ phận *"/></Column>
 							<Column width="16%"><Text text="Ngân sách áp dụng (IO)"/></Column>
-							<Column width="10rem"><Text text="Asset (ZAST)"/></Column>
 							<Column width="3rem" hAlign="Center"><Text text=""/></Column>
 						</columns>
 
@@ -214,30 +213,6 @@
 									<!-- IO ngân sách — chỉ đọc, theo bộ phận -->
 									<Text text="{internalOrderText}" class="qdCellHint sapUiTinyMarginTop"/>
 
-									<!-- Asset — mỗi đơn vị số lượng của dòng ZAST có 1 mã tài sản riêng.
-									     Số ô = số lượng, tự sinh lại khi nhập Số lượng xong (Enter/Tab).
-									     Hàng thường: 1 ô disabled, không nhập. -->
-									<VBox width="100%">
-										<Input
-											visible="{= ${materialType} !== 'ZAST' }"
-											enabled="false"
-											placeholder="—"
-											width="100%"
-										/>
-										<VBox
-											visible="{= ${materialType} === 'ZAST' }"
-											items="{path: 'assetNumbers', templateShareable: false}"
-										>
-											<Input
-												value="{value}"
-												tooltip="Mã tài sản do Kế toán tạo trên SAP (AS01), mỗi đơn vị số lượng 1 mã riêng. Vật tư đã khai trong Cấu hình sẽ được điền sẵn — vẫn sửa được."
-												placeholder="Mã tài sản *"
-												width="100%"
-												class="sapUiTinyMarginBottom"
-											/>
-										</VBox>
-									</VBox>
-
 									<!-- Xóa dòng -->
 									<Button
 										icon="sap-icon://delete"
@@ -253,7 +228,7 @@
 
 				<!-- Hướng dẫn đủ nghiệp vụ -->
 				<Text
-					text="Vật tư / dịch vụ và Bộ phận chọn từ danh sách SAP. Bộ phận bắt buộc trên mọi dòng (kể cả tài sản). Cột Ngân sách áp dụng tự hiện Internal Order của phòng — không chọn tay; vượt ngưỡng thì sau CFO cần CEO duyệt. Dòng loại Tài sản (ZAST): nhập Số lượng xong (Enter/Tab) hệ thống tự hiện đủ số ô Asset tương ứng — mỗi đơn vị số lượng 1 mã Asset riêng (AS01). GL Account hệ thống tự xác định."
+					text="Vật tư / dịch vụ và Bộ phận chọn từ danh sách SAP. Bộ phận bắt buộc trên mọi dòng. Cột Ngân sách áp dụng tự hiện Internal Order của phòng — không chọn tay; vượt ngưỡng thì sau CFO cần CEO duyệt. Vật tư là tài sản khai giống vật tư thường: mã thẻ tài sản được gán sau khi nhận hàng, không nhập ở bước này. GL Account hệ thống tự xác định."
 					class="qdInfoHint sapUiTinyMarginTop"
 				/>
 
