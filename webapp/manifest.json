@@ -177,12 +177,9 @@
         {
           "name": "thresholdConfig",
           "pattern": "threshold-config",
-          "target": ["targetThresholdConfig"]
-        },
-        {
-          "name": "materialCreate",
-          "pattern": "material-create",
-          "target": "materialCreate"
+          "target": [
+            "targetThresholdConfig"
+          ]
         },
         {
           "name": "assetAssign",
@@ -246,11 +243,6 @@
           "transition": "slide",
           "clearControlAggregation": true,
           "viewName": "admin.ThresholdConfig"
-        },
-        "materialCreate": {
-          "viewName": "admin.MaterialCreate",
-          "viewId": "materialCreate",
-          "viewLevel": 2
         },
         "assetAssign": {
           "viewName": "asset.AssetAssign",

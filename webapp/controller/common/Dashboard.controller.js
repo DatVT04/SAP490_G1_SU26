@@ -19,7 +19,8 @@ sap.ui.define([
 	// 21/08/2026: CFO/CEO duyet DE NGHI o man PO-02 (sau khi chot NCC, truoc khi tao PO).
 	var TILES_BY_ROLE = {
 		REQUESTER:  ["pr01", "history"],
-		PURCHASING: ["materialCreate", "pr02", "rfq01", "rfq02", "po01", "assetAssign", "history"],
+		// 21/08/2026: bo "materialCreate" — danh muc vat tu coi nhu da cau hinh san trong SAP.
+		PURCHASING: ["pr02", "rfq01", "rfq02", "po01", "assetAssign", "history"],
 		CFO:        ["po02", "history"],
 		CEO:        ["po02", "config", "history"],
 		// 21/08/2026: ACC KHONG co man nao tren web. Theo luong cua nhom, ke toan
@@ -371,10 +372,6 @@ sap.ui.define([
 
 		onNavToPR01: function () {
 			this.getOwnerComponent().getRouter().navTo("pr01");
-		},
-
-		onNavToMaterialCreate: function () {
-			this.getOwnerComponent().getRouter().navTo("materialCreate");
 		},
 
 		onNavToPR02: function () {

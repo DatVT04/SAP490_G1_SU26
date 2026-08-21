@@ -14,7 +14,7 @@
 						<Button icon="sap-icon://nav-back" press=".onNavBack" class="qdHeroBackBtn"/>
 						<VBox>
 							<Text text="Mua sắm · Sau khi nhận hàng" class="qdPageEyebrow"/>
-							<Title text="Gán thẻ tài sản" level="H1" class="qdPageTitle"/>
+							<Title text="Gán mã tài sản" level="H1" class="qdPageTitle"/>
 							<Text text="Vật tư đã đặt mua nhưng chưa có thẻ tài sản. Tạo thẻ ở đây, hệ thống ghi thẳng lên SAP — mỗi đơn vị số lượng một thẻ riêng." class="qdPageSub"/>
 						</VBox>
 					</HBox>
@@ -26,7 +26,7 @@
 					<core:Icon src="sap-icon://navigation-right-arrow" class="qdFlowArrow"/>
 					<Text text="MIGO Nhận hàng" class="qdFlowStep"/>
 					<core:Icon src="sap-icon://navigation-right-arrow" class="qdFlowArrow"/>
-					<Text text="Gán thẻ tài sản" class="qdFlowStep qdFlowStepActive"/>
+					<Text text="Gán mã tài sản" class="qdFlowStep qdFlowStepActive"/>
 				</HBox>
 			</VBox>
 

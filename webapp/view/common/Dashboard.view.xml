@@ -143,7 +143,6 @@
 							<Text text="PR-01" class="qdActionCode"/>
 						</HBox>
 						<Title text="{i18n>tilePr01Title}" level="H3" class="qdActionTitle"/>
-						<Text text="{i18n>tilePr01Subtitle}" class="qdActionDesc"/>
 						<Button
 							text="{i18n>dashTileOpen}"
 							icon="sap-icon://arrow-right"
@@ -165,7 +164,6 @@
 							<Text text="PR-02" class="qdActionCode"/>
 						</HBox>
 						<Title text="{i18n>tilePr02Title}" level="H3" class="qdActionTitle"/>
-						<Text text="{i18n>tilePr02Subtitle}" class="qdActionDesc"/>
 						<Button
 							text="{i18n>dashTileOpen}"
 							icon="sap-icon://arrow-right"
@@ -187,7 +185,6 @@
 							<Text text="RFQ-01" class="qdActionCode"/>
 						</HBox>
 						<Title text="Lập &amp; Gửi Yêu cầu báo giá" level="H3" class="qdActionTitle"/>
-						<Text text="Chọn PR, mời nhà cung cấp báo giá qua email (AI gợi ý NCC)" class="qdActionDesc"/>
 						<Button
 							text="{i18n>dashTileOpen}"
 							icon="sap-icon://arrow-right"
@@ -209,7 +206,6 @@
 							<Text text="RFQ-02" class="qdActionCode"/>
 						</HBox>
 						<Title text="Nhập báo giá &amp; Chốt NCC" level="H3" class="qdActionTitle"/>
-						<Text text="So sánh báo giá cạnh nhau, chốt NCC thắng và trình CFO" class="qdActionDesc"/>
 						<Button
 							text="{i18n>dashTileOpen}"
 							icon="sap-icon://arrow-right"
@@ -231,7 +227,6 @@
 							<Text text="PO-01" class="qdActionCode"/>
 						</HBox>
 						<Title text="{i18n>tilePo01Title}" level="H3" class="qdActionTitle"/>
-						<Text text="{i18n>tilePo01Subtitle}" class="qdActionDesc"/>
 						<Button
 							text="{i18n>dashTileOpen}"
 							icon="sap-icon://arrow-right"
@@ -252,8 +247,7 @@
 							</VBox>
 							<Text text="TÀI SẢN" class="qdActionCode"/>
 						</HBox>
-						<Title text="Gán thẻ tài sản" level="H3" class="qdActionTitle"/>
-						<Text text="Vật tư đã mua về nhưng chưa có thẻ tài sản — lập thẻ trên SAP, mỗi đơn vị một thẻ." class="qdActionDesc"/>
+						<Title text="Gán mã tài sản" level="H3" class="qdActionTitle"/>
 						<Button
 							text="{i18n>dashTileOpen}"
 							icon="sap-icon://arrow-right"
@@ -275,7 +269,6 @@
 							<Text text="PO-02" class="qdActionCode"/>
 						</HBox>
 						<Title text="Duyệt đề nghị mua sắm" level="H3" class="qdActionTitle"/>
-						<Text text="Xem giá chốt so với dự toán và căn cứ chọn nhà cung cấp, duyệt trước khi tạo đơn hàng." class="qdActionDesc"/>
 						<Button
 							text="{i18n>dashTileOpen}"
 							icon="sap-icon://arrow-right"
@@ -285,27 +278,12 @@
 						/>
 					</VBox>
 
-					<!-- MM-01: MATERIAL / SERVICE MASTER (khoi phuc tu nhanh An, PR #11) -->
-					<VBox
-						class="qdActionCard qdAccentBlue"
-						visible="{= ${user>/role} === 'PURCHASING' }"
-					>
-						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
-							<VBox class="qdActionIconBox">
-								<core:Icon src="sap-icon://product" class="qdActionIcon"/>
-							</VBox>
-							<Text text="MM-01" class="qdActionCode"/>
-						</HBox>
-						<Title text="Tạo mới vật tư / dịch vụ" level="H3" class="qdActionTitle"/>
-						<Text text="Tạo mã ZAST hoặc ZSRV trên SAP trước khi Requester lập PR." class="qdActionDesc"/>
-						<Button
-							text="{i18n>dashTileOpen}"
-							icon="sap-icon://arrow-right"
-							iconFirst="false"
-							press=".onNavToMaterialCreate"
-							class="qdActionBtn"
-						/>
-					</VBox>
+					<!-- 21/08/2026: BO han the MM-01 "Tao moi vat tu / dich vu".
+					     Nhom trinh bay theo huong danh muc vat tu da duoc cau hinh san
+					     trong SAP (MM01) truoc khi chay luong mua sam, nen man tao vat tu
+					     tren web khong con nam trong pham vi demo. File view/controller van
+					     con trong repo; route "materialCreate" da go khoi manifest.json nen
+					     go thang #/material-create cung khong vao duoc nua. -->
 
 					<!-- HISTORY -->
 					<VBox
@@ -319,7 +297,6 @@
 							<Text text="HISTORY" class="qdActionCode"/>
 						</HBox>
 						<Title text="Lịch sử đề nghị" level="H3" class="qdActionTitle"/>
-						<Text text="Xem các yêu cầu đã tạo / đã duyệt / từ chối" class="qdActionDesc"/>
 						<Button
 							text="{i18n>dashTileOpen}"
 							icon="sap-icon://arrow-right"
@@ -341,7 +318,6 @@
 							<Text text="CONFIG" class="qdActionCode"/>
 						</HBox>
 						<Title text="{i18n>tileSysConfigTitle}" level="H3" class="qdActionTitle"/>
-						<Text text="{i18n>tileSysConfigSubtitle}" class="qdActionDesc"/>
 						<Button
 							text="{i18n>dashTileOpen}"
 							icon="sap-icon://arrow-right"
