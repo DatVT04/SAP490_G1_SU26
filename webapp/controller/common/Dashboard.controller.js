@@ -4,8 +4,9 @@ sap.ui.define([
 	"sap/ui/core/format/NumberFormat",
 	"sap/m/MessageBox",
 	"sap/m/MessageToast",
-	"com/qdavy/procurement/model/Config"
-], function (Controller, JSONModel, NumberFormat, MessageBox, MessageToast, Config) {
+	"com/qdavy/procurement/model/Config",
+	"com/qdavy/procurement/model/Session"
+], function (Controller, JSONModel, NumberFormat, MessageBox, MessageToast, Config, Session) {
 	"use strict";
 
 	var BACKEND = Config.BACKEND;
@@ -419,24 +420,11 @@ sap.ui.define([
 			if (this._oUserMenuPopover) {
 				this._oUserMenuPopover.close();
 			}
-			var oUserModel = this.getOwnerComponent().getModel("user");
-			oUserModel.setData({
-				email: "",
-				fullName: "",
-				pernr: "",
-				role: "",
-				position: "",
-				costCenter: "",
-				avatarUrl: "",
-				avatarInitials: "",
-				firstName: "",
-				lastName: "",
-				phoneNumber: "",
-				street: "",
-				city: "",
-				postalCode: "",
-				isLoggedIn: false
-			});
+			// Xoa token khoi sessionStorage. Neu khong xoa, bam F5 ngay sau khi Dang
+			// xuat se khoi phuc lai dung cai phien vua thoat.
+			Session.clear();
+			this.getOwnerComponent().getModel("user").setData(Session.emptyUser());
+
 			this.getOwnerComponent().getRouter().navTo("login");
 		}
 	});

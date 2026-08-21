@@ -137,6 +137,10 @@ async function fetchPendingAssetLines() {
 				DisplayId: pr.DisplayId || pr.PRId,
 				PoNumber: String(it.PoNumber || pr.PoNumberText || "").trim(),
 				LineNo: normalizeLine(it.LineNo),
+				// Ban NGUYEN VAN SAP tra ve — dung lam key khi MERGE nguoc lai
+				// PrDraftItemSet. Tu pad ve 5 ky tu la doan mo: bang co the luu '1'
+				// chu khong phai '00001', doan sai thi MERGE khong trung dong nao.
+				RawLineNo: String(it.LineNo == null ? "" : it.LineNo),
 				MaterialNo: it.MaterialNo || "",
 				Description: it.Description || "",
 				Quantity: qty,
@@ -193,11 +197,11 @@ async function createOneAsset(payload, session) {
  * KHONG nem loi: the tai san da duoc tao that roi, khong duoc phep vi buoc ghi
  * nguoc that bai ma bao ca thao tac hong. Tra ve true/false de route bao lai FE.
  */
-async function writeAssetNoToSap(internalId, lineNo, assetNos, session) {
+async function writeAssetNoToSap(internalId, rawLineNo, assetNos, session) {
 	try {
 		await sapWrite(
 			"MERGE",
-			`PrDraftItemSet(InternalId='${odataEscape(String(internalId))}',LineNo='${odataEscape(String(lineNo).padStart(5, "0"))}')`,
+			`PrDraftItemSet(InternalId='${odataEscape(String(internalId))}',LineNo='${odataEscape(String(rawLineNo))}')`,
 			{ AssetNo: assetNos.join(",").substring(0, 40) },
 			session
 		);
@@ -265,7 +269,7 @@ async function createAssetsForLine(options) {
 	let savedToSap = false;
 	if (created.length > 0) {
 		const all = line.AssignedAssets.concat(created.map(function (c) { return c.assetNo; }));
-		savedToSap = await writeAssetNoToSap(line.InternalId, line.LineNo, all);
+		savedToSap = await writeAssetNoToSap(line.InternalId, line.RawLineNo || line.LineNo, all);
 	}
 
 	return {
@@ -299,6 +303,7 @@ async function findLine(prId, lineNo) {
 		SapPRId: pr.SapPRId || "",
 		PoNumber: String(it.PoNumber || pr.PoNumberText || "").trim(),
 		LineNo: normalizeLine(it.LineNo),
+		RawLineNo: String(it.LineNo == null ? "" : it.LineNo),
 		MaterialNo: it.MaterialNo || "",
 		Description: it.Description || "",
 		CostCenter: it.CostCenter || "",

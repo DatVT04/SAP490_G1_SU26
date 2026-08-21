@@ -3,8 +3,9 @@ sap.ui.define([
 	"sap/ui/model/json/JSONModel",
 	"sap/m/MessageBox",
 	"sap/m/MessageToast",
-	"com/qdavy/procurement/model/Config"
-], function (Controller, JSONModel, MessageBox, MessageToast, Config) {
+	"com/qdavy/procurement/model/Config",
+	"com/qdavy/procurement/model/Session"
+], function (Controller, JSONModel, MessageBox, MessageToast, Config, Session) {
 	"use strict";
 
 	return Controller.extend("com.qdavy.procurement.controller.common.Login", {
@@ -106,6 +107,14 @@ sap.ui.define([
 			var oView = this.getView();
 			oView.setBusy(true);
 
+			// Giu lai token de luu vao sessionStorage NEU backend xac nhan dang nhap
+			// thanh cong (xem _handleLoginResult). Luu ngay tu day se sinh ra phien
+			// "ma" cho ca email khong he co trong SAP.
+			// GHI CHU: muon het canh "qua 1 gio bam F5 van bi dang xuat" thi them
+			// auto_select: true vao google.accounts.id.initialize() o phia tren, va goi
+			// google.accounts.id.disableAutoSelect() luc Dang xuat. Chua lam.
+			this._sCredential = oResponse.credential;
+
 			fetch(Config.BACKEND + "/api/login/google", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
@@ -137,41 +146,20 @@ sap.ui.define([
 			}
 
 			var oEmployee = oResult.body.employee;
-			var oUserModel = this.getOwnerComponent().getModel("user");
-			var sFullName = Config.buildFullName(oEmployee.LastName, oEmployee.FirstName, oEmployee.FullName);
 
-			oUserModel.setData({
-				email: oEmployee.Email,
-				fullName: sFullName,
-				pernr: oEmployee.Pernr,
-				role: oEmployee.Role,
-				position: oEmployee.Position,
-				costCenter: oEmployee.CostCenter,
-				// Anh dai dien lay tu tai khoan Google (payload.picture). Neu vi ly do
-				// nao do khong co anh, fallback sang initials lay tu EMAIL (khong lay
-				// tu ten SAP nua — ten SAP co the khong khop voi ten Google that).
-				avatarUrl: oResult.body.googlePicture || "",
-				avatarInitials: this._computeInitials(oEmployee.Email),
-				// Cac field con lai chi con dung noi bo (khong con man Profile de sua),
-				// giu lai phong khi can hien thi/doi chieu sau nay.
-				firstName: oEmployee.FirstName || "",
-				lastName: oEmployee.LastName || "",
-				phoneNumber: oEmployee.PhoneNumber || "",
-				street: oEmployee.Street || "",
-				city: oEmployee.City || "",
-				postalCode: oEmployee.PostalCode || "",
-				isLoggedIn: true
-			});
+			// Ghi token vao sessionStorage: tu day tro di bam F5 khong con van ra man
+			// Login nua -- Component.js se cam chinh token nay hoi lai backend de biet
+			// minh la ai. Chi luu SAU khi backend da xac nhan email co trong SAP va
+			// con active, nen khong the tu tao phien gia.
+			Session.save(this._sCredential);
+
+			// Mapping employee -> model "user" nam trong Session.buildUser de duong
+			// dang nhap va duong khoi phuc sau F5 khong bao gio lech field nhau.
+			this.getOwnerComponent().getModel("user")
+				.setData(Session.buildUser(oEmployee, oResult.body.googlePicture));
 
 			MessageToast.show("Xin chào " + oEmployee.Email);
 			this.getOwnerComponent().getRouter().navTo("dashboard");
-		},
-
-		// Lay 2 ky tu dau cua phan truoc @ trong email lam initials cho
-		// sap.m.Avatar khi khong co anh Google — VD "requestersu26@gmail.com" -> "RE".
-		_computeInitials: function (sEmail) {
-			var sLocal = String(sEmail || "").split("@")[0];
-			return sLocal.slice(0, 2).toUpperCase();
 		}
 	});
 });
