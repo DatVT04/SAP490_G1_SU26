@@ -20,6 +20,34 @@ const { attachPurchasingContext } = require("../services/decision-context.servic
 const router = express.Router();
 
 
+// Bo luat kiem tra "Ly do de nghi mua" — PHAI GIONG HET ban checkPurchaseReason
+// o webapp/controller/pr/PR01.controller.js. Sua ben nay thi sua ca ben kia.
+// Dem ca so TU chu khong chi so ky tu: du lieu that tren ZPR_DRAFT co nhung ly do
+// kieu "Gmail cong ty" (13 ky tu) — du nguong cu 10 ky tu nhung nguoi duyet doc
+// xong khong quyet duoc gi.
+const REASON_MIN_LEN = 20;
+const REASON_MAX_LEN = 255;
+const REASON_MIN_WORDS = 4;
+
+// Tra ve chuoi loi, hoac null neu hop le.
+function checkPurchaseReason(text) {
+	const s = String(text || "").trim();
+	if (!s) {
+		return "Bat buoc nhap Ly do de nghi mua.";
+	}
+	// Kiem "qua dai" TRUOC "qua ngan"/"it tu" — xem ghi chu cung loai o PR01.controller.js.
+	if (s.length > REASON_MAX_LEN) {
+		return `Ly do de nghi mua toi da ${REASON_MAX_LEN} ky tu (dang ${s.length}).`;
+	}
+	if (s.length < REASON_MIN_LEN) {
+		return `Ly do de nghi mua qua ngan (${s.length}/${REASON_MIN_LEN} ky tu) — hay ghi ro hien trang va hau qua neu khong mua.`;
+	}
+	if (s.split(/\s+/).length < REASON_MIN_WORDS) {
+		return `Ly do de nghi mua can la mot cau co nghia (it nhat ${REASON_MIN_WORDS} tu), khong phai vai tu roi rac.`;
+	}
+	return null;
+}
+
 router.post("/api/approval/submit", async (req, res) => {
 	const { requesterEmail, currency, totalPRValue, items, resubmitOf, purchaseReason } = req.body || {};
 
@@ -32,11 +60,9 @@ router.post("/api/approval/submit", async (req, res) => {
 	// LY DO MUA bat buoc: day la can cu goc de Purchasing duyet nhu cau. Truoc day
 	// nguoi de nghi chi khai MUA GI chu khong khai VI SAO CAN, nen nguoi duyet
 	// khong co gi de dua vao ngoai cam tinh.
-	if (!purchaseReason || String(purchaseReason).trim().length < 10) {
-		return res.status(400).json({
-			success: false,
-			message: "Bat buoc nhap ly do de nghi mua (it nhat 10 ky tu) — vd: may cu hong, tuyen them nhan su, het vat tu tieu hao."
-		});
+	const reasonError = checkPurchaseReason(purchaseReason);
+	if (reasonError) {
+		return res.status(400).json({ success: false, message: reasonError });
 	}
 	for (var i = 0; i < items.length; i++) {
 		var it = items[i];

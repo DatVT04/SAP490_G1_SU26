@@ -106,6 +106,20 @@
 								</HBox>
 							</HBox>
 
+							<!-- ══ VI SAO CAN MUA ══
+							     21/08/2026: truoc day man nay chi hien GIA (uoc tinh vs chot) va bang
+							     chung canh tranh gia. CFO/CEO duyet TIEN ma khong he thay CAN CU NHU CAU
+							     nguoi de nghi khai o PR-01 — muc do truoc gio chi Purchasing thay o PR-02.
+							     Nguon: ZPR_DRAFT-PURCHASE_REASON (CHAR 255), map o pr.service.js. -->
+							<VBox class="qdDecisionBox sapUiTinyMarginTopBottom">
+								<Text text="LÝ DO ĐỀ NGHỊ MUA" class="qdDecisionTitle"/>
+								<!-- 2 Text thay vi 1 Text co class="{= ... }": XMLView cua UI5 KHONG
+								     binding duoc thuoc tinh class, viet vay thi control ra DOM khong
+								     co class nao ca (bo qua im lang, khong bao loi). -->
+								<Text text="{PurchaseReason}" class="qdDecisionValue" visible="{= !!${PurchaseReason} }"/>
+								<Text text="(đề nghị cũ — chưa có lý do)" class="qdCellHint" visible="{= !${PurchaseReason} }"/>
+							</VBox>
+
 							<!-- GIA UOC TINH vs GIA CHOT — day chinh la thu CFO can de biet NCC
 							     co "het gia" hay khong. EstimatedTotalValue = snapshot luc lap
 							     de nghi; TotalValue = tong gia trung thau sau RFQ. -->

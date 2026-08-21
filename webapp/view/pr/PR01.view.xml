@@ -68,10 +68,23 @@
 						rows="2"
 						width="100%"
 						maxLength="255"
+						liveChange=".onPurchaseReasonLiveChange"
 						growing="true"
 						placeholder="VD: Máy tính của phòng hỏng không sửa được, cần thay để nhân viên tiếp tục làm việc"
 					/>
-					<Text text="Người duyệt đọc mục này để quyết định có duyệt nhu cầu hay không — ghi rõ hiện trạng và hậu quả nếu không mua." class="qdInfoHint"/>
+					<!-- Bo dem ky tu TU VE thay vi dung showExceededText cua sap.m.TextArea:
+					     counter co san cua UI5 chi viet duoc kieu "con lai 242 ky tu" (chuoi
+					     chuan cua UI5, doi theo ngon ngu trinh duyet) chu khong ra duoc dang
+					     "34/255" — va bat no len se TAT gioi han cung cua trinh duyet.
+					     Tu ve thi giu duoc maxLength=255 chan cung, van hien du so. -->
+					<HBox justifyContent="SpaceBetween" alignItems="Start" wrap="Wrap">
+						<Text text="Người duyệt đọc mục này để quyết định có duyệt nhu cầu hay không — ghi rõ hiện trạng và hậu quả nếu không mua." class="qdInfoHint"/>
+						<!-- class phai la chuoi TINH: XMLView cua UI5 KHONG binding duoc
+						     thuoc tinh class — viet class="{= ... }" thi no bo qua im lang,
+						     control ra DOM khong co class nao. Mau cam luc sap cham tran do
+						     controller bat/tat bang addStyleClass (_updatePurchaseReasonCounter). -->
+						<Text id="txtReasonCounter" text="{/header/purchaseReasonCounter}" class="qdReasonCounter"/>
+					</HBox>
 				</VBox>
 			</VBox>
 

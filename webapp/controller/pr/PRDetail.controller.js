@@ -427,6 +427,9 @@ sap.ui.define([
 				prId: pr.PRId,
 				returnReason: pr.Comment || "",
 				currency: pr.Currency || "VND",
+				// 21/08/2026: mang theo ca ly do mua. Truoc day chi mang items nen nguoi
+				// dung phai go lai ly do tu dau du de nghi bi tra vi ly do khac.
+				purchaseReason: pr.PurchaseReason || "",
 				items: pr.items || []
 			}), "resubmit");
 			this.getOwnerComponent().getRouter().navTo("pr01");

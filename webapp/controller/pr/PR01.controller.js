@@ -23,6 +23,40 @@ sap.ui.define([
 		"CCTECH": "Phòng Công nghệ"
 	};
 
+	// ── Kiem tra "Ly do de nghi mua" ────────────────────────────────────────
+	// Bo luat nay PHAI GIONG HET ban o src/routes/approval.routes.js. Sua ben
+	// nay thi sua ca ben kia, neu khong FE cho qua roi BE moi chan — nguoi dung
+	// go xong moi bi tra ve.
+	// Vi sao khong chi dem ky tu: du lieu that tren ZPR_DRAFT dang co nhung ly do
+	// kieu "Gmail cong ty" (13 ky tu) — du nguong cu 10 ky tu nhung nguoi duyet
+	// doc xong khong quyet duoc gi. Dem them so TU de loai chuoi ngan va chuoi
+	// lap 1 ky tu ("aaaaaaaaaaaaaaaaaaaaaa" = 1 tu -> truot).
+	var REASON_MIN_LEN = 20;
+	var REASON_MAX_LEN = 255;
+	var REASON_MIN_WORDS = 4;
+
+	function checkPurchaseReason(sText) {
+		var s = String(sText || "").trim();
+		if (!s) {
+			return { ok: false, message: "Vui lòng nhập Lý do đề nghị mua." };
+		}
+		// Kiem "qua dai" TRUOC "qua ngan"/"it tu": chuoi 260 ky tu lien khong dau
+		// cach chi co 1 tu, neu de sau se bao nham "can it nhat 4 tu".
+		if (s.length > REASON_MAX_LEN) {
+			return { ok: false, message: "Lý do tối đa " + REASON_MAX_LEN + " ký tự (đang "
+				+ s.length + ")." };
+		}
+		if (s.length < REASON_MIN_LEN) {
+			return { ok: false, message: "Lý do còn quá ngắn (" + s.length + "/" + REASON_MIN_LEN
+				+ " ký tự) — hãy ghi rõ hiện trạng và hậu quả nếu không mua." };
+		}
+		if (s.split(/\s+/).length < REASON_MIN_WORDS) {
+			return { ok: false, message: "Lý do cần là một câu có nghĩa (ít nhất " + REASON_MIN_WORDS
+				+ " từ), không phải vài từ rời rạc." };
+		}
+		return { ok: true, message: "" };
+	}
+
 	function emptyCatalogItem(defaults) {
 		defaults = defaults || {};
 		return {
@@ -83,7 +117,12 @@ sap.ui.define([
 				materialsLoading: true,
 				costCenters: [],
 				internalOrders: [],
-				header: { currency: "VND", purchaseReason: "" },
+				header: {
+					currency: "VND",
+					purchaseReason: "",
+					// Bo dem ky tu hien duoi o nhap ly do — xem _updatePurchaseReasonCounter.
+					purchaseReasonCounter: "0/" + REASON_MAX_LEN
+				},
 				items: [emptyCatalogItem()],
 				totalText: "0",
 				escalationText: "",
@@ -158,6 +197,16 @@ sap.ui.define([
 			aOldItems.forEach(function (item) { this._refreshIOListOfItem(item); }, this);
 
 			oModel.setProperty("/header/currency", oData.currency || "VND");
+			oModel.setProperty("/header/purchaseReason", oData.purchaseReason || "");
+			// Dien lai ly do thi phai chay lai bo dem + vien mau, neu khong counter
+			// van dung "0/255" trong khi o nhap da co chu.
+			this._updatePurchaseReasonCounter(oData.purchaseReason || "");
+			var oReasonArea = this.byId("taPurchaseReason");
+			if (oReasonArea && (oData.purchaseReason || "").trim()) {
+				var oResubmitCheck = checkPurchaseReason(oData.purchaseReason);
+				oReasonArea.setValueState(oResubmitCheck.ok ? "Success" : "Error");
+				oReasonArea.setValueStateText(oResubmitCheck.message);
+			}
 			oModel.setProperty("/items", aOldItems);
 			this._recalcTotal();
 
@@ -620,6 +669,64 @@ sap.ui.define([
 			});
 		},
 
+		/**
+		 * Bao ngay luc dang go thay vi doi bam Gui moi hien MessageBox — nguoi dung
+		 * khong phai doan minh sai cho nao. Chua go chu nao thi de yen (None),
+		 * khong to do man hinh ngay khi vua mo.
+		 */
+		onPurchaseReasonLiveChange: function (oEvent) {
+			var oTextArea = oEvent.getSource();
+			var sValue = String(oEvent.getParameter("value") || "");
+			this._updatePurchaseReasonCounter(sValue);
+
+			if (!sValue.trim()) {
+				oTextArea.setValueState("None");
+				oTextArea.setValueStateText("");
+				return;
+			}
+			var oCheck = checkPurchaseReason(sValue);
+			oTextArea.setValueState(oCheck.ok ? "Success" : "Error");
+			oTextArea.setValueStateText(oCheck.message);
+		},
+
+		/**
+		 * Cap nhat bo dem "34/255" duoi o nhap.
+		 * Dem theo do dai THO (khong trim) vi maxLength cua trinh duyet cung dem tho
+		 * — de so tren man hinh trung voi so ky tu that su go duoc.
+		 * Tu 230 ky tu tro len thi doi mau cam de nguoi dung biet sap cham tran.
+		 */
+		_updatePurchaseReasonCounter: function (sValue) {
+			var oModel = this.getView().getModel();
+			var sText = sValue != null
+				? String(sValue)
+				: String(oModel.getProperty("/header/purchaseReason") || "");
+			var iLen = sText.length;
+			oModel.setProperty("/header/purchaseReasonCounter",
+				iLen >= REASON_MAX_LEN
+					? iLen + "/" + REASON_MAX_LEN + " — đã đạt giới hạn"
+					: iLen + "/" + REASON_MAX_LEN);
+			// Doi mau bang addStyleClass chu khong binding vao thuoc tinh class:
+			// XMLView khong ho tro binding cho class (bo qua im lang, khong bao loi).
+			var oCounter = this.byId("txtReasonCounter");
+			if (oCounter) {
+				if (iLen >= 230) {
+					oCounter.addStyleClass("qdReasonCounterWarn");
+				} else {
+					oCounter.removeStyleClass("qdReasonCounterWarn");
+				}
+			}
+		},
+
+		// Xoa vien do sau khi reset / gui thanh cong, neu khong o nhap se do mai.
+		_clearPurchaseReasonState: function () {
+			this._updatePurchaseReasonCounter("");
+			var oTextArea = this.byId("taPurchaseReason");
+			if (oTextArea) {
+				oTextArea.setValueState("None");
+				oTextArea.setValueStateText("");
+			}
+		},
+
 		onResetPress: function () {
 			var aItems = this.getView().getModel().getProperty("/items") || [];
 			if (aItems.length === 0) { return; }
@@ -630,6 +737,7 @@ sap.ui.define([
 					if (sAction === MessageBox.Action.YES) {
 						this.getView().getModel().setProperty("/items", [this._newItem()]);
 						this.getView().getModel().setProperty("/header/purchaseReason", "");
+						this._clearPurchaseReasonState();
 						this._recalcTotal();
 					}
 				}.bind(this)
@@ -653,9 +761,16 @@ sap.ui.define([
 			// Ly do mua: can cu de Purchasing duyet NHU CAU. Chan o day cho nguoi
 			// dung thay ngay; backend con mot lop chan nua (khong tin FE).
 			var sPurchaseReason = String(oModel.getProperty("/header/purchaseReason") || "").trim();
-			if (sPurchaseReason.length < 10) {
-				MessageBox.warning("Vui lòng nhập Lý do đề nghị mua (ít nhất 10 ký tự).\n\n"
-					+ "Người duyệt căn cứ vào lý do này để ra quyết định. Ví dụ: thiết bị cũ đã hỏng, tuyển thêm nhân sự, hết vật tư tiêu hao.");
+			var oReasonCheck = checkPurchaseReason(sPurchaseReason);
+			if (!oReasonCheck.ok) {
+				var oReasonField = this.byId("taPurchaseReason");
+				if (oReasonField) {
+					oReasonField.setValueState("Error");
+					oReasonField.setValueStateText(oReasonCheck.message);
+					oReasonField.focus();
+				}
+				MessageBox.warning(oReasonCheck.message + "\n\n"
+					+ "Người duyệt căn cứ vào mục này để ra quyết định. Ví dụ: \"Máy tính phòng Kế toán hỏng không sửa được, cần thay 2 máy để nhân viên tiếp tục làm việc\".");
 				return;
 			}
 
@@ -744,6 +859,7 @@ sap.ui.define([
 						onClose: function () {
 							oModel.setProperty("/items", [this._newItem()]);
 							oModel.setProperty("/header/purchaseReason", "");
+							this._clearPurchaseReasonState();
 							this._recalcTotal();
 							this.getOwnerComponent().getRouter().navTo("dashboard");
 						}.bind(this)

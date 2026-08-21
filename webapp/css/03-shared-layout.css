@@ -250,6 +250,21 @@
 	margin-top: 0.2rem;
 }
 
+/* Bo dem ky tu cua o "Ly do de nghi mua" (PR-01). Mau xam nhu hint, chuyen
+   cam khi sap cham tran de nguoi dung biet ma go gon lai. */
+.qdReasonCounter {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.74rem !important;
+	line-height: 1.4 !important;
+	white-space: nowrap;
+	padding-left: 0.75rem;
+}
+
+.qdReasonCounterWarn {
+	color: #b45309 !important;
+	font-weight: 600 !important;
+}
+
 .qdInfoHint,
 .qdCellHint {
 	color: var(--qd-text-muted) !important;

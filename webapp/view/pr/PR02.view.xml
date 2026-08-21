@@ -259,10 +259,11 @@
 								<!-- 1. Ly do nguoi de nghi khai o PR-01 -->
 								<VBox class="sapUiTinyMarginTop">
 									<Text text="Lý do đề nghị mua" class="qdInfoLabel"/>
-									<Text
-										text="{= ${PurchaseReason} || '(đề nghị cũ — chưa có lý do)' }"
-										class="{= ${PurchaseReason} ? 'qdDecisionValue' : 'qdCellHint' }"
-									/>
+									<!-- 21/08/2026: truoc day la 1 Text voi class="{= ... }" — XMLView
+									     cua UI5 KHONG binding duoc thuoc tinh class nen no bi bo qua im
+									     lang, chu ly do ra man hinh khong duoc dinh dang gi. Tach 2 Text. -->
+									<Text text="{PurchaseReason}" class="qdDecisionValue" visible="{= !!${PurchaseReason} }"/>
+									<Text text="(đề nghị cũ — chưa có lý do)" class="qdCellHint" visible="{= !${PurchaseReason} }"/>
 								</VBox>
 
 								<!-- 2. Ngan sach tung phong ma de nghi nay dung toi -->

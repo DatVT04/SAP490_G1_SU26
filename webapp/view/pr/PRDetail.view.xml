@@ -37,11 +37,17 @@
 				>
 					<VBox class="qdTimelineItem" alignItems="Center">
 						<!-- Icon + vòng tròn trạng thái -->
-						<core:Icon
-							src="{icon}"
-							size="1.6rem"
-							class="{= ${done} ? 'qdTimelineIconDone' : (${active} ? 'qdTimelineIconActive' : 'qdTimelineIconWait') }"
-						/>
+						<!-- 21/08/2026: truoc day la 1 core:Icon voi class="{= ... }" chon giua
+						     Done/Active/Wait. XMLView cua UI5 KHONG binding duoc thuoc tinh class
+						     — no bo qua im lang, nen 3 class nay CHUA BAO GIO duoc gan: ca
+						     timeline hien cung mot mau, buoc da xong va buoc dang cho nhin y het
+						     nhau. Tach 3 icon, moi cai 1 class TINH, chon bang visible. -->
+						<core:Icon src="{icon}" size="1.6rem" class="qdTimelineIconDone"
+							visible="{= !!${done} }"/>
+						<core:Icon src="{icon}" size="1.6rem" class="qdTimelineIconActive"
+							visible="{= !${done} &amp;&amp; !!${active} }"/>
+						<core:Icon src="{icon}" size="1.6rem" class="qdTimelineIconWait"
+							visible="{= !${done} &amp;&amp; !${active} }"/>
 						<!-- Đường nối (pseudo qua CSS) -->
 						<Text text="{title}" class="qdTimelineTitle" textAlign="Center"/>
 						<Text
@@ -100,6 +106,14 @@
 						<Text text="Tra cứu bằng ME23N" class="qdInfoHint"/>
 					</VBox>
 				</HBox>
+
+				<!-- Ly do nguoi de nghi khai o PR-01 (ZPR_DRAFT-PURCHASE_REASON).
+				     Them 21/08/2026: truoc day man chi tiet khong hien, nen chinh nguoi tao
+				     mo lai de nghi cua minh cung khong doc lai duoc ly do da ghi. -->
+				<VBox class="sapUiSmallMarginTop" visible="{= !!${/PurchaseReason} }">
+					<Label text="Lý do đề nghị mua" class="qdInfoLabel"/>
+					<Text text="{/PurchaseReason}" class="qdCommentText"/>
+				</VBox>
 
 				<MessageStrip
 					text="{/EscalationReason}"
