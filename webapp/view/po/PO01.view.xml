@@ -301,7 +301,7 @@
 									<Input
 										id="inNetPrice"
 										editable="false"
-										placeholder="Sửa đơn giá ở bảng Chi tiết dòng hàng bên dưới"
+										placeholder="Đơn giá lấy từ giá trúng thầu đã chốt ở RFQ-02"
 									/>
 
 									<Label text="Loại tiền"/>
@@ -433,11 +433,12 @@
 												/>
 											</VBox>
 											<Text text="{Quantity} {UoM}"/>
-											<Input
-												value="{path: 'NetPrice', formatter: '.formatCurrency'}"
-												change=".onItemPriceChange"
-												textAlign="End"
-											/>
+											<!-- 21/08/2026: CHI XEM. Don gia dong nay duoc phan bo tu gia
+											     TRUNG THAU cua nhom NCC (xem _allocateGroupPrice) — tuc la
+											     con so da chot o RFQ-02 va da qua CFO/CEO duyet. Cho sua tay
+											     o day nghia la PO gui NCC lech voi bao gia va lech voi so tien
+											     da duyet. Muon doi gia thi phai quay lai RFQ-02. -->
+											<Text text="{path: 'NetPrice', formatter: '.formatCurrency'}" textAlign="End"/>
 											<VBox>
 												<ObjectNumber
 													number="{parts: ['NetPrice','Quantity'], formatter: '.formatLineTotal'}"
@@ -449,7 +450,9 @@
 													class="qdCellHint"
 												/>
 											</VBox>
-											<Input value="{Plant}"/>
+											<!-- CHI XEM: Plant lay tu ORG_DEFAULTS (QDPL), khong phai thu
+											     nguoi mua tu quyet tung dong. -->
+											<Text text="{Plant}"/>
 											<!-- Cot hach toan: dong Cost Center (Cat K) cho nhap tay, dong
 											     Tai san (Cat A) / Internal Order (Cat F) chi hien ma lay tu
 											     PR. Truoc day cot nay luon la o Cost Center nen dong tai san
@@ -459,9 +462,10 @@
 													text="{parts: ['AcctAssignCat','AssetNo','InternalOrder'], formatter: '.formatAcctCatLabel'}"
 													class="qdCellHint"
 												/>
-												<Input
-													value="{CostCenter}"
-													placeholder="Nhập Cost Center"
+												<!-- CHI XEM: Cost Center lay nguyen tu dong PR (nguoi de nghi
+												     bat buoc chon Bo phan o PR-01). -->
+												<Text
+													text="{CostCenter}"
 													visible="{parts: ['AcctAssignCat','AssetNo','InternalOrder'], formatter: '.isAcctCostCenter'}"
 												/>
 												<ObjectStatus

@@ -365,10 +365,9 @@ sap.ui.define([
 			}
 		},
 
-		onRefreshStats: function () {
-			this._loadStats();
-			this._loadNotifications();
-		},
+		// onRefreshStats da XOA 21/08/2026 cung luc bo nut mui ten reload tren header.
+		// So lieu van duoc nap moi lan vao man (routeMatched -> _loadStats/_loadNotifications),
+		// va F5 gio khong con lam mat phien nen nguoi dung tai lai bang F5 la du.
 
 		onNavToPR01: function () {
 			this.getOwnerComponent().getRouter().navTo("pr01");

@@ -82,9 +82,8 @@ sap.ui.define([
 				});
 		},
 
-		onRefreshPress: function () {
-			this._load();
-		},
+		// onRefreshPress da XOA 21/08/2026 cung luc bo nut "Tải lại". Du lieu van
+		// duoc nap lai moi lan vao man; tai lai bang F5 cung khong con mat phien.
 
 		onNavBack: function () {
 			this.getOwnerComponent().getRouter().navTo("dashboard");
@@ -237,7 +236,7 @@ sap.ui.define([
 					if (bDone) { return; }
 					bDone = true;
 					reject(new Error("Máy chủ không phản hồi sau " + (REQUEST_TIMEOUT_MS / 1000)
-						+ " giây. Thẻ tài sản có thể đã được tạo — bấm Tải lại để kiểm tra trước khi thử lại."));
+						+ " giây. Thẻ tài sản có thể đã được tạo — tải lại trang (F5) để kiểm tra trước khi thử lại."));
 				}, REQUEST_TIMEOUT_MS);
 
 				fetch(sUrl, oOptions || {})

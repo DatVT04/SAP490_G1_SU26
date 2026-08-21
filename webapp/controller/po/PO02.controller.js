@@ -90,9 +90,8 @@ sap.ui.define([
 				});
 		},
 
-		onRefreshPress: function () {
-			this._loadPending();
-		},
+		// onRefreshPress da XOA 21/08/2026 cung luc bo nut "Tải lại". Du lieu van
+		// duoc nap lai moi lan vao man; tai lai bang F5 cung khong con mat phien.
 
 		onDetailPress: function (oEvent) {
 			var oPR = oEvent.getSource().getBindingContext().getObject();

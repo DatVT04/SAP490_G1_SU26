@@ -18,7 +18,6 @@
                             <Text text="Ngưỡng ngân sách theo Internal Order và danh mục tài sản của vật tư" class="qdPageSub"/>
                         </VBox>
                     </HBox>
-                    <Button icon="sap-icon://refresh" text="Tải lại" press=".onRefreshPress" class="qdHeroBtn"/>
                 </HBox>
             </VBox>
 

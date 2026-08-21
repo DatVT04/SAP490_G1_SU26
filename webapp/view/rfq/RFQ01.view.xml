@@ -281,7 +281,7 @@
 							<!-- Nguon du lieu NCC + huong xu ly khi thieu NCC (feedback QDAVY 13/08:
 							     "Thong tin NCC lay o dau? Sao co moi 3? NCC can moi khong co thi sao?") -->
 							<MessageStrip
-								text="Danh sách lấy trực tiếp từ Vendor Master trên SAP (bảng LFA1) — hiển thị đủ toàn bộ NCC đã khai báo trên hệ thống. Nếu NCC cần mời chưa có: tạo Vendor Master mới trên SAP (BP/XK01) hoặc bổ sung email cho NCC, rồi bấm nút tải lại bên cạnh ô tìm kiếm."
+								text="Danh sách lấy trực tiếp từ Vendor Master trên SAP (bảng LFA1) — hiển thị đủ toàn bộ NCC đã khai báo trên hệ thống. Nếu NCC cần mời chưa có: tạo Vendor Master mới trên SAP (BP/XK01) hoặc bổ sung email cho NCC, rồi tải lại trang."
 								type="Information"
 								showIcon="true"
 								class="sapUiSmallMarginBottom"
@@ -294,11 +294,6 @@
 									liveChange=".onVendorSearch"
 									search=".onVendorSearch"
 									width="100%"
-								/>
-								<Button
-									icon="sap-icon://refresh"
-									tooltip="Tải lại danh sách NCC từ SAP"
-									press=".onReloadVendorsPress"
 								/>
 							</OverflowToolbar>
 
@@ -372,6 +367,7 @@
 									<Label text="Hạn nộp báo giá (Deadline)" required="true"/>
 									<DatePicker
 										id="dpDeadline"
+										change=".onDeadlineChange"
 										valueFormat="yyyy-MM-dd"
 										displayFormat="dd/MM/yyyy"
 										width="14rem"

@@ -309,10 +309,8 @@ sap.ui.define([
 		},
 
 		// NCC vua duoc tao them tren SAP (BP/XK01) -> tai lai ma khong can F5 ca trang.
-		onReloadVendorsPress: function () {
-			this._loadVendors();
-			MessageToast.show("Đang tải lại danh sách nhà cung cấp từ SAP...");
-		},
+		// onReloadVendorsPress da XOA 21/08/2026 cung luc bo nut "Tải lại". Du lieu van
+		// duoc nap lai moi lan vao man; tai lai bang F5 cung khong con mat phien.
 
 		onPRSelect: function (oEvent) {
 			var oSelectedItem = oEvent.getParameter("listItem");
@@ -915,19 +913,15 @@ sap.ui.define([
 			}
 
 			var oDeadlinePicker = oView.byId("dpDeadline");
-			var sDeadline = oDeadlinePicker.getValue();
-			if (!sDeadline) {
-				MessageBox.warning("Vui lòng chọn hạn nộp báo giá.");
+			var oCheck = this._checkDeadline();
+			if (!oCheck.ok) {
+				oDeadlinePicker.setValueState("Error");
+				oDeadlinePicker.setValueStateText(oCheck.message);
+				oDeadlinePicker.focus();
+				MessageBox.warning(oCheck.message);
 				return;
 			}
-			// Phong truong hop go tay/paste ngay qua khu (minDate chi chan luc bam vao lich).
-			var oDeadlineDate = oDeadlinePicker.getDateValue();
-			var oToday = new Date();
-			oToday.setHours(0, 0, 0, 0);
-			if (oDeadlineDate && oDeadlineDate < oToday) {
-				MessageBox.warning("Hạn nộp báo giá không được là ngày trong quá khứ. Vui lòng chọn lại.");
-				return;
-			}
+			var sDeadline = oCheck.value;
 
 			var fnSubmit = function () { that._submitRFQ(aSelected, sDeadline, aLines); };
 
@@ -946,6 +940,71 @@ sap.ui.define([
 				return;
 			}
 			fnSubmit();
+		},
+
+		/**
+		 * Kiem tra Han nop bao gia.
+		 *
+		 * BUG DA SUA 21/08/2026: ban cu doc `getValue()` roi chi chan khi
+		 * `getDateValue()` KHAC NULL. Nhung khi nguoi dung GO TAY mot ngay truoc
+		 * minDate, UI5 coi gia tri do la khong hop le va `getDateValue()` tra ve
+		 * NULL — nen dieu kien `if (oDeadlineDate && ...)` khong chay, ngay qua khu
+		 * lot thang. Ben backend cung khong chan duoc vi luc do `getValue()` tra ve
+		 * chuoi dang dd/MM/yyyy, ma `normalizeSapDeadline` chi biet boc dang
+		 * yyyy-MM-dd -> tra ve "" -> guard ben do cung bi bo qua.
+		 *
+		 * Gio: null la CHAN, va chuoi gui len backend duoc DUNG LAI tu doi tuong
+		 * Date chu khong lay tu getValue(), nen luon dung dang yyyy-MM-dd.
+		 */
+		_checkDeadline: function () {
+			var oPicker = this.getView().byId("dpDeadline");
+			var sRaw = String(oPicker.getValue() || "").trim();
+			if (!sRaw) {
+				return { ok: false, message: "Vui lòng chọn hạn nộp báo giá." };
+			}
+
+			// TU PARSE chuoi dang hien, KHONG dung getDateValue().
+			// Do da kiem chung bang trinh duyet that: khi go tay mot ngay truoc minDate,
+			// UI5 GIU NGUYEN getDateValue() cu (ngay goi y hom nay+7) trong khi getValue()
+			// da la chuoi vua go. Tin getDateValue() nghia la doc phai ngay CU -> vua khong
+			// chan duoc ngay qua khu, vua gui len backend mot ngay nguoi dung khong he nhap.
+			var aYMD = /^(\d{4})-(\d{2})-(\d{2})$/.exec(sRaw);   // valueFormat (chon tu lich)
+			var aDMY = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(sRaw); // displayFormat (go tay)
+			var y, m, d;
+			if (aYMD) {
+				y = Number(aYMD[1]); m = Number(aYMD[2]); d = Number(aYMD[3]);
+			} else if (aDMY) {
+				d = Number(aDMY[1]); m = Number(aDMY[2]); y = Number(aDMY[3]);
+			} else {
+				return { ok: false, message: "Hạn nộp báo giá không hợp lệ. Nhập theo dạng ngày/tháng/năm "
+					+ "(vd 28/08/2026), hoặc bấm biểu tượng lịch để chọn." };
+			}
+
+			// Ngay phai CO THAT: 31/02 hay 99/99 deu bi Date tu doi sang thang sau.
+			var oDate = new Date(y, m - 1, d);
+			oDate.setHours(0, 0, 0, 0);
+			if (oDate.getFullYear() !== y || oDate.getMonth() !== m - 1 || oDate.getDate() !== d) {
+				return { ok: false, message: "Ngày " + sRaw + " không có thật. Vui lòng nhập lại." };
+			}
+
+			var oToday = new Date();
+			oToday.setHours(0, 0, 0, 0);
+			if (oDate < oToday) {
+				return { ok: false, message: "Hạn nộp báo giá không được là ngày trong quá khứ. Vui lòng chọn lại." };
+			}
+
+			// Chuoi gui len backend dung lai tu so da parse -> luon dang yyyy-MM-dd,
+			// khong phu thuoc luc do getValue() dang tra ve dinh dang nao.
+			var pad = function (n) { return (n < 10 ? "0" : "") + n; };
+			return { ok: true, message: "", value: y + "-" + pad(m) + "-" + pad(d) };
+		},
+
+		// Bao do ngay khi nguoi dung go xong, khong bat doi den luc bam "Tao & Gui RFQ".
+		onDeadlineChange: function (oEvent) {
+			var oPicker = oEvent.getSource();
+			var oCheck = this._checkDeadline();
+			oPicker.setValueState(oCheck.ok ? "None" : "Error");
+			oPicker.setValueStateText(oCheck.message);
 		},
 
 		_submitRFQ: function (aSelectedVendors, sDeadline, aItemLines) {

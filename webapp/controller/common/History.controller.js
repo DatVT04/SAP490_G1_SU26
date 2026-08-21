@@ -151,10 +151,8 @@ sap.ui.define([
 				});
 		},
 
-		onRefresh: function () {
-			this._loadCcIoMaps();
-			this._loadHistory();
-		},
+		// onRefresh da XOA 21/08/2026 cung luc bo nut mui ten reload tren thanh tim kiem.
+		// Danh sach van duoc nap lai moi lan vao man (_onRouteMatched -> _loadHistory).
 
 		onSearch: function (oEvent) {
 			var sQuery = (oEvent.getParameter("newValue") || "").trim().toLowerCase();

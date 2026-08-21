@@ -32,10 +32,8 @@ sap.ui.define([
 			this._loadAssetMap();
 		},
 
-		onRefreshPress: function () {
-			this._load();
-			this._loadAssetMap();
-		},
+		// onRefreshPress da XOA 21/08/2026 cung luc bo nut "Tải lại". Du lieu van
+		// duoc nap lai moi lan vao man; tai lai bang F5 cung khong con mat phien.
 
 		/**
 		 * Ghep danh muc vat tu tu SAP (/api/materials) voi cau hinh dang luu

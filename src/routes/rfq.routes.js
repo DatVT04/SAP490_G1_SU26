@@ -247,8 +247,21 @@ router.post("/api/rfq/:id/send", async (req, res) => {
 	}
 
 	// Khong tin FE: du DatePicker da chan minDate, request van co the bi sua tay (Postman, DevTools...).
+	//
+	// BUG DA SUA 21/08/2026: ban cu viet `if (normalizedDeadlineCheck && ... < today)`
+	// — tuc la deadline RONG hoac KHONG PARSE DUOC thi bo qua kiem tra luon.
+	// normalizeSapDeadline chi boc duoc dang yyyy-MM-dd/yyyymmdd; khi FE lo gui
+	// chuoi dd/MM/yyyy (luc nguoi dung go tay) no tra ve "" -> guard bi tat -> RFQ
+	// gui di binh thuong va Deadline khong duoc luu len SAP. Gio thieu/sai dinh dang
+	// la CHAN HAN.
 	const normalizedDeadlineCheck = normalizeSapDeadline(deadline);
-	if (normalizedDeadlineCheck && normalizedDeadlineCheck < sapDateOnly()) {
+	if (!normalizedDeadlineCheck) {
+		return res.status(400).json({
+			success: false,
+			message: "Thieu han nop bao gia hoac ngay khong hop le (can dang YYYY-MM-DD)."
+		});
+	}
+	if (normalizedDeadlineCheck < sapDateOnly()) {
 		return res.status(400).json({ success: false, message: "Han nop bao gia khong duoc o qua khu." });
 	}
 

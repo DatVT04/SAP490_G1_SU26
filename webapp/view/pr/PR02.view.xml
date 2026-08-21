@@ -18,12 +18,6 @@
 							<Text text="Duyệt = tạo PR thật trên SAP (ME51N) rồi chuyển sang bước hỏi giá. Từ chối = kết thúc kèm lý do, người tạo lập đề nghị mới." class="qdPageSub"/>
 						</VBox>
 					</HBox>
-					<Button
-						icon="sap-icon://refresh"
-						text="Tải lại"
-						press=".onRefreshPress"
-						class="qdHeroBtn"
-					/>
 				</HBox>
 
 				<HBox class="qdFlowSteps">
@@ -62,7 +56,7 @@
 				>
 					<core:Icon src="sap-icon://complete" class="qdEmptyIcon"/>
 					<Title text="Không có đề nghị nào đang chờ" level="H3" class="qdEmptyTitle"/>
-					<Text text="Tất cả đề nghị đã được xử lý. Bấm Tải lại để cập nhật." class="qdEmptyText" textAlign="Center"/>
+					<Text text="Tất cả đề nghị đã được xử lý." class="qdEmptyText" textAlign="Center"/>
 				</VBox>
 
 				<!-- The duyet cao ~ nua man hinh moi cai — khung cuon rieng de trang khong

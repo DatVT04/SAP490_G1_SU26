@@ -18,7 +18,6 @@
 							<Text text="Vật tư đã đặt mua nhưng chưa có thẻ tài sản. Tạo thẻ ở đây, hệ thống ghi thẳng lên SAP — mỗi đơn vị số lượng một thẻ riêng." class="qdPageSub"/>
 						</VBox>
 					</HBox>
-					<Button icon="sap-icon://refresh" text="Tải lại" press=".onRefreshPress" class="qdHeroBtn"/>
 				</HBox>
 
 				<HBox class="qdFlowSteps">
@@ -46,7 +45,7 @@
 				<VBox class="qdEmptyState" alignItems="Center" visible="{= ${/rows}.length === 0 }">
 					<core:Icon src="sap-icon://complete" class="qdEmptyIcon"/>
 					<Title text="Không có vật tư nào chờ gán thẻ" level="H3" class="qdEmptyTitle"/>
-					<Text text="Mọi vật tư tài sản đã có thẻ. Bấm Tải lại để cập nhật." class="qdEmptyText" textAlign="Center"/>
+					<Text text="Mọi vật tư tài sản đã có thẻ." class="qdEmptyText" textAlign="Center"/>
 				</VBox>
 
 				<Table

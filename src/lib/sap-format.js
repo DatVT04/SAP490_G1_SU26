@@ -33,7 +33,15 @@ function sapDateOnly(date) {
 function normalizeSapDeadline(input) {
 	if (!input) { return ""; }
 	const digits = String(input).replace(/-/g, "").slice(0, 8);
-	return /^\d{8}$/.test(digits) ? digits : "";
+	if (!/^\d{8}$/.test(digits)) { return ""; }
+	// 21/08/2026: kiem them ngay CO THAT. Truoc day chi dem du 8 chu so nen
+	// "2026-99-99" van lot qua, day thang xuong SAP roi moi vo o duoi.
+	const y = Number(digits.slice(0, 4));
+	const m = Number(digits.slice(4, 6));
+	const d = Number(digits.slice(6, 8));
+	const dt = new Date(Date.UTC(y, m - 1, d));
+	const real = dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+	return real ? digits : "";
 }
 
 // ============================================================================

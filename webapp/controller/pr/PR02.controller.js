@@ -119,9 +119,8 @@ sap.ui.define([
 				});
 		},
 
-		onRefreshPress: function () {
-			this._loadPending();
-		},
+		// onRefreshPress da XOA 21/08/2026 cung luc bo nut "Tải lại". Du lieu van
+		// duoc nap lai moi lan vao man; tai lai bang F5 cung khong con mat phien.
 
 		// ── TIM KIEM NHANH TRONG DANH SACH CHO DUYET ──
 		// (feedback QDAVY 13/08: man kho phan biet cac don PR, nhieu don phai keo luot)

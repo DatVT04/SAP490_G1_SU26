@@ -31,12 +31,6 @@
 							visible="{= ${dash>/unreadCount} > 0 }"
 							class="sapUiTinyMarginEnd"
 						/>
-						<Button
-							icon="sap-icon://refresh"
-							tooltip="{i18n>dashRefresh}"
-							press=".onRefreshStats"
-							class="qdHeroBtn sapUiTinyMarginEnd"
-						/>
 						<Avatar
 							id="userAvatarBtn"
 							src="{user>/avatarUrl}"

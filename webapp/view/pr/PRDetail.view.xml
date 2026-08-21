@@ -19,7 +19,6 @@
 							<Text text="Người đề nghị: {/RequesterEmail}" class="qdPageSub"/>
 						</VBox>
 					</HBox>
-					<Button icon="sap-icon://refresh" text="Tải lại" press=".onRefreshPress" class="qdHeroBtn"/>
 				</HBox>
 			</VBox>
 

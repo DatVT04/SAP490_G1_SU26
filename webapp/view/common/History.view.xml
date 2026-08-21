@@ -23,7 +23,6 @@
 					liveChange=".onSearch"
 				/>
 				<ToolbarSpacer/>
-				<Button icon="sap-icon://refresh" press=".onRefresh" tooltip="Làm mới"/>
 			</OverflowToolbar>
 		</subHeader>
 

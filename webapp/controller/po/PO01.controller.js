@@ -855,16 +855,9 @@ sap.ui.define([
 		},
 
 		/** Nguoi mua sua don gia 1 dong trong bang -> tinh lai tong. */
-		onItemPriceChange: function (oEvent) {
-			var oCtx = oEvent.getSource().getBindingContext();
-			if (oCtx) {
-				var sRaw = String(oEvent.getSource().getValue() || "0");
-				// Cho phep go "1.100.000" — bo het dau phan cach truoc khi doi sang so.
-				var fVal = Number(sRaw.replace(/\D/g, "")) || 0;
-				oCtx.getModel().setProperty(oCtx.getPath() + "/NetPrice", fVal);
-			}
-			this.onRecalculateTotal();
-		},
+		// onItemPriceChange da XOA 21/08/2026: cot "Don gia mua" tren bang chuyen sang
+		// chi xem nen khong con su kien change nao goi toi. Tong tien van duoc tinh o
+		// onRecalculateTotal, goi sau khi phan bo gia trung thau (_allocateGroupPrice).
 
 		// ── 6. PHÁT HÀNH PO VÀ GỬI MAIL ──
 		onConfirmCreatePO: function () {
@@ -951,9 +944,11 @@ sap.ui.define([
 				return !(Number(it.NetPrice) > 0);
 			});
 			if (aZeroLines.length) {
+				// Don gia gio chi xem — khong the bao nguoi dung "nhap don gia" nua.
 				MessageBox.error("Các dòng sau chưa có đơn giá: "
 					+ aZeroLines.map(function (it) { return it.LineNo; }).join(", ")
-					+ ". Vui lòng nhập đơn giá cho các dòng này trong bảng Chi tiết dòng hàng.");
+					+ ".\n\nĐơn giá được lấy từ giá trúng thầu đã chốt ở RFQ-02. "
+					+ "Vui lòng kiểm tra lại kết quả chốt nhà cung cấp của đề nghị này.");
 				return;
 			}
 
