@@ -216,10 +216,17 @@ sap.ui.define([
 					and: false
 				}));
 			} else if (sStatus === "OPEN") {
-				// Nhieu Filter trong cung 1 mang duoc ListBinding AND lai voi nhau.
-				RFQ_CLOSED_STATUSES.forEach(function (sClosed) {
-					aFilters.push(new Filter("Status", FilterOperator.NE, sClosed));
-				});
+				// CAN THAN: KHONG duoc push 4 dieu kien NE roi ra mang ngoai. UI5 gom
+				// cac Filter CUNG MOT path lai va noi bang OR (chi AND giua cac path
+				// khac nhau), nen "Status != A" OR "Status != B" ... luon dung voi moi
+				// dong -> tab "Dang cho" hien nguyen ca danh sach (bug 22/08/2026).
+				// Phai boc trong MOT Filter co and:true de ep noi bang AND.
+				aFilters.push(new Filter({
+					filters: RFQ_CLOSED_STATUSES.map(function (sClosed) {
+						return new Filter("Status", FilterOperator.NE, sClosed);
+					}),
+					and: true
+				}));
 			}
 
 			oBinding.filter(aFilters);
