@@ -63,3 +63,19 @@
 .qdAssetWarn {
 	margin-top: 1.15rem;
 }
+
+/* O "So ma can tao" chi doc (22/08/2026 bo nut +/-): giu chieu cao va hinh
+   khoi bang o Ngay von hoa, nhung bo gach dut cua o read-only mac dinh vi
+   trong nhu o nhap bi hong; chu van dam de doc ra ngay la mot gia tri. */
+.qdAssetCountRO .sapMInputBaseContentWrapper {
+	border: 1px solid rgba(100, 116, 139, 0.28) !important;
+	border-radius: 6px;
+	background: rgba(100, 116, 139, 0.07) !important;
+}
+
+.qdAssetCountRO .sapMInputBaseInner {
+	font-weight: 600;
+	color: var(--qd-text, #1e293b) !important;
+	-webkit-text-fill-color: var(--qd-text, #1e293b);
+	opacity: 1;
+}

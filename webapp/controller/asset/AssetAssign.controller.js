@@ -9,7 +9,6 @@ sap.ui.define([
 	"sap/m/ButtonType",
 	"sap/m/Input",
 	"sap/m/DatePicker",
-	"sap/m/StepInput",
 	"sap/m/VBox",
 	"sap/m/HBox",
 	"sap/m/MessageStrip",
@@ -20,7 +19,7 @@ sap.ui.define([
 ], function (
 	Controller, JSONModel, MessageBox, MessageToast,
 	Dialog, DialogType, Button, ButtonType,
-	Input, DatePicker, StepInput, VBox, HBox, MessageStrip, Label, Text,
+	Input, DatePicker, VBox, HBox, MessageStrip, Label, Text,
 	Config, Msg
 ) {
 	"use strict";
@@ -122,13 +121,15 @@ sap.ui.define([
 					}
 				}
 			});
-			var oCount = new StepInput({
-				value: oRow.Remaining,
-				min: 1,
-				max: oRow.Remaining,
-				step: 1,
+			// 22/08/2026 bo nut +/- cua StepInput: so ma can tao luon bang so luong
+			// con lai cua dong hang do, nguoi dung khong co ly do gi de sua tay. Van
+			// hien thi bang mot o chi doc de nhin thay ro se tao bao nhieu ma.
+			var nCount = oRow.Remaining;
+			var oCount = new Input({
+				value: String(nCount),
+				editable: false,
 				width: "100%"
-			});
+			}).addStyleClass("qdAssetCountRO");
 			var oDate = new DatePicker({
 				valueFormat: "yyyy-MM-dd",
 				displayFormat: "dd/MM/yyyy",
@@ -153,7 +154,7 @@ sap.ui.define([
 				items: [
 					new VBox({
 						items: [
-							new Label({ text: "Số mã cần tạo", required: true, labelFor: oCount })
+							new Label({ text: "Số mã cần tạo", labelFor: oCount })
 								.addStyleClass("qdAssetFieldLabel"),
 							oCount,
 							new Text({ text: "Mỗi đơn vị số lượng một mã" }).addStyleClass("qdAssetFieldHint")
@@ -207,7 +208,7 @@ sap.ui.define([
 						oDialog.close();
 						that._submit(oRow, {
 							description: sDesc,
-							count: oCount.getValue(),
+							count: nCount,
 							capitalizedOn: oDate.getValue()
 						});
 					}
