@@ -202,7 +202,10 @@ async function writeAssetNoToSap(internalId, rawLineNo, assetNos, session) {
 		await sapWrite(
 			"MERGE",
 			`PrDraftItemSet(InternalId='${odataEscape(String(internalId))}',LineNo='${odataEscape(String(rawLineNo))}')`,
-			{ AssetNo: assetNos.join(",").substring(0, 40) },
+			// Cot ASSETNO tren ZPR_DRAFT_ITEM da noi len CHAR 200 (22/08) — mot dong
+			// so luong 5 can 34 ky tu, ban cu gioi han 40 la vua du cho 5-6 ma roi
+			// cat cut am tham. Cat o 200 cho khop dung do dai cot.
+			{ AssetNo: assetNos.join(",").substring(0, 200) },
 			session
 		);
 		return true;
