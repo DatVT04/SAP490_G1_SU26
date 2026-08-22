@@ -15,7 +15,7 @@
 						<VBox>
 							<Text text="{/pageEyebrow}" class="qdPageEyebrow"/>
 							<Title text="Duyệt đề nghị mua sắm" level="H1" class="qdPageTitle"/>
-							<Text text="Nhà cung cấp đã được chốt với giá báo thực tế. Sau khi duyệt, Bộ phận Mua sắm mới tạo đơn hàng và gửi nhà cung cấp." class="qdPageSub"/>
+							<Text text="Nhà cung cấp đã được chốt với giá báo thực tế. Sau khi duyệt, Phòng Mua sắm mới tạo đơn hàng và gửi nhà cung cấp." class="qdPageSub"/>
 						</VBox>
 					</HBox>
 				</HBox>
@@ -77,7 +77,7 @@
 
 								<HBox wrap="Wrap" alignItems="Center">
 									<ObjectStatus
-										text="Vượt ngưỡng IO — cần CEO"
+										text="Vượt hạn mức ngân sách — cần CEO duyệt"
 										state="Error"
 										visible="{needsProcurementHeadReview}"
 										icon="sap-icon://alert"
@@ -91,7 +91,7 @@
 										class="qdBadgeWarning sapUiTinyMarginEnd"
 									/>
 									<ObjectStatus
-										text="Trong ngưỡng thông thường"
+										text="Trong hạn mức bình thường"
 										state="Success"
 										visible="{= !${needsLegalReview} &amp;&amp; !${needsProcurementHeadReview} }"
 										icon="sap-icon://accept"
@@ -180,8 +180,15 @@
 													state="{parts: ['Evidence/ChosenIsLowest','Evidence/ExtraVsLowest','Evidence/SingleQuote'], formatter: '.formatPriceVerdictState'}"
 													class="sapUiTinyMarginTop"
 												/>
+												<!-- 2 dong tach rieng thay vi in nguyen chuoi thô
+												     "[SOLE SOURCE] ... | ..." — xem _splitAwardReason. -->
 												<Text
-													text="{= 'Lý do chọn: ' + (${AwardReason} || '(chưa ghi)') }"
+													text="{path: 'AwardReason', formatter: '.formatSoleSourceReason'}"
+													visible="{path: 'AwardReason', formatter: '.hasSoleSourceReason'}"
+													class="qdCellHint sapUiTinyMarginTop"
+												/>
+												<Text
+													text="{path: 'AwardReason', formatter: '.formatAwardReason'}"
 													class="qdCellHint sapUiTinyMarginTop"
 												/>
 												<Text
@@ -192,7 +199,7 @@
 
 											<!-- Nhom khong di qua RFQ: noi thang la khong co bang chung so sanh -->
 											<MessageStrip
-												text="Nhóm này không đi qua vòng hỏi giá nên không có báo giá để so sánh — cần hỏi rõ Bộ phận Mua sắm trước khi duyệt."
+												text="Nhóm này không đi qua vòng hỏi giá nên không có báo giá để so sánh — cần hỏi rõ Phòng Mua sắm trước khi duyệt."
 												type="Warning"
 												showIcon="true"
 												visible="{= !${Evidence} }"

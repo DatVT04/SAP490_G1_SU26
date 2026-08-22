@@ -44,7 +44,7 @@ sap.ui.define([
             var sRole = oUserModel ? String(oUserModel.getProperty("/role") || "").toUpperCase() : "";
 
             if (sRole && sRole !== "PURCHASING") {
-                MessageBox.error("Chỉ Bộ phận Mua sắm được phép tạo danh mục vật tư.", {
+                MessageBox.error("Chỉ Phòng Mua sắm được phép tạo danh mục vật tư.", {
                     onClose: this.onBack.bind(this)
                 });
                 return;

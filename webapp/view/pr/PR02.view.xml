@@ -97,7 +97,7 @@
 
 								<HBox wrap="Wrap" alignItems="Center">
 									<ObjectStatus
-										text="Dự kiến vượt ngưỡng IO — PO sẽ cần CEO duyệt"
+										text="Dự kiến vượt hạn mức ngân sách — sẽ cần CEO duyệt"
 										state="Error"
 										visible="{needsProcurementHeadReview}"
 										icon="sap-icon://alert"
@@ -111,7 +111,7 @@
 										class="qdBadgeWarning sapUiTinyMarginEnd"
 									/>
 									<ObjectStatus
-										text="Trong ngưỡng thông thường"
+										text="Trong hạn mức bình thường"
 										state="Success"
 										visible="{= !${needsLegalReview} &amp;&amp; !${needsProcurementHeadReview} }"
 										icon="sap-icon://accept"
@@ -175,7 +175,7 @@
 									class="qdAwardValue"
 								/>
 								<Text
-									text="Lý do chọn: {= ${RfqAwardReason} || '(Bộ phận Mua sắm chưa ghi lý do)' }"
+									text="Lý do chọn: {= ${RfqAwardReason} || '(Phòng Mua sắm chưa ghi lý do)' }"
 									class="qdCellHint sapUiTinyMarginTop"
 								/>
 								<Text

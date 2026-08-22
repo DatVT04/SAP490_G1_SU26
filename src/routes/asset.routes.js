@@ -33,7 +33,7 @@ router.get("/api/asset-assignment/pending", async (req, res) => {
 	}
 });
 
-// Tao the tai san cho 1 dong. Chi Bo phan Mua sam duoc goi.
+// Tao the tai san cho 1 dong. Chi Phong Mua sam duoc goi.
 router.post("/api/asset-assignment/create", async (req, res) => {
 	const { prId, lineNo, count, description, costCenter, capitalizedOn, assetClass, role, createdByEmail } = req.body || {};
 
@@ -43,7 +43,7 @@ router.post("/api/asset-assignment/create", async (req, res) => {
 	// Chan o backend chu khong chi an tile: tao the tai san la buoc sinh chung tu
 	// tren SAP, goi thang bang Postman van phai dung vai tro.
 	if (String(role || "").toUpperCase() !== "PURCHASING") {
-		return res.status(403).json({ success: false, message: "Chỉ Bộ phận Mua sắm được gán mã tài sản." });
+		return res.status(403).json({ success: false, message: "Chỉ Phòng Mua sắm được gán mã tài sản." });
 	}
 	if (!prId || lineNo == null || lineNo === "") {
 		return res.status(400).json({ success: false, message: "Thieu prId hoac lineNo." });

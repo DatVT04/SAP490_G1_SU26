@@ -39,7 +39,7 @@ sap.ui.define([
 	var RFQ_STATUS_HINTS = {
 		DRAFT: "RFQ mới tạo, chưa gửi cho nhà cung cấp nào.",
 		SENT: "Đã gửi thư mời báo giá — đang chờ nhà cung cấp trả lời.",
-		QUOTATIONS_RECEIVED: "Đã có báo giá — đến lượt Bộ phận Mua sắm so sánh và chốt nhà cung cấp.",
+		QUOTATIONS_RECEIVED: "Đã có báo giá — đến lượt Phòng Mua sắm so sánh và chốt nhà cung cấp.",
 		AWARDED: "Đã chốt nhà cung cấp — đề nghị đang chờ CFO/CEO phê duyệt trước khi tạo đơn hàng.",
 		PO_CREATED: "Đã tạo đơn hàng trên SAP và gửi cho nhà cung cấp. RFQ này đã khóa.",
 		PO_RELEASED: "PO đã được duyệt và gửi cho nhà cung cấp. RFQ này đã khóa.",
@@ -786,7 +786,7 @@ sap.ui.define([
 
 			MessageBox.confirm(
 				"Chốt nhà cung cấp " + sVendor + " cho yêu cầu báo giá " + this._currentRfqId
-				+ "?\n\nSau khi tất cả các nhóm được chốt, đề nghị sẽ được trình CFO/CEO phê duyệt. Duyệt xong, Bộ phận Mua sắm tạo đơn hàng ở màn hình PO-01 và hệ thống gửi ngay cho nhà cung cấp.",
+				+ "?\n\nSau khi tất cả các nhóm được chốt, đề nghị sẽ được trình CFO/CEO phê duyệt. Duyệt xong, Phòng Mua sắm tạo đơn hàng ở màn hình PO-01 và hệ thống gửi ngay cho nhà cung cấp.",
 				{
 					title: "Xác nhận chốt nhà cung cấp",
 					onClose: function (sAction) {
@@ -818,7 +818,7 @@ sap.ui.define([
 								MessageBox.success(
 									"Đã chốt nhà cung cấp " + oResult.body.awardedVendor + " với giá "
 									+ Number(oResult.body.finalValue).toLocaleString("vi-VN")
-									+ " VND.\n\nBước tiếp theo: đề nghị chờ CFO/CEO phê duyệt. Duyệt xong, Bộ phận Mua sắm tạo đơn hàng ở màn hình PO-01 và gửi nhà cung cấp.",
+									+ " VND.\n\nBước tiếp theo: đề nghị chờ CFO/CEO phê duyệt. Duyệt xong, Phòng Mua sắm tạo đơn hàng ở màn hình PO-01 và gửi nhà cung cấp.",
 									{
 										title: "Chốt RFQ thành công",
 										onClose: function () {

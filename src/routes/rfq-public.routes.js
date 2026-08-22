@@ -34,7 +34,7 @@ router.get("/api/public/rfq/quote", async (req, res) => {
 		return res.status(400).json({ success: false, message: "Đường dẫn không hợp lệ (thiếu tham số)." });
 	}
 	if (!verifyRfqPortalToken(rfqId, vendorNo, token)) {
-		return res.status(403).json({ success: false, message: "Đường dẫn không hợp lệ hoặc đã hết hiệu lực. Vui lòng liên hệ Phòng Thu mua." });
+		return res.status(403).json({ success: false, message: "Đường dẫn không hợp lệ hoặc đã hết hiệu lực. Vui lòng liên hệ Phòng Mua sắm." });
 	}
 	if (!process.env.SAP_HOST) {
 		return res.status(503).json({ success: false, message: "Hệ thống đang bảo trì, vui lòng thử lại sau." });
@@ -201,7 +201,7 @@ router.post("/api/public/rfq/quote", async (req, res) => {
 			session
 		);
 	} catch (error) {
-		return failStage(502, "B2-GHI-BAO-GIA", "Không lưu được báo giá. Vui lòng thử lại hoặc gửi email cho Phòng Thu mua.", error);
+		return failStage(502, "B2-GHI-BAO-GIA", "Không lưu được báo giá. Vui lòng thử lại hoặc gửi email cho Phòng Mua sắm.", error);
 	}
 
 	// ── B3: hau ky — TU DAY TRO DI bao gia da nam tren SAP roi ──────────────

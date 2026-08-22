@@ -37,7 +37,7 @@ sap.ui.define([
 	 * la app goi SAP tao asset master that (BAPI_FIXEDASSET_CREATE1), moi don vi
 	 * so luong mot the.
 	 *
-	 * Bo phan Mua sam lam buoc nay vi ho la nguoi nhan hang va biet mon hang thuc
+	 * Phong Mua sam lam buoc nay vi ho la nguoi nhan hang va biet mon hang thuc
 	 * te ve la cai gi; ho da theo de nghi tu PR-02 toi PO-01 nen khong phai ban
 	 * giao ngu canh cho ai.
 	 */
@@ -52,7 +52,7 @@ sap.ui.define([
 
 		_onRouteMatched: function () {
 			if (this._role() !== "PURCHASING") {
-				MessageBox.error("Chỉ Bộ phận Mua sắm được vào màn hình này.");
+				MessageBox.error("Chỉ Phòng Mua sắm được vào màn hình này.");
 				this.getOwnerComponent().getRouter().navTo("dashboard");
 				return;
 			}

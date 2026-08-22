@@ -25,7 +25,7 @@ const COST_CENTER_LABEL_VI = Object.freeze({
 	CCBUS: "Phòng Kinh doanh",
 	CCFIN: "Phòng Tài chính",
 	CCOPS: "Phòng Vận hành",
-	CCPUR: "Phòng Thu mua",
+	CCPUR: "Phòng Mua sắm",
 	CCTEC: "Phòng Công nghệ"
 });
 

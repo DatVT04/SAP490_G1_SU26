@@ -61,7 +61,7 @@ function buildRfqEmail(opts) {
 
 	// ── Bang cac truong bat buoc trong bao gia ───────────────────────────
 	const fieldRows = [
-		["Tổng giá báo (VND, đã gồm VAT)", "Bắt buộc. Ghi rõ đơn giá từng dòng nếu có nhiều dòng."],
+		["Tổng giá báo (VND, chưa gồm VAT)", "Bắt buộc. Ghi rõ đơn giá từng dòng nếu có nhiều dòng."],
 		["Thời gian giao hàng (số ngày)", "Tính từ ngày ký hợp đồng/nhận PO. Ghi 0 nếu giao ngay."],
 		["Điều khoản thanh toán", PAYMENT_TERMS.map(function (t) { return t.label; }).join(" · ")],
 		["Thời gian bảo hành (số tháng)", "Ghi 0 nếu hàng hóa/dịch vụ không có bảo hành."],
@@ -169,7 +169,7 @@ function buildRfqEmail(opts) {
 		// Ket
 		+ '<tr><td style="padding:22px 32px 0;font-size:14px;line-height:1.65;color:' + BRAND.navy + '">'
 		+ '<p style="margin:0 0 10px">Báo giá nộp sau hạn vẫn được ghi nhận nhưng có thể không kịp đưa vào vòng xét chọn.</p>'
-		+ '<p style="margin:0">Trân trọng cảm ơn,<br><b>Phòng Thu mua — QDAVY Global Group</b></p>'
+		+ '<p style="margin:0">Trân trọng cảm ơn,<br><b>Phòng Mua sắm — QDAVY Global Group</b></p>'
 		+ '</td></tr>'
 
 		// Footer
@@ -177,7 +177,7 @@ function buildRfqEmail(opts) {
 		+ '<div style="border-top:1px solid ' + BRAND.line + ';padding-top:14px;font-size:11px;line-height:1.7;color:' + BRAND.slate + '">'
 		+ 'Thư này được gửi tự động từ Hệ thống Mua sắm QDAVY. Nếu thư rơi vào mục Spam/Quảng cáo, vui lòng đánh dấu <b>&ldquo;Không phải spam&rdquo;</b> và thêm '
 		+ htmlEscape(buyerEmail) + ' vào danh bạ để nhận được các yêu cầu sau.<br>'
-		+ 'Mọi thắc mắc xin liên hệ Phòng Thu mua qua địa chỉ ' + htmlEscape(buyerEmail) + '.'
+		+ 'Mọi thắc mắc xin liên hệ Phòng Mua sắm qua địa chỉ ' + htmlEscape(buyerEmail) + '.'
 		+ '</div>'
 		+ '</td></tr>'
 
@@ -214,14 +214,14 @@ function buildRfqEmail(opts) {
 		quoteLink || "",
 		"",
 		"NEU TRA LOI BANG EMAIL, xin neu du cac muc sau:",
-		"  - Tong gia bao (VND, da gom VAT)",
+		"  - Tong gia bao (VND, chua gom VAT)",
 		"  - Thoi gian giao hang (so ngay)",
 		"  - Dieu khoan thanh toan (" + PAYMENT_TERMS.map(function (t) { return t.label; }).join(" / ") + ")",
 		"  - Thoi gian bao hanh (so thang)",
 		"  - Ho so phap ly: giay phep kinh doanh, ma so thue, chung nhan/uy quyen phan phoi",
 		"",
 		"Tran trong cam on,",
-		"Phong Thu mua — QDAVY Global Group"
+		"Phong Mua sam — QDAVY Global Group"
 	].filter(function (line) { return line !== ""; }).join("\n");
 
 	return { subject: subject, html: html, text: text };
@@ -263,7 +263,7 @@ async function sendRfqInviteEmails(opts) {
 			await transporter.sendMail({
 				// Ten hien thi that ("QDAVY..." thay vi dia chi gmail tran) giup NCC
 				// nhan ra nguoi gui va giup bo loc spam bot nghi ngo hon.
-				from: { name: "QDAVY Global Group — Phòng Thu mua", address: process.env.EMAIL_USER },
+				from: { name: "QDAVY Global Group — Phòng Mua sắm", address: process.env.EMAIL_USER },
 				to: q.VendorEmail,
 				replyTo: opts.buyerEmail || process.env.EMAIL_USER,
 				subject: mail.subject,

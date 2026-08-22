@@ -275,15 +275,15 @@ sap.ui.define([
 					if (!res || !res.success) {
 						Msg.fail(res, {
 							title: "Không lưu được cấu hình",
-							fallback: "Không lưu được cấu hình ngưỡng phê duyệt. Thay đổi chưa được ghi nhận, vui lòng thử lại."
+							fallback: "Không lưu được hạn mức phê duyệt. Thay đổi chưa được ghi nhận, vui lòng thử lại."
 						});
 						return;
 					}
 					MessageBox.success(
-						"Đã lưu cấu hình ngưỡng.\n\n"
-						+ iSet + " Internal Order đang có ngưỡng, "
-						+ (aRows.length - iSet) + " Internal Order chưa đặt ngưỡng.\n"
-						+ "Các đề nghị mua sắm gửi từ bây giờ sẽ áp dụng ngưỡng mới.",
+						"Đã lưu hạn mức phê duyệt.\n\n"
+						+ iSet + " ngân sách đang có hạn mức, "
+						+ (aRows.length - iSet) + " ngân sách chưa đặt hạn mức.\n"
+						+ "Các đề nghị gửi từ bây giờ sẽ áp dụng hạn mức mới.",
 						{ title: "Cập nhật thành công" }
 					);
 				})

@@ -11,10 +11,10 @@ sap.ui.define([
 	var REQUEST_TIMEOUT_MS = 15000;
 
 	var STATUS_LABELS = {
-		PENDING_PURCHASING: "Đang chờ Bộ phận Mua sắm duyệt",
+		PENDING_PURCHASING: "Đang chờ Phòng Mua sắm duyệt",
 		PENDING_RFQ: "Đã duyệt — đang ở bước hỏi giá (RFQ)",
 		RFQ_SENT: "Đã gửi RFQ tới nhà cung cấp, chờ báo giá",
-		QUOTATIONS_RECEIVED: "Đã nhận báo giá, chờ Bộ phận Mua sắm chốt nhà cung cấp",
+		QUOTATIONS_RECEIVED: "Đã nhận báo giá, chờ Phòng Mua sắm chốt nhà cung cấp",
 		AWARDED: "Đã chốt nhà cung cấp",
 		PENDING_CFO: "Đã chốt nhà cung cấp — chờ CFO phê duyệt",
 		PENDING_CEO: "Vượt ngưỡng IO — chờ CEO phê duyệt",
@@ -149,7 +149,7 @@ sap.ui.define([
 			if (pr.CfoAction === "APPROVED") {
 				cfoSub = "Đã duyệt" + (pr.CfoProcessedBy ? " · " + pr.CfoProcessedBy : "");
 			} else if (pr.CfoAction === "ESCALATED") {
-				cfoSub = "Leo thang CEO" + (pr.CfoProcessedBy ? " · " + pr.CfoProcessedBy : "");
+				cfoSub = "Đã chuyển lên CEO" + (pr.CfoProcessedBy ? " · " + pr.CfoProcessedBy : "");
 			} else if (pr.CfoAction === "REJECTED") {
 				cfoSub = "Từ chối" + (pr.CfoProcessedBy ? " · " + pr.CfoProcessedBy : "");
 			} else if (cfoActive) {
@@ -224,7 +224,7 @@ sap.ui.define([
 			finalIcon = "sap-icon://sales-order";
 		} else if (isPoRejected) {
 			finalTitle = "PO bị từ chối";
-			finalSub = pr.Comment || "Bộ phận Mua sắm cần chọn lại nhà cung cấp hoặc tạo đơn hàng mới";
+			finalSub = pr.Comment || "Phòng Mua sắm cần chọn lại nhà cung cấp hoặc tạo đơn hàng mới";
 			finalIcon = "sap-icon://decline";
 		} else if (isPoCreated) {
 			finalTitle = "Hoàn tất — đã tạo đơn hàng và gửi nhà cung cấp";
@@ -232,7 +232,7 @@ sap.ui.define([
 			finalIcon = "sap-icon://sales-order";
 		} else if (isApproved) {
 			finalTitle = "Đã phê duyệt";
-			finalSub = (pr.SapPRId ? ("SAP: " + pr.SapPRId) : "Đã duyệt") + " — chờ Bộ phận Mua sắm tạo đơn hàng";
+			finalSub = (pr.SapPRId ? ("SAP: " + pr.SapPRId) : "Đã duyệt") + " — chờ Phòng Mua sắm tạo đơn hàng";
 			finalIcon = "sap-icon://accept";
 		} else if (isRejected) {
 			finalTitle = "Từ chối";
@@ -255,16 +255,16 @@ sap.ui.define([
 	function buildStatusHint(pr) {
 		var st = String((pr && pr.Status) || "").toUpperCase();
 		if (st === "PENDING_PURCHASING") {
-			return { text: "Đang chờ Bộ phận Mua sắm (Purchasing) xem xét.", type: "Warning" };
+			return { text: "Đang chờ Phòng Mua sắm (Purchasing) xem xét.", type: "Warning" };
 		}
 		if (st === "PENDING_RFQ") {
-			return { text: "Bộ phận Mua sắm đang lập yêu cầu báo giá (RFQ) cho đề nghị này.", type: "Warning" };
+			return { text: "Phòng Mua sắm đang lập yêu cầu báo giá (RFQ) cho đề nghị này.", type: "Warning" };
 		}
 		if (st === "RFQ_SENT") {
 			return { text: "RFQ đã được gửi tới nhà cung cấp, đang chờ báo giá.", type: "Warning" };
 		}
 		if (st === "QUOTATIONS_RECEIVED") {
-			return { text: "Đã nhận được báo giá, đang chờ Bộ phận Mua sắm chốt nhà cung cấp.", type: "Warning" };
+			return { text: "Đã nhận được báo giá, đang chờ Phòng Mua sắm chốt nhà cung cấp.", type: "Warning" };
 		}
 		if (st === "AWARDED") {
 			return { text: "Đã chốt nhà cung cấp.", type: "Warning" };
@@ -277,14 +277,14 @@ sap.ui.define([
 		}
 		if (st === "APPROVED" || st === "OPENED" || st === "OPEN") {
 			return {
-				text: "Đã phê duyệt — Bộ phận Mua sắm đang tạo đơn hàng gửi nhà cung cấp."
+				text: "Đã phê duyệt — Phòng Mua sắm đang tạo đơn hàng gửi nhà cung cấp."
 					+ (pr.SapPRId ? (" Số PR SAP: " + pr.SapPRId + " (ME53N).") : ""),
 				type: "Success"
 			};
 		}
 		if (st === "REJECTED" || st === "RETURNED") {
 			return {
-				text: "Đề nghị bị " + (pr.DecidedByRole === "CFO" || pr.DecidedByRole === "CEO" ? pr.DecidedByRole : "Bộ phận Mua sắm")
+				text: "Đề nghị bị " + (pr.DecidedByRole === "CFO" || pr.DecidedByRole === "CEO" ? pr.DecidedByRole : "Phòng Mua sắm")
 					+ " từ chối" + (pr.Comment ? (": " + pr.Comment) : ".")
 					+ " Bạn có thể lập đề nghị mới (dữ liệu điền sẵn) bằng nút bên dưới.",
 				type: "Error"
@@ -309,7 +309,7 @@ sap.ui.define([
 		if (st === "PO_REJECTED") {
 			return {
 				text: "Đơn hàng bị từ chối" + (pr.Comment ? (": " + pr.Comment) : ".")
-					+ " Đơn hàng chưa được gửi cho nhà cung cấp. Bộ phận Mua sắm sẽ chọn lại nhà cung cấp hoặc tạo đơn hàng mới.",
+					+ " Đơn hàng chưa được gửi cho nhà cung cấp. Phòng Mua sắm sẽ chọn lại nhà cung cấp hoặc tạo đơn hàng mới.",
 				type: "Error"
 			};
 		}

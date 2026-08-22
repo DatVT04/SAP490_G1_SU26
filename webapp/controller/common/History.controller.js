@@ -23,7 +23,7 @@ sap.ui.define([
 		"CCHR": "Phòng Nhân sự",
 		"CCIT": "Phòng CNTT",
 		"CCADM": "Phòng Hành chính",
-		"CCPUR": "Phòng Mua hàng",
+		"CCPUR": "Phòng Mua sắm",
 		"CCTECH": "Phòng Công nghệ",
 		"CCTEC": "Phòng Công nghệ"
 	};
@@ -110,9 +110,9 @@ sap.ui.define([
 				oModel.setProperty("/pageTitle", "Lịch sử đề nghị của tôi");
 				oModel.setProperty("/historyTitle", "Toàn bộ đề nghị đã tạo");
 			} else if (sRole === "PURCHASING") {
-				oModel.setProperty("/pageTitle", "Bộ phận Mua sắm — Chờ xử lý & Lịch sử");
-				oModel.setProperty("/pendingTitle", "Chờ Bộ phận Mua sắm duyệt");
-				oModel.setProperty("/historyTitle", "Đã xử lý (Bộ phận Mua sắm)");
+				oModel.setProperty("/pageTitle", "Phòng Mua sắm — Chờ xử lý & Lịch sử");
+				oModel.setProperty("/pendingTitle", "Chờ Phòng Mua sắm duyệt");
+				oModel.setProperty("/historyTitle", "Đã xử lý (Phòng Mua sắm)");
 			} else if (sRole === "CFO") {
 				oModel.setProperty("/pageTitle", "CFO — Chờ duyệt & Lịch sử");
 				oModel.setProperty("/pendingTitle", "Đề nghị chờ CFO phê duyệt");

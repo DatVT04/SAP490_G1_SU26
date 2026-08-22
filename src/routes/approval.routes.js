@@ -260,7 +260,7 @@ router.post("/api/approval/submit", async (req, res) => {
 
 	notifyRequester(
 		record,
-		"Đề nghị " + record.PRId + " đã được gửi, đang chờ Bộ phận Mua sắm (Purchasing) xem xét. PR trên SAP sẽ được tạo khi Bộ phận Mua sắm duyệt."
+		"Đề nghị " + record.PRId + " đã được gửi, đang chờ Phòng Mua sắm (Purchasing) xem xét. PR trên SAP sẽ được tạo khi Phòng Mua sắm duyệt."
 	);
 	await notifyPurchasing(
 		record.PRId,
@@ -490,11 +490,11 @@ router.patch("/api/approval/:id", async (req, res) => {
 	if (sRole !== "PURCHASING") {
 		return res.status(403).json({
 			success: false,
-			message: "Chỉ Bộ phận Mua sắm (Purchasing) duyệt đề nghị ở bước này. CFO/CEO phê duyệt trên màn hình PO-02."
+			message: "Chỉ Phòng Mua sắm (Purchasing) duyệt đề nghị ở bước này. CFO/CEO phê duyệt trên màn hình PO-02."
 		});
 	}
 	if (record.Status !== "PENDING_PURCHASING") {
-		return res.status(400).json({ success: false, message: "Đề nghị này không ở trạng thái chờ Bộ phận Mua sắm duyệt." });
+		return res.status(400).json({ success: false, message: "Đề nghị này không ở trạng thái chờ Phòng Mua sắm duyệt." });
 	}
 
 	if (status === "REJECTED") {
@@ -536,7 +536,7 @@ router.patch("/api/approval/:id", async (req, res) => {
 
 		notifyRequester(
 			record,
-			"Đề nghị " + record.PRId + " bị Bộ phận Mua sắm từ chối. Lý do: " + comment
+			"Đề nghị " + record.PRId + " bị Phòng Mua sắm từ chối. Lý do: " + comment
 			+ ". Bạn có thể lập đề nghị mới — màn hình chi tiết có nút điền sẵn dữ liệu cũ."
 		);
 		return res.json({ success: true, approval: record });
@@ -633,7 +633,7 @@ router.patch("/api/approval/:id", async (req, res) => {
 
 		notifyRequester(
 			record,
-			"Đề nghị " + oldId + " đã được Bộ phận Mua sắm duyệt. Số PR trên SAP: "
+			"Đề nghị " + oldId + " đã được Phòng Mua sắm duyệt. Số PR trên SAP: "
 			+ record.SapPRId + " (tra cứu ME53N). Tiếp theo: hỏi giá nhà cung cấp (RFQ)."
 		);
 		await notifyPurchasing(

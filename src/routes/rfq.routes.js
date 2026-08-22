@@ -218,7 +218,7 @@ router.post("/api/rfq/create", async (req, res) => {
 
 		notifyRequester(
 			prRecord,
-			"Đề nghị " + prRecord.PRId + " đang được Bộ phận Mua sắm gửi yêu cầu báo giá (RFQ " + rfqId + ") tới nhà cung cấp."
+			"Đề nghị " + prRecord.PRId + " đang được Phòng Mua sắm gửi yêu cầu báo giá (RFQ " + rfqId + ") tới nhà cung cấp."
 		);
 
 		return res.status(201).json({
@@ -728,13 +728,13 @@ router.post("/api/rfq/:id/award", async (req, res) => {
 			notifyRequester(
 				prRecord,
 				"RFQ " + id + " đã chọn nhà cung cấp " + vendorNo + ". Đề nghị " + prRecord.PRId
-				+ " đã chuyển sang CFO phê duyệt" + groupNote + " — duyệt xong Bộ phận Mua sắm mới tạo đơn hàng."
+				+ " đã chuyển sang CFO phê duyệt" + groupNote + " — duyệt xong Phòng Mua sắm mới tạo đơn hàng."
 			);
 			await notifyPurchasing(
 				prRecord.PRId,
 				"RFQ " + id + " đã chốt nhà cung cấp " + vendorNo + " — giá "
 				+ Number(prFinalValue).toLocaleString("vi-VN") + " " + finalCurrency + groupNote
-				+ ". Đề nghị đang chờ CFO phê duyệt; sau khi duyệt, Bộ phận Mua sắm tạo đơn hàng ở màn hình PO-01."
+				+ ". Đề nghị đang chờ CFO phê duyệt; sau khi duyệt, Phòng Mua sắm tạo đơn hàng ở màn hình PO-01."
 			);
 			await notifyCfo(
 				prRecord.PRId,

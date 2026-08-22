@@ -15,7 +15,7 @@
 					<VBox>
 						<Text text="Bước 1 · Đề nghị mua sắm" class="qdPageEyebrow"/>
 						<Title text="{i18n>tilePr01Title}" level="H1" class="qdPageTitle"/>
-						<Text text="Khai báo vật tư / dịch vụ cần mua — sau khi Bộ phận Mua sắm duyệt, hệ thống mới tạo Purchase Requisition trên SAP." class="qdPageSub"/>
+						<Text text="Khai báo vật tư / dịch vụ cần mua — sau khi Phòng Mua sắm duyệt, hệ thống mới tạo Purchase Requisition trên SAP." class="qdPageSub"/>
 					</VBox>
 				</HBox>
 				<HBox class="qdFlowSteps">
@@ -241,7 +241,7 @@
 
 				<!-- Hướng dẫn đủ nghiệp vụ -->
 				<Text
-					text="Vật tư / dịch vụ và Bộ phận chọn từ danh mục SAP; Bộ phận là bắt buộc trên mọi dòng. Cột “Ngân sách áp dụng” tự hiển thị Internal Order của phòng, không chọn tay — nếu vượt ngưỡng, sau CFO sẽ cần CEO phê duyệt. Vật tư là tài sản khai như vật tư thường (mã thẻ tài sản được gán sau khi nhận hàng). GL Account do hệ thống tự xác định."
+					text="Vật tư / dịch vụ và Bộ phận chọn từ danh mục có sẵn trên SAP, mỗi dòng đều phải chọn Bộ phận. Cột Ngân sách áp dụng tự hiện theo phòng, không cần chọn tay. Vật tư là tài sản khai giống vật tư thường — mã tài sản sẽ được gán sau khi nhận hàng. Tài khoản kế toán do hệ thống tự xác định."
 					class="qdInfoHint sapUiTinyMarginTop"
 				/>
 

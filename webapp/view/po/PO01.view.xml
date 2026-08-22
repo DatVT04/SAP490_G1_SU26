@@ -16,7 +16,7 @@
 					<VBox>
 						<Text text="Quy trình Mua sắm · Bước 3" class="qdPageEyebrow"/>
 						<Title text="Lập &amp; Phát hành Purchase Order (PO)" level="H1" class="qdPageTitle"/>
-						<Text text="Chuyển đề nghị đã duyệt thành đơn hàng (PO) và gửi nhà cung cấp" class="qdPageSub"/>
+						<Text text="Chuyển đổi PR đã duyệt từ SAP OData thành PO " class="qdPageSub"/>
 					</VBox>
 				</HBox>
 			</VBox>
@@ -35,22 +35,18 @@
 								<Text text="1" class="qdStepBadge qdStepBadgePurple"/>
 								<VBox>
 									<Title text="Danh sách PR đã duyệt" level="H3" class="qdCardTitle"/>
-									<Text text="Chọn một đề nghị đã duyệt để lập PO" class="qdCellHint"/>
+									<Text text="Chọn một Yêu cầu mua hàng để lập PO" class="qdCellHint"/>
 								</VBox>
 							</HBox>
 
-							<!-- Le trai/phai dat o VBox boc ngoai, KHONG dat thang len SearchField:
-							     width="100%" cong margin thi tong be ngang vuot khung cha nen o tim
-							     bi tran sang phai, lech so voi bang ben duoi. -->
-							<VBox class="sapUiSmallMarginBegin sapUiSmallMarginEnd sapUiTinyMarginBottom">
-								<SearchField
-									id="sfApprovedPRSearch"
-									placeholder="Tìm mã PR, mô tả hoặc mã vật tư / dịch vụ..."
-									liveChange=".onApprovedPRSearch"
-									search=".onApprovedPRSearch"
-									width="100%"
-								/>
-							</VBox>
+							<SearchField
+								id="sfApprovedPRSearch"
+								placeholder="Tìm mã PR, mô tả hoặc mã vật tư / dịch vụ..."
+								liveChange=".onApprovedPRSearch"
+								search=".onApprovedPRSearch"
+								width="100%"
+								class="sapUiSmallMarginBegin sapUiSmallMarginEnd sapUiTinyMarginBottom"
+							/>
 
 							<!-- Lấy dữ liệu thật trực tiếp từ EntitySet PurchaseRequisitions -->
 							<ScrollContainer height="calc(100vh - 24rem)" width="100%" vertical="true" horizontal="false" focusable="false">
@@ -63,7 +59,7 @@
 								growing="true"
 								growingThreshold="15"
 								growingScrollToLoad="true"
-								noDataText="Chưa có đề nghị (PR) nào được duyệt trên SAP."
+								noDataText="Chưa có Yêu cầu mua hàng (PR) nào được tạo từ SAP Gateway."
 							>
 								<columns>
 									<Column width="7rem"><Text text="Mã PR"/></Column>
@@ -100,16 +96,16 @@
 						<VBox class="qdContentCard qdCardAccentPurple">
 							<HBox alignItems="Center" class="sapUiSmallMarginBottom">
 								<Text text="2" class="qdStepBadge qdStepBadgePurple"/>
-								<Title text="Thông tin đề nghị gốc (PR Reference)" level="H3" class="qdCardTitle"/>
+								<Title text="Thông tin Yêu cầu mua hàng gốc (PR Reference)" level="H3" class="qdCardTitle"/>
 							</HBox>
 
-							<HBox wrap="Wrap" class="qdInfoRow qdInfoRowEven">
+							<HBox wrap="Wrap" class="qdInfoRow">
 								<VBox class="qdInfoCell">
 									<Label text="Mã PR / Dòng" class="qdInfoLabel"/>
 									<Text id="txtSelectedPR" text="--" class="qdInfoValue"/>
 								</VBox>
 								<VBox class="qdInfoCell">
-									<Label text="Người đề nghị (Requester)" class="qdInfoLabel"/>
+									<Label text="Người yêu cầu (Requester)" class="qdInfoLabel"/>
 									<Text id="txtRequester" text="--" class="qdInfoValue"/>
 								</VBox>
 								<VBox class="qdInfoCell">
@@ -133,7 +129,7 @@
 								<Text text="3" class="qdStepBadge qdStepBadgePurple"/>
 								<VBox>
 									<Title text="Dữ liệu Tổ chức &amp; Bên mua" level="H3" class="qdCardTitle"/>
-									<Text text="Dữ liệu tổ chức lấy theo cấu hình hệ thống từ lúc lập đề nghị — chỉ xem, không sửa" class="qdCellHint"/>
+									<Text text="Loại chứng từ, đơn vị tổ chức mua hàng theo chuẩn SAP và thông tin đơn vị mua hàng" class="qdCellHint"/>
 								</VBox>
 							</HBox>
 
@@ -154,31 +150,25 @@
 								<f:content>
 									<core:Title text="Dữ liệu tổ chức (Org Data)" class="qdFormSectionTitle qdFormSectionTitlePurple"/>
 
-									<!-- CHI DOC (21/08/2026): 3 field nay do he thong xac dinh, khong
-									     phai thu tu nguoi mua nhap. Truoc day de sua tay VOI gia tri mac
-									     dinh 1000/1000/001 (so kieu IDES, khong ton tai trong he thong
-									     cua nhom) — go nham la PO ghi sang cong ty/to chuc mua khong co
-									     that. Gia tri that do controller do vao tu /api/config; de san
-									     org that o day lam duong lui neu /api/config loi. -->
-									<Label text="Mã công ty (Company Code)"/>
+									<Label text="Mã công ty (Company Code)" required="true"/>
 									<Input
 										id="inCompanyCode"
-										value="QD01"
-										editable="false"
+										value="1000"
+										placeholder="VD: 1000"
 									/>
 
-									<Label text="Tổ chức mua hàng (Purchasing Org)"/>
+									<Label text="Tổ chức mua hàng (Purchasing Org)" required="true"/>
 									<Input
 										id="inPurchOrg"
-										value="QDPO"
-										editable="false"
+										value="1000"
+										placeholder="VD: 1000"
 									/>
 
-									<Label text="Nhóm mua hàng (Purchasing Group)"/>
+									<Label text="Nhóm mua hàng (Purchasing Group)" required="true"/>
 									<Input
 										id="inPurchGroup"
-										value="QD1"
-										editable="false"
+										value="001"
+										placeholder="VD: 001"
 									/>
 
 									<Label text="Loại chứng từ (Doc Type)"/>
@@ -222,7 +212,7 @@
 								<Text text="4" class="qdStepBadge qdStepBadgePurple"/>
 								<VBox>
 									<Title text="Nhà cung cấp &amp; Giá mua" level="H3" class="qdCardTitle"/>
-									<Text text="Nhà cung cấp lấy từ SAP, kèm mã số thuế và giá đã chốt ở bước báo giá" class="qdCellHint"/>
+									<Text text="Chọn Nhà cung cấp từ SAP, mã số thuế xuất hóa đơn và thương lượng giá" class="qdCellHint"/>
 								</VBox>
 							</HBox>
 
@@ -279,7 +269,7 @@
 									<ComboBox
 										id="inSelectedVendor"
 										width="100%"
-										placeholder="Chọn nhà cung cấp từ SAP..."
+										placeholder="Chọn Nhà cung cấp từ SAP..."
 										items="{/Vendors}"
 										selectionChange=".onVendorChange"
 										showSecondaryValues="true"
@@ -291,14 +281,14 @@
 										/>
 									</ComboBox>
 
-									<Label text="Mã số thuế nhà cung cấp" required="true"/>
+									<Label text="Mã số thuế Nhà cung cấp" required="true"/>
 									<Input
 										id="inVendorTaxCode"
-										placeholder="Tự động lấy từ dữ liệu Business Partner trên SAP"
+										placeholder="Tự động lấy từ trường Tax Code trong Business Partner (BP)"
 										editable="true"
 									/>
 
-									<Label text="Email nhận đơn hàng (tự động lấy từ SAP)" required="true"/>
+									<Label text="Email gửi thông báo (Tự động lấy từ SAP Vendor)" required="true"/>
 									<Input
 										id="inVendorEmail"
 										placeholder="Email nhà cung cấp sẽ tự động hiển thị tại đây"
@@ -307,11 +297,11 @@
 
 									<core:Title text="Giá mua (Pricing)" class="qdFormSectionTitle qdFormSectionTitlePurple"/>
 
-									<Label text="Đơn giá dòng đầu (tham khảo, tính trên 1 đơn vị)"/>
+									<Label text="Đơn giá dòng đầu — 1 đơn vị (tham khảo)"/>
 									<Input
 										id="inNetPrice"
 										editable="false"
-										placeholder="Đơn giá lấy từ báo giá được chọn ở RFQ-02"
+										placeholder="Đơn giá lấy từ giá trúng thầu đã chốt ở RFQ-02"
 									/>
 
 									<Label text="Loại tiền"/>
@@ -416,66 +406,78 @@
 								<Title text="Chi tiết dòng hàng (PO Items Table)" level="H3" class="qdCardTitle"/>
 							</HBox>
 
-							<Table id="poItemsTable" items="{/poItems}" noDataText="Chưa có dữ liệu dòng hàng">
-								<columns>
-									<Column width="4rem"><Text text="Item"/></Column>
-									<Column width="8rem"><Text text="Mã PR Nguồn"/></Column>
-									<Column><Text text="Mã &amp; Tên vật tư / dịch vụ"/></Column>
-									<Column hAlign="End" width="7rem"><Text text="Số lượng"/></Column>
-									<Column hAlign="End" width="9rem"><Text text="Đơn giá mua (1 đơn vị)"/></Column>
-									<Column hAlign="End" width="10rem"><Text text="Thành tiền"/></Column>
-									<Column width="6rem"><Text text="Nhà máy (Plant)"/></Column>
-									<Column width="11rem"><Text text="Hạch toán"/></Column>
-								</columns>
-								<items>
-									<ColumnListItem>
-										<cells>
-											<Text text="{LineNo}"/>
-											<Text text="{PreqNo}"/>
-											<VBox>
-												<Text text="{path: 'MaterialNo', formatter: '.formatMatNo'}" class="sapMTextBold"/>
-												<Text text="{Description}"/>
-												<ObjectStatus
-													text="{= ${MaterialType} === 'ZAST' ? 'Vật tư/Tài sản' : (${MaterialType} === 'ZSRV' ? 'Dịch vụ' : ${MaterialType}) }"
-													state="{= ${MaterialType} === 'ZSRV' ? 'Success' : 'Information' }"
-													icon="{= ${MaterialType} === 'ZSRV' ? 'sap-icon://employee-lookup' : 'sap-icon://product' }"
-													visible="{= !!${MaterialType} }"
-												/>
-											</VBox>
-											<Text text="{Quantity} {UoM}"/>
-											<!-- 21/08/2026: CHI XEM. Don gia dong nay duoc phan bo tu gia
-											     TRUNG THAU cua nhom NCC (xem _allocateGroupPrice) — tuc la
-											     con so da chot o RFQ-02 va da qua CFO/CEO duyet. Cho sua tay
-											     o day nghia la PO gui NCC lech voi bao gia va lech voi so tien
-											     da duyet. Muon doi gia thi phai quay lai RFQ-02. -->
-											<Text text="{path: 'NetPrice', formatter: '.formatCurrency'}" textAlign="End"/>
-											<VBox>
+							<!-- 21/08/2026: BO BANG 8 COT, chuyen sang the tung dong.
+							     Khu vuc nay nam trong panel phai cua Splitter nen chi rong khoang 1150px;
+							     8 cot chia ra moi cot ~140px lam tieu de bi xuong dong va so lieu dinh sat
+							     nhau. The tung dong cho phep uu tien: ten vat tu + thanh tien noi bat o hang
+							     tren, cac truong con lai xuong hang duoi CO NHAN rieng nen doc khong phai do
+							     cot. KHONG bo bot thong tin nao so voi bang cu.
+							     Style o webapp/css/09-po-polish.css (khoi .qdPoLine* / .qdPoFact*). -->
+							<List
+								id="poItemsTable"
+								items="{/poItems}"
+								showSeparators="None"
+								noDataText="Chưa có dữ liệu dòng hàng"
+								class="qdPoLineList"
+							>
+								<CustomListItem>
+									<VBox class="qdPoLine">
+
+										<HBox alignItems="Start" justifyContent="SpaceBetween" wrap="Wrap" class="qdPoLineHead">
+											<HBox alignItems="Start" class="qdPoLineIdent">
+												<Text text="{LineNo}" class="qdPoLineNo"/>
+												<VBox class="qdPoLineNameBox">
+													<Text text="{Description}" class="qdPoLineTitle"/>
+													<HBox alignItems="Center" wrap="Wrap" class="qdPoLineTags">
+														<Text text="{path: 'MaterialNo', formatter: '.formatMatNo'}" class="qdPoLineCode"/>
+														<ObjectStatus
+															text="{= ${MaterialType} === 'ZAST' ? 'Vật tư/Tài sản' : (${MaterialType} === 'ZSRV' ? 'Dịch vụ' : ${MaterialType}) }"
+															state="{= ${MaterialType} === 'ZSRV' ? 'Success' : 'Information' }"
+															icon="{= ${MaterialType} === 'ZSRV' ? 'sap-icon://employee-lookup' : 'sap-icon://product' }"
+															visible="{= !!${MaterialType} }"
+														/>
+													</HBox>
+												</VBox>
+											</HBox>
+											<VBox alignItems="End" class="qdPoLineMoneyBox">
+												<Text text="Thành tiền" class="qdPoFactLabel"/>
 												<ObjectNumber
 													number="{parts: ['NetPrice','Quantity'], formatter: '.formatLineTotal'}"
 													unit="{Currency}"
 													emphasized="true"
-												/>
-												<Text
-													text="{parts: ['NetPrice','Quantity','UoM'], formatter: '.formatLineTotalHint'}"
-													class="qdCellHint"
+													class="qdPoLineAmount"
 												/>
 											</VBox>
-											<!-- CHI XEM: Plant lay tu ORG_DEFAULTS (QDPL), khong phai thu
-											     nguoi mua tu quyet tung dong. -->
-											<Text text="{Plant}"/>
-											<!-- Cot hach toan: dong Cost Center (Cat K) cho nhap tay, dong
-											     Tai san (Cat A) / Internal Order (Cat F) chi hien ma lay tu
-											     PR. Truoc day cot nay luon la o Cost Center nen dong tai san
-											     hien o TRONG, nhin nhu he thong thieu du lieu hach toan. -->
-											<VBox>
-												<Text
-													text="{parts: ['AcctAssignCat','AssetNo','InternalOrder'], formatter: '.formatAcctCatLabel'}"
-													class="qdCellHint"
-												/>
-												<!-- CHI XEM: Cost Center lay nguyen tu dong PR (nguoi de nghi
-												     bat buoc chon Bo phan o PR-01). -->
+										</HBox>
+
+										<HBox wrap="Wrap" class="qdPoLineFacts">
+											<VBox class="qdPoFact">
+												<Text text="PR nguồn" class="qdPoFactLabel"/>
+												<Text text="{PreqNo}" class="qdPoFactValue"/>
+											</VBox>
+											<VBox class="qdPoFact">
+												<Text text="Số lượng" class="qdPoFactLabel"/>
+												<Text text="{Quantity} {UoM}" class="qdPoFactValue"/>
+											</VBox>
+											<VBox class="qdPoFact">
+												<!-- CHI XEM: don gia dong nay phan bo tu gia TRUNG THAU cua nhom NCC
+												     (xem _allocateGroupPrice) — con so da chot o RFQ-02 va da qua
+												     CFO/CEO duyet. Muon doi gia thi phai quay lai RFQ-02. -->
+												<Text text="Đơn giá (1 đơn vị)" class="qdPoFactLabel"/>
+												<Text text="{path: 'NetPrice', formatter: '.formatCurrency'}" class="qdPoFactValue"/>
+											</VBox>
+											<VBox class="qdPoFact">
+												<!-- CHI XEM: Plant lay tu ORG_DEFAULTS (QDPL). -->
+												<Text text="Nhà máy" class="qdPoFactLabel"/>
+												<Text text="{Plant}" class="qdPoFactValue"/>
+											</VBox>
+											<VBox class="qdPoFact qdPoFactWide">
+												<!-- Dong Cost Center (Cat K) hien ma bo phan; dong Tai san (Cat A) /
+												     Internal Order (Cat F) hien doi tuong hach toan tuong ung. CHI XEM. -->
+												<Text text="Hạch toán" class="qdPoFactLabel"/>
 												<Text
 													text="{CostCenter}"
+													class="qdPoFactValue"
 													visible="{parts: ['AcctAssignCat','AssetNo','InternalOrder'], formatter: '.isAcctCostCenter'}"
 												/>
 												<ObjectStatus
@@ -483,15 +485,20 @@
 													state="{parts: ['AcctAssignCat','AssetNo','InternalOrder'], formatter: '.formatAcctObjectState'}"
 													visible="{parts: ['AcctAssignCat','AssetNo','InternalOrder'], formatter: '.isAcctNotCostCenter'}"
 												/>
+												<Text
+													text="{parts: ['AcctAssignCat','AssetNo','InternalOrder'], formatter: '.formatAcctCatLabel'}"
+													class="qdPoFactSub"
+												/>
 											</VBox>
-										</cells>
-									</ColumnListItem>
-								</items>
-							</Table>
+										</HBox>
+
+									</VBox>
+								</CustomListItem>
+							</List>
 							
 							<HBox justifyContent="End" alignItems="Center" class="sapUiMediumMarginTop">
 								<Text
-									text="Đề nghị đã được CFO/CEO phê duyệt. Ngay khi tạo đơn hàng, hệ thống sẽ gửi email cho nhà cung cấp."
+									text="Đề nghị đã được CFO/CEO phê duyệt. Tạo đơn hàng xong, hệ thống gửi email cho nhà cung cấp ngay."
 									class="qdInfoHint sapUiSmallMarginEnd"
 								/>
 								<Button

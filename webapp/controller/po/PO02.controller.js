@@ -56,7 +56,7 @@ sap.ui.define([
 			}
 			this.getView().getModel().setProperty(
 				"/pageEyebrow",
-				sRole === "CEO" ? "Phê duyệt · CEO duyệt đề nghị vượt ngưỡng" : "Phê duyệt · CFO duyệt đề nghị"
+				sRole === "CEO" ? "Phê duyệt · CEO duyệt đề nghị vượt hạn mức" : "Phê duyệt · CFO duyệt đề nghị"
 			);
 			this._loadPending();
 		},
@@ -121,9 +121,9 @@ sap.ui.define([
 
 			var sHint;
 			if (bWillEscalate) {
-				sHint = "\n\nĐề nghị này vượt ngưỡng phê duyệt của Internal Order. Sau khi bạn duyệt, đề nghị sẽ được chuyển tiếp lên CEO. Chưa có đơn hàng nào được tạo.";
+				sHint = "\n\nĐề nghị này vượt hạn mức ngân sách nên sau khi bạn duyệt sẽ được chuyển tiếp lên CEO. Chưa có đơn hàng nào được tạo.";
 			} else if (bIsApprove) {
-				sHint = "\n\nDuyệt xong, Bộ phận Mua sắm sẽ tạo đơn hàng trên SAP và hệ thống gửi email cho nhà cung cấp.";
+				sHint = "\n\nDuyệt xong, Phòng Mua sắm sẽ tạo đơn hàng trên SAP và hệ thống gửi email cho nhà cung cấp.";
 			} else {
 				sHint = "\n\nNếu từ chối, đề nghị kết thúc tại đây. Chưa có đơn hàng nào được tạo nên không phát sinh xử lý trên SAP.";
 			}
@@ -221,13 +221,13 @@ sap.ui.define([
 					} else if (sAction === "APPROVED") {
 						MessageBox.success(
 							"Đã phê duyệt đề nghị " + oPR.PRId + "."
-							+ "\nBộ phận Mua sắm đã nhận được thông báo để tạo đơn hàng ở màn hình PO-01.",
+							+ "\nPhòng Mua sắm đã nhận được thông báo để tạo đơn hàng ở màn hình PO-01.",
 							{ title: "Đã phê duyệt" }
 						);
 					} else {
 						MessageBox.warning(
 							"Đã từ chối đề nghị " + oPR.PRId
-							+ ".\nChưa có đơn hàng nào được tạo. Bộ phận Mua sắm đã nhận được thông báo.",
+							+ ".\nChưa có đơn hàng nào được tạo. Phòng Mua sắm đã nhận được thông báo.",
 							{ title: "Đã từ chối" }
 						);
 					}
@@ -255,27 +255,66 @@ sap.ui.define([
 
 		formatPriceRange: function (nLowest, nHighest, nChosen) {
 			if (!Number(nChosen)) { return "Chưa đọc được giá của nhà cung cấp được chọn."; }
-			var s = "Thấp nhất " + this._money(nLowest);
-			if (Number(nHighest) > Number(nLowest)) {
-				s += " · cao nhất " + this._money(nHighest);
+			// Chi 1 bao gia thi "thap nhat X · da chon X" doc rat vo nghia (2 con so
+			// giong het nhau) — noi thang la gia bao nhieu.
+			if (!Number(nHighest) || Number(nHighest) === Number(nLowest)) {
+				if (Number(nLowest) === Number(nChosen)) {
+					return "Giá đã báo: " + this._money(nChosen) + " VND";
+				}
 			}
-			return s + " · đã chọn " + this._money(nChosen) + " VND";
+			return "Báo giá thấp nhất " + this._money(nLowest) + " VND · cao nhất "
+				+ this._money(nHighest) + " VND · đã chọn " + this._money(nChosen) + " VND";
 		},
 
-		// Ba ket cuc: chi co 1 bao gia (khong co canh tranh — nang nhat),
-		// chon gia cao hon gia thap nhat (phai giai trinh), hoac chon dung gia
-		// thap nhat (khong con gi de hoi).
+		// Ba ket cuc: chi co 1 bao gia (khong co gi de so), chon gia cao hon gia thap
+		// nhat (phai giai trinh), hoac chon dung gia thap nhat (khong con gi de hoi).
+		//
+		// 21/08/2026 sua chu: ban cu viet "cần lý do chỉ định thầu" — CFO doc tuong la
+		// HE THONG DANG THIEU ly do, trong khi ly do da bat buoc nhap tu luc chot NCC
+		// (rfq.routes.js chan 400 neu thieu) va dang hien ngay ben duoi. Cau moi chi
+		// NEU SU THAT, khong doi hoi them viec.
 		formatPriceVerdict: function (bIsLowest, nExtra, bSingle) {
 			if (bSingle) {
-				return "Chỉ có 1 báo giá — không có cạnh tranh giá, cần lý do chỉ định thầu";
+				return "Chỉ nhận được 1 báo giá — không có giá khác để so sánh";
 			}
 			if (bIsLowest) { return "Đã chọn báo giá thấp nhất"; }
-			return "Không chọn báo giá thấp nhất — cao hơn " + this._money(nExtra) + " VND";
+			return "Không chọn báo giá thấp nhất — chọn cao hơn " + this._money(nExtra)
+				+ " VND, xem lý do bên dưới";
 		},
 
+		// Mau: chi 1 bao gia la dieu CAN LUU Y (vang), khong phai LOI (do) — ly do chi
+		// dinh thau da co san, khong co gi hong ca.
 		formatPriceVerdictState: function (bIsLowest, nExtra, bSingle) {
-			if (bSingle) { return "Error"; }
+			if (bSingle) { return "Warning"; }
 			return bIsLowest ? "Success" : "Warning";
+		},
+
+		// ── LY DO CHOT NCC ──
+		// Backend ghep 2 ly do vao MOT chuoi khi chi co 1 bao gia:
+		//   "[SOLE SOURCE] <ly do chi dinh thau> | <ly do chon NCC>"
+		// (xem rfq.routes.js). Truoc day man nay in nguyen chuoi do ra man hinh nen
+		// CFO doc thay "Lý do chọn: [SOLE SOURCE] oke | oke" — dau ngoac vuong va dau
+		// gach dung la ky hieu noi bo, khong phai thu de nguoi dung doc. Tach lam 2
+		// dong co nhan rieng.
+		_splitAwardReason: function (sReason) {
+			var s = String(sReason || "").trim();
+			var m = /^\[SOLE SOURCE\]\s*([\s\S]*?)\s*\|\s*([\s\S]*)$/.exec(s);
+			if (m) { return { sole: m[1].trim(), pick: m[2].trim() }; }
+			return { sole: "", pick: s };
+		},
+
+		hasSoleSourceReason: function (sReason) {
+			return !!this._splitAwardReason(sReason).sole;
+		},
+
+		formatSoleSourceReason: function (sReason) {
+			var o = this._splitAwardReason(sReason);
+			return o.sole ? ("Lý do chỉ định 1 nhà cung cấp: " + o.sole) : "";
+		},
+
+		formatAwardReason: function (sReason) {
+			var o = this._splitAwardReason(sReason);
+			return "Lý do chọn nhà cung cấp này: " + (o.pick || "(chưa ghi)");
 		},
 
 		formatVendorTerms: function (bLegalOk, sPaymentTerms, nLeadTime, nWarranty) {
@@ -291,14 +330,22 @@ sap.ui.define([
 			return Number(fValue).toLocaleString("vi-VN") + " " + (sCurrency || "VND");
 		},
 
-		// "% lech gia uoc tinh vs gia chot" — con so giup CFO phat hien NCC het gia.
+		// Lech giua gia uoc tinh luc lap de nghi va gia chot sau bao gia.
+		//
+		// 21/08/2026 sua chu: ban cu tra ve "+3,6% so với dự toán" — hai van de.
+		// (1) Nhan cot ben tren viet "Giá ước tính ban đầu" nhung cau nay lai goi la
+		//     "dự toán" -> nguoi doc tuong la hai con so khac nhau.
+		// (2) Chi co % ma khong co so tien: CFO duyet TIEN, "+3,6%" khong tra loi duoc
+		//     cau hoi "dat hon bao nhieu".
 		formatDiff: function (fEstimated, fFinal) {
 			var nEst = Number(fEstimated);
 			var nFin = Number(fFinal);
-			if (!nEst || isNaN(nEst) || isNaN(nFin)) { return "không có dự toán để so"; }
-			var nPct = ((nFin - nEst) / nEst) * 100;
-			var sSign = nPct > 0 ? "+" : "";
-			return sSign + nPct.toFixed(1).replace(".", ",") + "% so với dự toán";
+			if (!nEst || isNaN(nEst) || isNaN(nFin)) { return "Không có giá ước tính để so sánh"; }
+			var nGap = nFin - nEst;
+			if (nGap === 0) { return "Bằng đúng giá ước tính"; }
+			var nPct = Math.abs((nGap / nEst) * 100).toFixed(1).replace(".", ",");
+			return (nGap > 0 ? "Cao hơn giá ước tính " : "Thấp hơn giá ước tính ")
+				+ this._money(Math.abs(nGap)) + " VND (" + (nGap > 0 ? "+" : "−") + nPct + "%)";
 		},
 
 		formatDiffState: function (fEstimated, fFinal) {

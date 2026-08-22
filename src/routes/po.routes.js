@@ -522,8 +522,8 @@ router.patch("/api/pr-approval/:prId", async (req, res) => {
 		const io = record.escalationIO || "";
 		const escFields = {
 			Status: "PENDING_CEO",
-			EscalationReason: "Vượt ngưỡng Internal Order " + io + " ("
-				+ Number(t).toLocaleString("vi-VN") + " VND) — cần CEO phê duyệt.",
+			EscalationReason: "Vượt hạn mức " + Number(t).toLocaleString("vi-VN")
+				+ " VND của ngân sách " + io + " — cần CEO duyệt.",
 			Comment: comment || record.Comment,
 			CfoProcessedBy: decidedByEmail || "",
 			CfoAction: "ESCALATED"
@@ -537,10 +537,10 @@ router.patch("/api/pr-approval/:prId", async (req, res) => {
 		}
 		Object.assign(record, escFields, { CfoAt: nowIso, UpdatedAt: nowIso });
 
-		notifyRequester(record, "Đề nghị " + record.PRId + " đã được CFO chuyển lên CEO (vượt ngưỡng IO).");
+		notifyRequester(record, "Đề nghị " + record.PRId + " đã được CFO chuyển lên CEO duyệt vì vượt hạn mức ngân sách.");
 		await notifyCeos(
 			record.PRId,
-			"Đề nghị " + record.PRId + " leo thang lên CEO. " + record.EscalationReason
+			"Đề nghị " + record.PRId + " cần CEO duyệt. " + record.EscalationReason
 			+ " Giá trị: " + Number(record.TotalValue).toLocaleString("vi-VN") + " " + record.Currency + "."
 		);
 		return res.json({ success: true, approval: record, escalated: true, reason: record.EscalationReason });
@@ -575,7 +575,7 @@ router.patch("/api/pr-approval/:prId", async (req, res) => {
 	notifyRequester(
 		record,
 		"Đề nghị " + record.PRId + " đã được " + sRole
-		+ " phê duyệt. Bộ phận Mua sắm sẽ tạo đơn hàng và gửi nhà cung cấp."
+		+ " phê duyệt. Phòng Mua sắm sẽ tạo đơn hàng và gửi nhà cung cấp."
 	);
 	await notifyPurchasing(
 		record.PRId,

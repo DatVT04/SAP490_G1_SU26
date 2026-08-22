@@ -206,7 +206,7 @@
 			<form id="quoteForm" novalidate>
 				<div class="grid">
 					<div class="field full">
-						<label for="fPrice">Tổng giá báo (VND, đã gồm VAT) <span class="req">*</span></label>
+						<label for="fPrice">Tổng giá báo (VND, chưa gồm VAT) <span class="req">*</span></label>
 						<input type="number" id="fPrice" min="1" step="1" inputmode="numeric" placeholder="VD: 42000000" required>
 						<div class="price-preview" id="pricePreview"></div>
 					</div>
@@ -263,7 +263,7 @@
 	</div>
 
 	<div class="foot">
-		QDAVY Global Group — Phòng Thu mua<br>
+		QDAVY Global Group — Phòng Mua sắm<br>
 		Trang này chỉ dùng cho yêu cầu báo giá được gửi tới Quý công ty qua email. Vui lòng không chia sẻ đường dẫn.
 	</div>
 </div>
@@ -461,7 +461,7 @@
 				hide("viewMain"); hide("cardItems"); hide("cardForm");
 				text("doneText", "Báo giá cho yêu cầu " + RFQ + " đã được ghi nhận vào hệ thống"
 					+ (res.body.late ? " (ghi nhận là nộp sau hạn)" : "")
-					+ ". Phòng Thu mua QDAVY sẽ liên hệ nếu cần làm rõ thêm. Trân trọng cảm ơn Quý công ty.");
+					+ ". Phòng Mua sắm QDAVY sẽ liên hệ nếu cần làm rõ thêm. Trân trọng cảm ơn Quý công ty.");
 				show("viewDone");
 				window.scrollTo(0, 0);
 			})
@@ -474,7 +474,7 @@
 
 	// ── Khoi dong ────────────────────────────────────────────────────────
 	if (!RFQ || !VENDOR || !TOKEN) {
-		fail("Đường dẫn không hợp lệ", "Vui lòng mở lại đúng đường dẫn trong email mời báo giá, hoặc liên hệ Phòng Thu mua QDAVY.");
+		fail("Đường dẫn không hợp lệ", "Vui lòng mở lại đúng đường dẫn trong email mời báo giá, hoặc liên hệ Phòng Mua sắm QDAVY.");
 		return;
 	}
 
@@ -487,7 +487,7 @@
 		.then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
 		.then(function (res) {
 			if (!res.body || !res.body.success) {
-				fail("Không mở được yêu cầu báo giá", (res.body && res.body.message) || "Vui lòng liên hệ Phòng Thu mua QDAVY.");
+				fail("Không mở được yêu cầu báo giá", (res.body && res.body.message) || "Vui lòng liên hệ Phòng Mua sắm QDAVY.");
 				return;
 			}
 			data = res.body;

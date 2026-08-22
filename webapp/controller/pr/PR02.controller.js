@@ -70,7 +70,7 @@ sap.ui.define([
 				return;
 			}
 			if (!isApproverRole(sRole)) {
-				MessageBox.error("Bạn không có quyền truy cập màn hình này. Chỉ Bộ phận Mua sắm được phê duyệt đề nghị.");
+				MessageBox.error("Bạn không có quyền truy cập màn hình này. Chỉ Phòng Mua sắm được phê duyệt đề nghị.");
 				this.getOwnerComponent().getRouter().navTo("dashboard");
 				return;
 			}
@@ -330,7 +330,7 @@ sap.ui.define([
 			}
 			if (oRfq.AwardReason || oPR.RfqAwardReason) {
 				oContent.addItem(new Text({
-					text: "Lý do Bộ phận Mua sắm chọn: " + (oRfq.AwardReason || oPR.RfqAwardReason)
+					text: "Lý do Phòng Mua sắm chọn: " + (oRfq.AwardReason || oPR.RfqAwardReason)
 				}).addStyleClass("sapUiTinyMarginTop"));
 			}
 

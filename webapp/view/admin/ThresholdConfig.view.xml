@@ -27,11 +27,11 @@
                 <VBox class="qdContentCard qdCardTight">
                     <HBox alignItems="Center" class="sapUiSmallMargin">
                         <core:Icon src="sap-icon://settings" class="qdCardIcon sapUiTinyMarginEnd"/>
-                        <Title text="Ngưỡng ngân sách theo Internal Order ({= ${thresholdModel>/rows}.length })" level="H3" class="qdCardTitle"/>
+                        <Title text="Hạn mức ngân sách theo Internal Order ({= ${thresholdModel>/rows}.length })" level="H3" class="qdCardTitle"/>
                     </HBox>
 
                     <MessageStrip
-                        text="Bỏ trống một dòng nghĩa là Internal Order đó không đặt ngưỡng — PR gắn IO đó sẽ không bao giờ tự leo thang lên CEO vì lý do vượt ngân sách."
+                        text="Để trống một dòng nghĩa là ngân sách đó không đặt hạn mức — đề nghị dùng ngân sách đó sẽ không bao giờ phải trình CEO vì lý do vượt tiền."
                         type="Information"
                         showIcon="true"
                         class="sapUiSmallMarginBeginEnd sapUiSmallMarginBottom"
@@ -48,7 +48,7 @@
                             <Column><Text text="Tên / Mô tả"/></Column>
                             <Column width="9rem"><Text text="Cost Center"/></Column>
                             <Column width="16rem" hAlign="End"><Text text="Ngưỡng ngân sách (VND)"/></Column>
-                            <Column width="7rem" hAlign="Center"><Text text="Xóa ngưỡng"/></Column>
+                            <Column width="7rem" hAlign="Center"><Text text="Xóa hạn mức"/></Column>
                         </columns>
                         <items>
                             <ColumnListItem>
@@ -60,13 +60,13 @@
                                         value="{thresholdModel>threshold}"
                                         type="Number"
                                         textAlign="End"
-                                        placeholder="Không đặt ngưỡng"
+                                        placeholder="Không đặt hạn mức"
                                         width="100%"
                                     />
                                     <Button
                                         icon="sap-icon://decline"
                                         type="Transparent"
-                                        tooltip="Xóa ngưỡng của Internal Order này"
+                                        tooltip="Xóa hạn mức của ngân sách này"
                                         press=".onClearRow"
                                     />
                                 </cells>
@@ -162,14 +162,14 @@
                 <VBox class="qdContentCard">
                     <HBox alignItems="Center" class="sapUiSmallMarginBottom">
                         <core:Icon src="sap-icon://hint" class="qdCardIcon sapUiTinyMarginEnd"/>
-                        <Title text="Quy tắc leo thang đang áp dụng" level="H3" class="qdCardTitle"/>
+                        <Title text="Quy tắc phê duyệt đang áp dụng" level="H3" class="qdCardTitle"/>
                     </HBox>
                     <Text
-                        text="Khi Bộ phận Mua sắm duyệt xong, PR chuyển sang CFO. Tại bước CFO, hệ thống so tổng giá trị PR với ngưỡng của các Internal Order gắn trên từng dòng vật tư: chỉ cần vượt ngưỡng của một IO bất kỳ thì PR bắt buộc phải qua CEO phê duyệt, ngược lại CFO duyệt là ghi thẳng lên SAP."
+                        text="Phòng Mua sắm duyệt xong thì đề nghị chuyển sang CFO. Lúc này hệ thống so tổng tiền với hạn mức của từng ngân sách gắn trên các dòng vật tư — chỉ cần vượt hạn mức của một ngân sách bất kỳ là đề nghị phải trình thêm CEO duyệt. Không vượt thì chỉ cần CFO duyệt."
                         class="qdCellHint"
                     />
                     <Text
-                        text="Nếu PR đi qua luồng hỏi giá (RFQ), ngưỡng sẽ được tính lại trên giá thực tế của báo giá được chọn thay vì giá ước tính lúc lập PR."
+                        text="Nếu đề nghị đi qua vòng hỏi giá, hệ thống so lại hạn mức trên giá thực tế của báo giá đã chọn, thay vì giá ước tính lúc lập đề nghị."
                         class="qdCellHint sapUiSmallMarginTop"
                     />
                 </VBox>

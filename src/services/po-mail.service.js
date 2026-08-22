@@ -172,7 +172,7 @@ function buildPoEmail(poNumber, data) {
 		+ '<div style="font-size:11px;color:' + BRAND.slate + ';padding-top:8px;line-height:1.6">Giá trên là giá đã thống nhất trong báo giá của Quý công ty.</div>'
 		+ '</td></tr>'
 
-		+ pairTable('GIAO HÀNG', deliveryPairs, 'Địa chỉ và thời gian giao hàng sẽ được đầu mối thu mua xác nhận lại trước khi giao.')
+		+ pairTable('GIAO HÀNG', deliveryPairs, 'Địa chỉ và thời gian giao hàng sẽ được đầu mối mua sắm xác nhận lại trước khi giao.')
 		+ pairTable('THANH TOÁN', paymentPairs, 'Thanh toán theo điều khoản đã thống nhất trong báo giá.')
 
 		// Viec can lam
@@ -189,7 +189,7 @@ function buildPoEmail(poNumber, data) {
 
 		// Ket
 		+ '<tr><td style="padding:22px 32px 0;font-size:14px;line-height:1.65;color:' + BRAND.navy + '">'
-		+ '<p style="margin:0">Trân trọng cảm ơn,<br><b>Phòng Thu mua — QDAVY Global Group</b>'
+		+ '<p style="margin:0">Trân trọng cảm ơn,<br><b>Phòng Mua sắm — QDAVY Global Group</b>'
 		+ (String(data.buyerName || "").trim()
 			? '<br><span style="font-size:13px;color:' + BRAND.slate + '">Đầu mối: ' + htmlEscape(data.buyerName)
 				+ (String(data.buyerPhone || "").trim() ? ' — ' + htmlEscape(data.buyerPhone) : '') + '</span>'
@@ -201,7 +201,7 @@ function buildPoEmail(poNumber, data) {
 		+ '<tr><td style="padding:24px 32px 28px">'
 		+ '<div style="border-top:1px solid ' + BRAND.line + ';padding-top:14px;font-size:11px;line-height:1.7;color:' + BRAND.slate + '">'
 		+ 'Thư này được gửi tự động từ Hệ thống Mua sắm QDAVY sau khi đơn hàng được phê duyệt nội bộ. '
-		+ (buyerEmail ? 'Mọi thắc mắc xin liên hệ Phòng Thu mua qua địa chỉ ' + htmlEscape(buyerEmail) + '.' : '')
+		+ (buyerEmail ? 'Mọi thắc mắc xin liên hệ Phòng Mua sắm qua địa chỉ ' + htmlEscape(buyerEmail) + '.' : '')
 		+ '</div>'
 		+ '</td></tr>'
 
@@ -238,7 +238,7 @@ function buildPoEmail(poNumber, data) {
 		"",
 		deliveryPairs.length
 			? "GIAO HÀNG:\n" + deliveryPairs.map(function (p) { return "  • " + p[0] + ": " + p[1]; }).join("\n")
-			: "GIAO HÀNG: đầu mối thu mua sẽ xác nhận lại trước khi giao.",
+			: "GIAO HÀNG: đầu mối mua sắm sẽ xác nhận lại trước khi giao.",
 		"",
 		paymentPairs.length
 			? "THANH TOÁN:\n" + paymentPairs.map(function (p) { return "  • " + p[0] + ": " + p[1]; }).join("\n")
@@ -248,7 +248,7 @@ function buildPoEmail(poNumber, data) {
 		"Nếu có sai lệch so với báo giá, xin phản hồi trước khi giao hàng.",
 		"",
 		"Trân trọng cảm ơn,",
-		"Phòng Thu mua — QDAVY Global Group"
+		"Phòng Mua sắm — QDAVY Global Group"
 		// Loc null (dong dieu kien khong co du lieu) chu KHONG loc "" — chuoi rong
 		// la dong trong co chu y, loc mat thi ban text dinh lien mot khoi kho doc.
 	].filter(function (line) { return line !== null; }).join("\n");
@@ -273,7 +273,7 @@ async function sendPOEmailToVendor(vendorEmail, poNumber, data) {
 		await transporter.sendMail({
 			// Ten hien thi that thay vi dia chi gmail tran — NCC nhan ra nguoi gui
 			// va bo loc spam bot nghi ngo hon (cung ly do o email moi bao gia).
-			from: { name: "QDAVY Global Group — Phòng Thu mua", address: process.env.EMAIL_USER },
+			from: { name: "QDAVY Global Group — Phòng Mua sắm", address: process.env.EMAIL_USER },
 			to: vendorEmail,
 			replyTo: (data && data.buyerEmail) || process.env.EMAIL_USER,
 			subject: mail.subject,

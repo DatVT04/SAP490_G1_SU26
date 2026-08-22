@@ -121,3 +121,124 @@
 	}
 }
 
+
+/* ==========================================================================
+   THE TUNG DONG HANG CUA PO (thay cho bang 8 cot) — them 21/08/2026.
+   Khu vuc nay nam trong panel phai cua Splitter (~1150px) nen bang 8 cot bi
+   chat: tieu de xuong dong, so lieu dinh nhau. The tung dong tach lam 2 tang:
+   tang tren la thu can nhin dau tien (vat tu + thanh tien), tang duoi la cac
+   truong tra cuu, moi truong co nhan rieng.
+   ========================================================================== */
+
+.qdPoLineList .sapMLIB {
+	padding: 0 !important;
+	border: 0 !important;
+	background: transparent !important;
+}
+
+.qdPoLine {
+	border: 1px solid rgba(100, 116, 139, 0.18);
+	border-radius: 12px;
+	padding: 1rem 1.15rem;
+	margin-bottom: 0.75rem;
+	background: #ffffff;
+}
+
+/* ---- Tang tren ---- */
+.qdPoLineHead {
+	gap: 1rem;
+}
+
+.qdPoLineIdent {
+	flex: 1 1 22rem;
+	min-width: 0;
+}
+
+.qdPoLineNo {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 3.1rem;
+	height: 1.6rem;
+	padding: 0 0.5rem;
+	border-radius: 999px;
+	background: rgba(124, 58, 237, 0.10);
+	color: var(--qd-accent-purple, #7c3aed) !important;
+	font-size: 0.72rem !important;
+	font-weight: 700 !important;
+	flex-shrink: 0;
+}
+
+.qdPoLineNameBox {
+	margin-left: 0.75rem;
+	min-width: 0;
+}
+
+.qdPoLineTitle {
+	font-size: 1rem !important;
+	font-weight: 700 !important;
+	line-height: 1.35 !important;
+}
+
+.qdPoLineTags {
+	gap: 0.55rem;
+	margin-top: 0.2rem;
+}
+
+.qdPoLineCode {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.78rem !important;
+}
+
+.qdPoLineMoneyBox {
+	flex-shrink: 0;
+}
+
+.qdPoLineAmount .sapMObjectNumberText {
+	font-size: 1.15rem !important;
+	font-weight: 700 !important;
+}
+
+/* ---- Tang duoi ---- */
+.qdPoLineFacts {
+	gap: 0.5rem 2rem;
+	margin-top: 0.9rem;
+	padding-top: 0.85rem;
+	border-top: 1px dashed rgba(100, 116, 139, 0.25);
+}
+
+.qdPoFact {
+	min-width: 7rem;
+}
+
+.qdPoFactWide {
+	min-width: 11rem;
+}
+
+.qdPoFactLabel {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.7rem !important;
+	font-weight: 600 !important;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	line-height: 1.5 !important;
+}
+
+.qdPoFactValue {
+	font-size: 0.9rem !important;
+	font-weight: 600 !important;
+	line-height: 1.45 !important;
+}
+
+.qdPoFactSub {
+	color: var(--qd-text-muted) !important;
+	font-size: 0.72rem !important;
+	line-height: 1.4 !important;
+}
+
+@media (max-width: 700px) {
+	.qdPoLineMoneyBox {
+		align-items: flex-start;
+		margin-top: 0.6rem;
+	}
+}

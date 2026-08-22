@@ -19,7 +19,7 @@ sap.ui.define([
 		"CCHR": "Phòng Nhân sự",
 		"CCIT": "Phòng CNTT",
 		"CCADM": "Phòng Hành chính",
-		"CCPUR": "Phòng Mua hàng",
+		"CCPUR": "Phòng Mua sắm",
 		"CCTECH": "Phòng Công nghệ"
 	};
 
@@ -211,7 +211,7 @@ sap.ui.define([
 			this._recalcTotal();
 
 			MessageBox.information(
-				"Đề nghị " + oData.prId + " đã bị Bộ phận Mua sắm trả lại."
+				"Đề nghị " + oData.prId + " đã bị Phòng Mua sắm trả lại."
 				+ (oData.returnReason ? ("\n\nLý do trả lại: " + oData.returnReason) : "")
 				+ "\n\nDữ liệu cũ đã được điền sẵn. Vui lòng chỉnh sửa rồi nhấn Gửi đề nghị.",
 				{ title: "Sửa & gửi lại đề nghị" }
@@ -496,12 +496,13 @@ sap.ui.define([
 			});
 
 			if (bOverIO) {
-				sWarn = "Tổng giá trị vượt ngưỡng Internal Order " + sHitIO
-					+ " (" + Number(nHitTh).toLocaleString("vi-VN") + " VND) — sau CFO sẽ leo thang lên CEO.";
+				sWarn = "Tổng tiền vượt hạn mức " + Number(nHitTh).toLocaleString("vi-VN")
+					+ " VND của ngân sách " + sHitIO
+					+ ". Đề nghị sẽ cần CFO duyệt trước, rồi CEO duyệt lần nữa.";
 			} else if (fTotal > LEGAL_WARN_THRESHOLD) {
-				sWarn = "Giá trị lớn (> 100 triệu VND) — CFO sẽ xem xét kỹ.";
+				sWarn = "Đề nghị trên 100 triệu VND — CFO sẽ xem xét kỹ trước khi duyệt.";
 			} else if (aItems.some(function (it) { return !!String(it.internalOrder || "").trim(); })) {
-				sWarn = "Đề nghị tính vào ngân sách của phòng. Leo CEO khi vượt ngưỡng đã cấu hình.";
+				sWarn = "Đề nghị này trừ vào ngân sách của phòng. Nếu tổng tiền vượt hạn mức của ngân sách đó thì cần thêm CEO duyệt.";
 			}
 			oModel.setProperty("/escalationText", sWarn);
 		},
@@ -849,7 +850,7 @@ sap.ui.define([
 						+ (bIsResubmit ? " (bản gửi lại)" : "") + "\n\n"
 						+ "Gồm " + iItemCount + " dòng, tổng "
 						+ nTotalPRValue.toLocaleString("vi-VN") + " " + sCurrency + ".\n"
-						+ "Đang chờ Bộ phận Mua sắm xem xét — PR trên SAP sẽ được tạo sau khi duyệt.";
+						+ "Đang chờ Phòng Mua sắm xem xét — PR trên SAP sẽ được tạo sau khi duyệt.";
 					if (aWarnings.length) {
 						sMsg += "\n\nLưu ý: " + aWarnings.join(" ");
 					}
