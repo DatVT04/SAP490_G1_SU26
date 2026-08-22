@@ -178,13 +178,6 @@
           "target": "rfq02"
         },
         {
-          "name": "thresholdConfig",
-          "pattern": "threshold-config",
-          "target": [
-            "targetThresholdConfig"
-          ]
-        },
-        {
           "name": "assetAssign",
           "pattern": "assign-asset",
           "target": "assetAssign"
@@ -240,12 +233,6 @@
           "viewName": "rfq.RFQ02",
           "viewId": "rfq02",
           "viewLevel": 2
-        },
-        "targetThresholdConfig": {
-          "viewType": "XML",
-          "transition": "slide",
-          "clearControlAggregation": true,
-          "viewName": "admin.ThresholdConfig"
         },
         "assetAssign": {
           "viewName": "asset.AssetAssign",

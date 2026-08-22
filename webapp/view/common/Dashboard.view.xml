@@ -300,27 +300,6 @@
 						/>
 					</VBox>
 
-					<!-- CONFIG -->
-					<VBox
-						class="qdActionCard qdAccentSlate"
-						visible="{= ${user>/role} === 'CEO' }"
-					>
-						<HBox alignItems="Center" justifyContent="SpaceBetween" class="qdActionHead">
-							<VBox class="qdActionIconBox">
-								<core:Icon src="sap-icon://action-settings" class="qdActionIcon"/>
-							</VBox>
-							<Text text="CONFIG" class="qdActionCode"/>
-						</HBox>
-						<Title text="{i18n>tileSysConfigTitle}" level="H3" class="qdActionTitle"/>
-						<Button
-							text="{i18n>dashTileOpen}"
-							icon="sap-icon://arrow-right"
-							iconFirst="false"
-							press=".onNavToThresholdConfig"
-							class="qdActionBtn"
-						/>
-					</VBox>
-
 				</HBox>
 			</VBox>
 

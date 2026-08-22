@@ -14,7 +14,7 @@ sap.ui.define([
 	var PROTECTED_ROUTES = [
 		"dashboard", "pr01", "pr02", "prdetail", "history",
 		"po01", "po02", "rfq01", "rfq02",
-		"thresholdConfig", "assetAssign"
+		"assetAssign"
 	];
 
 	return UIComponent.extend("com.qdavy.procurement.Component", {

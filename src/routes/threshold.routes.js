@@ -17,34 +17,9 @@ router.get("/api/thresholds", (req, res) => {
 	return res.json({ success: true, byIO: thresholdStore.byIO });
 });
 
-router.put("/api/thresholds", (req, res) => {
-	const body = req.body || {};
+// 22/08/2026: bo endpoint PUT /api/thresholds. Man "Cau hinh he thong" cua CEO
+// da go, khong con cho nao sua nguong tu web. Nguong la cau hinh co dinh trong
+// data/thresholds.json (mo phong characteristic gia tri cua release strategy),
+// chi doc bang GET o tren de PR-01 canh bao truoc khi gui.
 
-	if (body.internalOrder != null) {
-		const key = normalizeOrderNo(body.internalOrder);
-		if (!key) {
-			return res.status(400).json({ success: false, message: "Internal Order khong hop le." });
-		}
-		if (body.threshold == null || body.threshold === "") {
-			delete thresholdStore.byIO[key];
-		} else {
-			thresholdStore.byIO[key] = Number(body.threshold);
-		}
-	}
-
-	if (body.byIO && typeof body.byIO === "object") {
-		Object.keys(body.byIO).forEach(function (io) {
-			const key = normalizeOrderNo(io);
-			if (!key) { return; }
-			if (body.byIO[io] == null || body.byIO[io] === "") {
-				delete thresholdStore.byIO[key];
-			} else {
-				thresholdStore.byIO[key] = Number(body.byIO[io]);
-			}
-		});
-	}
-
-	saveThresholds();
-	return res.json({ success: true, byIO: thresholdStore.byIO });
-});
 module.exports = router;

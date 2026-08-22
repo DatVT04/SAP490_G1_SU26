@@ -22,7 +22,8 @@ sap.ui.define([
 		// 21/08/2026: bo "materialCreate" — danh muc vat tu coi nhu da cau hinh san trong SAP.
 		PURCHASING: ["pr02", "rfq01", "rfq02", "po01", "assetAssign", "history"],
 		CFO:        ["po02", "history"],
-		CEO:        ["po02", "config", "history"],
+		// 22/08/2026: bo tile CONFIG. CEO chi con duyet de nghi vuot nguong.
+		CEO:        ["po02", "history"],
 		// 21/08/2026: ACC KHONG co man nao tren web. Theo luong cua nhom, ke toan
 		// lam viec truc tiep trong SAP GUI (MIGO nhan hang, MIRO kiem hoa don) —
 		// khong phai chua kip lam man cho ho, ma la co y khong lam.
@@ -399,10 +400,6 @@ sap.ui.define([
 
 		onNavToAssetAssign: function () {
 			this.getOwnerComponent().getRouter().navTo("assetAssign");
-		},
-
-		onNavToThresholdConfig: function () {
-			this.getOwnerComponent().getRouter().navTo("thresholdConfig");
 		},
 
 		onAvatarPress: function (oEvent) {
