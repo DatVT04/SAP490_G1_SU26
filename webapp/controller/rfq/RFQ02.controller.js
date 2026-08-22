@@ -90,11 +90,8 @@ sap.ui.define([
 				pendingVendors: [],
 				vendorChoices: [],
 				paymentTerms: [],
-				// allVendors: toan bo NCC tu master (VendorSet) — de dropdown nhap bao
-				// gia chon duoc ca NCC NGOAI danh sach moi ban dau (them bao gia moi).
-				allVendors: [],
 				// quoteModeText/State: MessageStrip ngu canh tren form nhap bao gia —
-				// dang SUA bao gia da co (Warning) hay THEM NCC ngoai danh sach (Information).
+				// canh bao khi dang GHI DE bao gia da co cua NCC (Warning).
 				quoteModeText: "",
 				quoteModeState: "Information",
 				// aiMessages: mang {role:"user"|"ai", text} — nguon du lieu that cua khung chat.
@@ -107,7 +104,6 @@ sap.ui.define([
 			}));
 
 			this._loadPaymentTerms();
-			this._loadAllVendors();
 
 			// Khong de UI5 tre 1 giay moi ve spinner: trong 1 giay do man hinh trong
 			// nhu binh thuong nhung da bi khoa, nguoi dung bam gi cung khong an
@@ -286,9 +282,8 @@ sap.ui.define([
 					oModel.setProperty("/quotations", res.quotations || []);
 					oModel.setProperty("/pendingVendors", res.pendingVendors || []);
 
-					// Dropdown NCC gop tu 3 nguon (chua nop / da nop — sua lai / ngoai
-					// danh sach moi — them moi); logic nam o _buildVendorChoices de goi
-					// lai duoc khi /api/vendors ve cham hon /compare.
+					// Dropdown NCC CHI gom NCC da duoc moi cua chinh RFQ nay
+					// (chua nop / da nop — sua lai); logic nam o _buildVendorChoices.
 					that._buildVendorChoices();
 
 					oWorkArea.setVisible(true);
@@ -372,41 +367,20 @@ sap.ui.define([
 			}
 		},
 
-		// ── 2c. NGUON NCC CHO FORM NHAP BAO GIA ──
-		// Tai toan bo NCC tu master dung 1 lan luc mo man hinh — nhom "ngoai danh
-		// sach moi" trong dropdown lay tu day.
-		_loadAllVendors: function () {
-			var oModel = this.getView().getModel();
-			var that = this;
-
-			fetch(BACKEND + "/api/vendors")
-				.then(function (r) { return r.json(); })
-				.then(function (res) {
-					oModel.setProperty("/allVendors", (res && res.data) || []);
-					// /compare co the da ve truoc — dung lai dropdown de nhom "ngoai
-					// danh sach moi" khong bi thieu.
-					that._buildVendorChoices();
-				})
-				.catch(function () {
-					// Khong chan man hinh: thieu master thi van nhap/sua duoc bao gia
-					// cua NCC da moi, chi khong them duoc NCC ngoai danh sach.
-				});
-		},
-
-		// Gop 3 nhom NCC vao 1 dropdown, thu tu: chua nop -> da nop (chon de sua,
-		// NCC bao lai gia lan 2) -> ngoai danh sach moi (them bao gia moi). Nhan
-		// ghi ro tung nhom de nguoi nhap khong ghi de nham.
+		// Dropdown CHI gom NCC DA DUOC MOI bao gia cua chinh RFQ nay, thu tu:
+		// chua nop -> da nop (chon de sua khi NCC bao lai gia lan 2).
+		//
+		// Vi sao BO nhom "ngoai danh sach moi" (21/08/2026): dung nghiep vu mua
+		// hang, phai gui yeu cau bao gia cho NCC thi moi co bao gia de nhap. Nhap
+		// gia cho NCC chua tung duoc moi la tao chung tu khong co goc — SAP
+		// standard cung vay, ME47 chi nhap duoc tren RFQ da ton tai. Muon them NCC
+		// thi quay lai RFQ-01 moi bo sung.
 		_buildVendorChoices: function () {
 			var oModel = this.getView().getModel();
 			if (!this._currentRfqId) { return; }
 
 			var aPending = oModel.getProperty("/pendingVendors") || [];
 			var aQuots = oModel.getProperty("/quotations") || [];
-			var aAll = oModel.getProperty("/allVendors") || [];
-
-			var oInRfq = {};
-			aPending.forEach(function (v) { oInRfq[String(v.VendorNo)] = true; });
-			aQuots.forEach(function (q) { oInRfq[String(q.VendorNo)] = true; });
 
 			var aChoices = aPending.map(function (v) {
 				return {
@@ -422,23 +396,13 @@ sap.ui.define([
 						ChoiceLabel: q.VendorNo + " — " + (q.VendorName || "") + "  ·  đã nhập — chọn để sửa (báo lại giá)"
 					};
 				})
-			).concat(
-				aAll.filter(function (v) { return !oInRfq[String(v.VendorNo)]; })
-					.map(function (v) {
-						return {
-							VendorNo: v.VendorNo,
-							VendorName: v.VendorName,
-							ChoiceLabel: v.VendorNo + " — " + (v.VendorName || "") + "  ·  ngoài danh sách mời — thêm mới"
-						};
-					})
 			);
 			oModel.setProperty("/vendorChoices", aChoices);
 		},
 
 		// Chon NCC trong dropdown: NCC DA co bao gia -> dien san so lieu cu de sua
-		// (bao lai gia lan 2) + canh bao ghi de; NCC ngoai danh sach moi -> bao ro
-		// se duoc them vao RFQ nay. SourceNote KHONG dien lai: can cu cua lan bao
-		// gia moi bat buoc nhap moi (audit trail).
+		// (bao lai gia lan 2) + canh bao ghi de. SourceNote KHONG dien lai: can cu
+		// cua lan bao gia moi bat buoc nhap moi (audit trail).
 		onQuoteVendorChange: function () {
 			var oView = this.getView();
 			var oModel = oView.getModel();
@@ -464,20 +428,9 @@ sap.ui.define([
 				return;
 			}
 
-			var bInvited = (oModel.getProperty("/pendingVendors") || []).some(function (v) {
-				return String(v.VendorNo) === String(sVendor);
-			});
-			if (sVendor && !bInvited) {
-				var sName = sVendor;
-				(oModel.getProperty("/allVendors") || []).forEach(function (v) {
-					if (String(v.VendorNo) === String(sVendor) && v.VendorName) { sName = v.VendorName; }
-				});
-				oModel.setProperty("/quoteModeText",
-					"NCC " + sName + " không nằm trong danh sách mời ban đầu. Khi lưu, hệ thống sẽ thêm báo giá của nhà cung cấp này vào yêu cầu báo giá.");
-				oModel.setProperty("/quoteModeState", "Information");
-			} else {
-				oModel.setProperty("/quoteModeText", "");
-			}
+			// Dropdown chi con NCC da duoc moi nen khong con truong hop "ngoai danh
+			// sach moi": chon NCC chua nop thi khong can canh bao gi.
+			oModel.setProperty("/quoteModeText", "");
 		},
 
 		// ── 3. LUU 1 BAO GIA (audit trail: enteredBy tu user model, sourceNote bat buoc) ──
@@ -562,9 +515,7 @@ sap.ui.define([
 						});
 						return;
 					}
-					MessageToast.show(oResult.body.mode === "created"
-						? "Đã thêm báo giá của nhà cung cấp " + oPayload.vendorNo + "."
-						: "Đã cập nhật báo giá của nhà cung cấp " + oPayload.vendorNo + ".");
+					MessageToast.show("Đã lưu báo giá của nhà cung cấp " + oPayload.vendorNo + ".");
 					that._clearQuotationForm();
 					that._loadCompare();
 					that._loadRfqList();

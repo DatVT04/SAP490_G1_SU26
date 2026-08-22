@@ -383,7 +383,8 @@ sap.ui.define([
 
 				// 3. Đổ dữ liệu tổ chức (Card 2).
 				// Bản ghi PR không lưu org data, nên lấy mặc định từ /api/config (ORG_DEFAULTS
-				// bên server) — vẫn cho sửa tay nếu PR nào đó thực sự khác.
+				// bên server). Từ 21/08/2026 ba ô này để CHỈ ĐỌC trên màn hình — org của hệ
+				// thống chỉ có một bộ, người mua không có việc gì phải gõ lại.
 				var oOrg = this._orgDefaults || {};
 				oView.byId("inCompanyCode").setValue(oPRData.CompanyCode || oOrg.companyCode || "");
 				oView.byId("inPurchOrg").setValue(oPRData.PurchOrg || oOrg.purchOrg || "");
@@ -632,7 +633,16 @@ sap.ui.define([
 		},
 
 
-		/** Chon san NCC thang thau cua nhom dang lap + hien nhan giai thich. */
+		/**
+		 * Chon san NCC thang thau cua nhom dang lap + hien nhan giai thich.
+		 *
+		 * KHOA o dropdown (21/08/2026): NCC da duoc chot o buoc bao gia thi don hang
+		 * BAT BUOC dat cho chinh NCC do — doi sang NCC khac la don hang khong co goc,
+		 * vi gia ben duoi van la gia cua NCC thang thau chao. Muon doi thi phai quay
+		 * lai RFQ chot lai. Backend /api/po/create cung chan doc lap (khong tin FE).
+		 *
+		 * Nhom chua co NCC (PR cu / PR khong di qua RFQ) thi van mo de khong ket.
+		 */
 		_applyGroupVendor: function (oGroup) {
 			var oView = this.getView();
 			var oStrip = oView.byId("msRfqInherited");
@@ -641,12 +651,14 @@ sap.ui.define([
 
 			if (!sVendorNo) {
 				oVendorBox.setSelectedKey("");
+				oVendorBox.setEditable(true);
 				oView.byId("inVendorEmail").setValue("");
 				if (oStrip) { oStrip.setVisible(false); }
 				return;
 			}
 
 			oVendorBox.setSelectedKey(sVendorNo);
+			oVendorBox.setEditable(false);
 
 			// Email + MST lay tu danh sach /Vendors da tai san, khong bat chon lai tay.
 			var aVendors = oView.getModel().getProperty("/Vendors") || [];
@@ -674,7 +686,8 @@ sap.ui.define([
 					+ ": " + (oGroup.VendorName || sVendorNo)
 					+ " — " + this.formatCurrency(oGroup.FinalValue) + " "
 					+ (this._currentPR && this._currentPR.Currency ? this._currentPR.Currency : "")
-					+ ". Đơn giá từng dòng được phân bổ theo tỷ trọng dự toán — sửa lại được nếu báo giá có bảng chi tiết."
+					+ ". Nhà cung cấp đã chốt nên không đổi được ở bước này — muốn đổi phải quay lại bước báo giá."
+					+ " Đơn giá từng dòng được phân bổ theo tỷ trọng dự toán — sửa lại được nếu báo giá có bảng chi tiết."
 				);
 				oStrip.setVisible(true);
 			}

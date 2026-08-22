@@ -354,14 +354,14 @@
 							</HBox>
 
 							<MessageStrip
-								text="Chỉ dùng khi nhà cung cấp trả lời bằng email/điện thoại. Báo giá gửi qua link trong thư mời sẽ tự hiện ở bảng so sánh. Chọn nhà cung cấp đã nộp để sửa khi họ báo lại giá; chọn nhà cung cấp ngoài danh sách mời để thêm báo giá mới."
+								text="Chỉ dùng khi nhà cung cấp trả lời bằng email/điện thoại. Báo giá gửi qua link trong thư mời sẽ tự hiện ở bảng so sánh. Danh sách chỉ gồm các nhà cung cấp đã được mời báo giá của yêu cầu này — muốn thêm nhà cung cấp khác thì quay lại RFQ-01 để mời."
 								type="Information"
 								showIcon="true"
 								class="sapUiSmallMarginBottom"
 							/>
-							<!-- Strip ngu canh: dang SUA bao gia da co (Warning, ghi de) hay
-							     THEM NCC ngoai danh sach moi (Information) — set o
-							     onQuoteVendorChange, xoa o _clearQuotationForm. -->
+							<!-- Strip ngu canh: canh bao khi dang SUA bao gia da co (Warning,
+							     ghi de) — set o onQuoteVendorChange, xoa o
+							     _clearQuotationForm. -->
 							<MessageStrip
 								text="{/quoteModeText}"
 								type="{/quoteModeState}"
@@ -373,9 +373,9 @@
 							<HBox wrap="Wrap" alignItems="End" class="qdInfoRow">
 								<VBox class="sapUiSmallMarginEnd sapUiTinyMarginBottom">
 									<Label text="Nhà cung cấp" required="true"/>
-									<!-- ComboBox thay Select: danh sach gio gom ca NCC ngoai danh
-									     sach moi (~50 NCC) nen phai go duoc de tim; selectionChange
-									     dien san so lieu cu khi chon NCC da nop (sua gia lan 2). -->
+									<!-- ComboBox thay Select: van de go tim khi RFQ moi nhieu NCC;
+									     selectionChange dien san so lieu cu khi chon NCC da nop
+									     (sua gia lan 2). -->
 									<ComboBox
 										id="selQuoteVendor"
 										width="22rem"

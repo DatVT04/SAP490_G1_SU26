@@ -10,7 +10,7 @@ const express = require("express");
 const axios = require("axios");
 const { sapPoAmount } = require("../config/master-data");
 const { ODATA_SERVICE_PATH, ORG_DEFAULTS } = require("../config/org");
-const { extractSapErrorMessage, odataEscape, sapAuth, sapWrite } = require("../lib/sap-client");
+const { extractSapErrorMessage, odataEscape, sapAuth, sapRead, sapWrite } = require("../lib/sap-client");
 const { notifyCeos, notifyPurchasing, notifyRequester } = require("../services/notify.service");
 const { attachQuotationEvidence } = require("../services/decision-context.service");
 const { sendPOEmailToVendor } = require("../services/po-mail.service");
@@ -90,6 +90,37 @@ router.post("/api/po/create", async (req, res) => {
 		const message = extractSapErrorMessage(error);
 		console.error("[POST /api/po/create] Doc PrDraft de kiem tra trang thai THAT BAI:", message);
 		return res.status(502).json({ success: false, message });
+	}
+
+	// ── NCC TREN PO PHAI DUNG BANG NCC DA THANG THAU O RFQ ──────────────────────
+	// Chot NCC o buoc bao gia roi ma don hang lai dat cho NCC khac thi don hang do
+	// khong co goc: gia dang dung la gia cua NCC thang thau chao, con ca vong so
+	// sanh bao gia thi mat y nghia. Trong SAP standard, PO tao tham chieu quotation
+	// cung khoa cung NCC nhu vay.
+	//
+	// FE (PO-01) da khoa o dropdown, nhung khong tin FE — goi thang API bang Postman
+	// van tao duoc PO. Bo qua khi khong co rfqId: PR cu / PR khong di qua RFQ giu
+	// nguyen hanh vi cu.
+	if (rfqId) {
+		try {
+			const rfqResp = await sapRead(`RfqSet('${odataEscape(String(rfqId))}')`);
+			const rfqHead = (rfqResp.data && rfqResp.data.d) || null;
+			const awardedRaw = rfqHead ? String(rfqHead.AwardedVendor || "").trim() : "";
+			const awarded = /^\d+$/.test(awardedRaw) ? awardedRaw.padStart(10, "0") : awardedRaw;
+			const sentRaw = String(vendorNo || "").trim();
+			const sent = /^\d+$/.test(sentRaw) ? sentRaw.padStart(10, "0") : sentRaw;
+			if (awarded && awarded !== sent) {
+				return res.status(400).json({
+					success: false,
+					message: "Nhà cung cấp trên đơn hàng (" + sent + ") khác nhà cung cấp đã trúng thầu ở "
+						+ rfqId + " (" + awarded + "). Muốn đổi nhà cung cấp thì phải quay lại bước báo giá để chốt lại."
+				});
+			}
+		} catch (error) {
+			const message = extractSapErrorMessage(error);
+			console.error("[POST /api/po/create] Doc RfqSet de kiem tra NCC trung thau THAT BAI:", message);
+			return res.status(502).json({ success: false, message });
+		}
 	}
 
 	// Trường hợp kết nối SAP OData thật

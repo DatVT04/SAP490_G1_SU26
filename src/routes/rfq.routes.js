@@ -431,12 +431,25 @@ router.post("/api/rfq/:id/quotation", async (req, res) => {
 
 		const session = await sapFetchCsrfToken();
 
-		// Bao gia nay la SUA (NCC da nam trong RFQ — ke ca da nop, NCC bao lai gia
-		// lan 2) hay THEM MOI (NCC ngoai danh sach moi ban dau)? Doc truoc de chon
-		// duong di va tra ve dung thong bao cho FE.
+		// NCC phai NAM TRONG danh sach duoc moi cua chinh RFQ nay. Dong QuotationSet
+		// cua tung NCC duoc tao ngay luc /api/rfq/create, nen khong tim thay dong
+		// nghia la NCC nay chua tung duoc moi bao gia.
+		//
+		// Vi sao CHAN (21/08/2026): dung nghiep vu mua hang, phai gui yeu cau bao gia
+		// di thi moi co bao gia de nhap — nhap gia cho NCC chua moi la tao chung tu
+		// khong co goc (SAP standard cung vay: ME47 chi nhap duoc tren RFQ da ton
+		// tai). Giao dien da bo nhom "ngoai danh sach moi" khoi dropdown, nhung
+		// khong tin FE — goi thang API van ghi duoc neu khong chan o day.
 		const existingResp = await sapRead(`RfqSet('${odataEscape(id)}')/RfqToQuotations`);
 		const existingQuotes = (existingResp.data && existingResp.data.d && existingResp.data.d.results) || [];
 		const currentQuote = existingQuotes.find((q) => String(q.VendorNo) === String(vendorNo)) || null;
+		if (!currentQuote) {
+			return res.status(400).json({
+				success: false,
+				message: "NCC " + vendorNo + " khong nam trong danh sach duoc moi bao gia cua RFQ " + id
+					+ ". Phai gui yeu cau bao gia cho NCC nay truoc (man RFQ-01) roi moi nhap duoc bao gia."
+			});
+		}
 
 		const payload = {
 			QuotedPrice: String(quotedPrice),
@@ -451,23 +464,6 @@ router.post("/api/rfq/:id/quotation", async (req, res) => {
 			SourceNote: String(sourceNote).trim()
 		};
 
-		if (!currentQuote) {
-			// NCC moi phai co that trong danh muc NCC (VendorSet) — khong thi den
-			// buoc PO-01 se khong tao PO duoc. Lay luon ten/email tu master de dong
-			// bao gia moi hien day du trong bang so sanh (QUOTATIONSET_UPDATE_ENTITY
-			// ben ABAP chi ghi field IS NOT INITIAL nen gui kem tu day la du).
-			const master = (await fetchAllVendorsFromSAP())
-				.find((v) => String(v.VendorNo) === String(vendorNo)) || null;
-			if (!master) {
-				return res.status(400).json({
-					success: false,
-					message: "NCC " + vendorNo + " khong ton tai trong danh muc NCC (VendorSet). Tao NCC trong SAP (BP/XK01) truoc roi nhap lai bao gia."
-				});
-			}
-			payload.VendorName = master.VendorName || "";
-			payload.VendorEmail = master.Email || master.VendorEmail || "";
-		}
-
 		await sapWrite(
 			"MERGE",
 			`QuotationSet(RfqId='${odataEscape(id)}',VendorNo='${odataEscape(vendorNo)}')`,
@@ -475,29 +471,13 @@ router.post("/api/rfq/:id/quotation", async (req, res) => {
 			session
 		);
 
-		if (!currentQuote) {
-			// Nhanh key-chua-ton-tai chua tung chay qua QUOTATIONSET_UPDATE_ENTITY:
-			// chi tao duoc dong moi neu ABAP ghi bang MODIFY (upsert). Doc lai kiem
-			// chung — thieu dong thi bao ro cach sua ABAP thay vi de FE tuong da
-			// luu xong (silent fail, cung loai bug SELECT-khong-WHERE 14/08).
-			const verifyResp = await sapRead(`RfqSet('${odataEscape(id)}')/RfqToQuotations`);
-			const verifyRows = (verifyResp.data && verifyResp.data.d && verifyResp.data.d.results) || [];
-			const createdRow = verifyRows.find((q) => String(q.VendorNo) === String(vendorNo));
-			if (!createdRow) {
-				return res.status(502).json({
-					success: false,
-					message: "SAP khong tao dong bao gia cho NCC moi " + vendorNo
-						+ " — method QUOTATIONSET_UPDATE_ENTITY chua ho tro them dong. Sua ABAP: trong method do doi lenh ghi sang MODIFY zg1_quotation (MODIFY = insert neu chua co, update neu da co)."
-				});
-			}
-		}
-
 		await promoteRfqAfterQuotation(id, session);
 
 		return res.json({
 			success: true,
-			// FE dua vao mode de hien dung toast "da them moi" / "da cap nhat".
-			mode: currentQuote ? "updated" : "created",
+			// Gio chi con truong hop cap nhat bao gia cua NCC da duoc moi — nhanh
+			// "created" da bi chan o tren. Giu field de FE cu khong vo.
+			mode: "updated",
 			previousPrice: currentQuote ? currentQuote.QuotedPrice : null
 		});
 	} catch (error) {

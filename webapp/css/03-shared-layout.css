@@ -250,6 +250,39 @@
 	margin-top: 0.2rem;
 }
 
+/* Bien the CHIA DEU cua qdInfoRow (PO-01 "Thong tin de nghi goc").
+   Ban goc de cac o co dan theo do dai noi dung (flex: 0 1 auto) nen moi o mot be
+   ngang khac nhau, xuong dong thanh 3 + 2 le so le, con vach ngan thi lo lung o
+   cuoi hang tren -> nhin roi. O day cho cac o co gian deu nhau va bo han vach
+   ngan, chi dua vao khoang trong de tach.
+   Nham vao con TRUC TIEP (> *) chu khong nham .qdInfoCell, vi sap.m.FlexBox boc
+   moi phan tu trong mot div rieng — dat flex len o ben trong se khong an. */
+.qdInfoRowEven {
+	flex-wrap: wrap;
+	gap: 1rem 1.5rem;
+}
+
+.qdInfoRowEven > * {
+	/* 3 cot deu nhau: 33,333% tru 1rem, cong 2 khoang gap 1,5rem la vua tron 100%.
+	   Dung flex-grow 0 (khong phai 1) de hang cuoi chi con 2 o KHONG bi keo rong
+	   hon hang tren — co vay cac cot moi thang hang giua cac dong. */
+	flex: 0 1 calc(33.333% - 1rem);
+	min-width: 12rem;
+}
+
+.qdInfoRowEven .qdInfoCell {
+	min-width: 0;
+	padding-right: 0;
+	border-right: none;
+}
+
+@media (max-width: 767px) {
+	.qdInfoRowEven > * {
+		flex: 0 1 100%;
+		min-width: 100%;
+	}
+}
+
 /* Bo dem ky tu cua o "Ly do de nghi mua" (PR-01). Mau xam nhu hint, chuyen
    cam khi sap cham tran de nguoi dung biet ma go gon lai. */
 .qdReasonCounter {

@@ -39,14 +39,18 @@
 								</VBox>
 							</HBox>
 
-							<SearchField
-								id="sfApprovedPRSearch"
-								placeholder="Tìm mã PR, mô tả hoặc mã vật tư / dịch vụ..."
-								liveChange=".onApprovedPRSearch"
-								search=".onApprovedPRSearch"
-								width="100%"
-								class="sapUiSmallMarginBegin sapUiSmallMarginEnd sapUiTinyMarginBottom"
-							/>
+							<!-- Le trai/phai dat o VBox boc ngoai, KHONG dat thang len SearchField:
+							     width="100%" cong margin thi tong be ngang vuot khung cha nen o tim
+							     bi tran sang phai, lech so voi bang ben duoi. -->
+							<VBox class="sapUiSmallMarginBegin sapUiSmallMarginEnd sapUiTinyMarginBottom">
+								<SearchField
+									id="sfApprovedPRSearch"
+									placeholder="Tìm mã PR, mô tả hoặc mã vật tư / dịch vụ..."
+									liveChange=".onApprovedPRSearch"
+									search=".onApprovedPRSearch"
+									width="100%"
+								/>
+							</VBox>
 
 							<!-- Lấy dữ liệu thật trực tiếp từ EntitySet PurchaseRequisitions -->
 							<ScrollContainer height="calc(100vh - 24rem)" width="100%" vertical="true" horizontal="false" focusable="false">
@@ -99,7 +103,7 @@
 								<Title text="Thông tin đề nghị gốc (PR Reference)" level="H3" class="qdCardTitle"/>
 							</HBox>
 
-							<HBox wrap="Wrap" class="qdInfoRow">
+							<HBox wrap="Wrap" class="qdInfoRow qdInfoRowEven">
 								<VBox class="qdInfoCell">
 									<Label text="Mã PR / Dòng" class="qdInfoLabel"/>
 									<Text id="txtSelectedPR" text="--" class="qdInfoValue"/>
@@ -129,7 +133,7 @@
 								<Text text="3" class="qdStepBadge qdStepBadgePurple"/>
 								<VBox>
 									<Title text="Dữ liệu Tổ chức &amp; Bên mua" level="H3" class="qdCardTitle"/>
-									<Text text="Loại chứng từ, dữ liệu tổ chức mua hàng theo chuẩn SAP và thông tin người đại diện" class="qdCellHint"/>
+									<Text text="Dữ liệu tổ chức lấy theo cấu hình hệ thống từ lúc lập đề nghị — chỉ xem, không sửa" class="qdCellHint"/>
 								</VBox>
 							</HBox>
 
@@ -150,25 +154,31 @@
 								<f:content>
 									<core:Title text="Dữ liệu tổ chức (Org Data)" class="qdFormSectionTitle qdFormSectionTitlePurple"/>
 
-									<Label text="Mã công ty (Company Code)" required="true"/>
+									<!-- CHI DOC (21/08/2026): 3 field nay do he thong xac dinh, khong
+									     phai thu tu nguoi mua nhap. Truoc day de sua tay VOI gia tri mac
+									     dinh 1000/1000/001 (so kieu IDES, khong ton tai trong he thong
+									     cua nhom) — go nham la PO ghi sang cong ty/to chuc mua khong co
+									     that. Gia tri that do controller do vao tu /api/config; de san
+									     org that o day lam duong lui neu /api/config loi. -->
+									<Label text="Mã công ty (Company Code)"/>
 									<Input
 										id="inCompanyCode"
-										value="1000"
-										placeholder="VD: 1000"
+										value="QD01"
+										editable="false"
 									/>
 
-									<Label text="Tổ chức mua hàng (Purchasing Org)" required="true"/>
+									<Label text="Tổ chức mua hàng (Purchasing Org)"/>
 									<Input
 										id="inPurchOrg"
-										value="1000"
-										placeholder="VD: 1000"
+										value="QDPO"
+										editable="false"
 									/>
 
-									<Label text="Nhóm mua hàng (Purchasing Group)" required="true"/>
+									<Label text="Nhóm mua hàng (Purchasing Group)"/>
 									<Input
 										id="inPurchGroup"
-										value="001"
-										placeholder="VD: 001"
+										value="QD1"
+										editable="false"
 									/>
 
 									<Label text="Loại chứng từ (Doc Type)"/>
